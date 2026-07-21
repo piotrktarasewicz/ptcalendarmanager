@@ -2,6 +2,15 @@
 
 All notable changes to Google Calendar Manager are documented in this file.
 
+## 1.0.3 - 2026-07-21
+
+### Changed
+
+- The custom event-search range is now configured directly in the main search dialog.
+- Selecting `Custom range` shows the start day, start month, end day, and end month fields before the Search button.
+- Switching back to a predefined range hides the custom date fields and removes them from keyboard navigation.
+- The predefined one-, three-, six-, and twelve-month search ranges continue to work as before.
+
 ## 1.0.2 - 2026-07-06
 
 Public test release candidate.
