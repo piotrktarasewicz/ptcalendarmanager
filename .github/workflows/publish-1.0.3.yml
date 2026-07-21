@@ -1,0 +1,142 @@
+name: Publish Google Calendar Manager 1.0.3
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-1.0.3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build add-on package from tested 1.0.2 release
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.request import urlopen
+          from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+          source_url = (
+              "https://github.com/piotrktarasewicz/"
+              "nvda-google-calendar-manager/releases/download/v1.0.2/"
+              "googleCalendarManager-1.0.2.nvda-addon"
+          )
+          old_package = Path("googleCalendarManager-1.0.2.nvda-addon")
+          new_package = Path("googleCalendarManager-1.0.3.nvda-addon")
+
+          with urlopen(source_url) as response:
+              old_package.write_bytes(response.read())
+
+          replacements = {
+              "manifest.ini": Path("manifest.ini"),
+              "globalPlugins/googleCalendarManager/__init__.py": Path(
+                  "globalPlugins/googleCalendarManager/__init__.py"
+              ),
+              "globalPlugins/googleCalendarManager/search_ui.py": Path(
+                  "globalPlugins/googleCalendarManager/search_ui.py"
+              ),
+          }
+
+          seen = set()
+          with ZipFile(old_package, "r") as source, ZipFile(
+              new_package,
+              "w",
+              compression=ZIP_DEFLATED,
+              compresslevel=9,
+          ) as target:
+              for original_info in source.infolist():
+                  normalized_name = original_info.filename.replace("\\", "/")
+                  if normalized_name in replacements or normalized_name in seen:
+                      continue
+                  seen.add(normalized_name)
+
+                  info = ZipInfo(normalized_name, date_time=original_info.date_time)
+                  info.compress_type = ZIP_DEFLATED
+                  info.external_attr = original_info.external_attr
+                  info.create_system = original_info.create_system
+                  info.flag_bits = original_info.flag_bits
+                  target.writestr(info, source.read(original_info.filename))
+
+              for archive_name, source_path in replacements.items():
+                  if not source_path.is_file():
+                      raise FileNotFoundError(source_path)
+                  target.write(source_path, archive_name)
+
+          with ZipFile(new_package, "r") as package:
+              bad_file = package.testzip()
+              if bad_file is not None:
+                  raise RuntimeError(f"Damaged ZIP member: {bad_file}")
+
+              required = {
+                  "manifest.ini",
+                  "globalPlugins/googleCalendarManager/__init__.py",
+                  "globalPlugins/googleCalendarManager/search_ui.py",
+                  "globalPlugins/googleCalendarManager/client_secret.json",
+              }
+              names = set(package.namelist())
+              missing = sorted(required - names)
+              if missing:
+                  raise RuntimeError(f"Missing required package files: {missing}")
+
+              manifest = package.read("manifest.ini").decode("utf-8")
+              if "version = 1.0.3" not in manifest:
+                  raise RuntimeError("The package manifest does not contain version 1.0.3")
+
+          print(f"Built {new_package} ({new_package.stat().st_size} bytes)")
+          PY
+
+          sha256sum googleCalendarManager-1.0.3.nvda-addon \
+            > googleCalendarManager-1.0.3.nvda-addon.sha256
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > release-notes.md <<'EOF'
+          Google Calendar Manager 1.0.3 is the latest public test version.
+
+          Changes in this version:
+
+          - The custom event-search range is configured directly in the main search dialog.
+          - Selecting Custom range shows the start day, start month, end day and end month fields before the Search button.
+          - Returning to a predefined range hides those fields and removes them from keyboard navigation.
+          - The predefined one-, three-, six- and twelve-month ranges work as before.
+
+          The add-on package is based on the previously tested 1.0.2 package and retains its bundled libraries and OAuth configuration. Only the files required for version 1.0.3 are replaced.
+
+          Google sign-in is currently available only to Google accounts added by the author as approved OAuth test users.
+          EOF
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view v1.0.3 >/dev/null 2>&1; then
+            gh release upload v1.0.3 \
+              googleCalendarManager-1.0.3.nvda-addon \
+              googleCalendarManager-1.0.3.nvda-addon.sha256 \
+              --clobber
+            gh release edit v1.0.3 \
+              --title "Google Calendar Manager 1.0.3 — public test" \
+              --notes-file release-notes.md \
+              --latest
+          else
+            gh release create v1.0.3 \
+              googleCalendarManager-1.0.3.nvda-addon \
+              googleCalendarManager-1.0.3.nvda-addon.sha256 \
+              --target main \
+              --title "Google Calendar Manager 1.0.3 — public test" \
+              --notes-file release-notes.md \
+              --latest
+          fi
