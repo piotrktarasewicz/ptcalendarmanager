@@ -1,0 +1,351 @@
+name: Apply Google Calendar Manager 1.0.4 event editing fix
+
+on:
+  push:
+    branches:
+      - agent/fix-event-editing-1.0.4
+    paths:
+      - .github/workflows/apply-1.0.4-event-edit-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-event-editing-1.0.4
+
+      - name: Apply isolated fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+          core_path = root / 'globalPlugins/googleCalendarManager/core.py'
+          auth_path = root / 'globalPlugins/googleCalendarManager/auth_helper.py'
+          manifest_path = root / 'manifest.ini'
+          changelog_path = root / 'CHANGELOG.md'
+
+          core = core_path.read_text(encoding='utf-8')
+
+          old = '''    def _build_recurrence_payload(self, raw_data, start_date):
+          '''
+          new = '''    def _parse_update_event_time_range(self, raw_data, event_date, original_event):
+              try:
+                  start_hour = int(str(raw_data.get("start_hour", "")).strip())
+                  start_minute = int(str(raw_data.get("start_minute", "")).strip())
+              except Exception:
+                  return False, self._t("add_event_error_start_time"), None, None
+
+              try:
+                  end_hour = int(str(raw_data.get("end_hour", "")).strip())
+                  end_minute = int(str(raw_data.get("end_minute", "")).strip())
+              except Exception:
+                  return False, self._t("add_event_error_end_time"), None, None
+
+              if start_hour < 0 or start_hour > 23 or start_minute < 0 or start_minute > 59:
+                  return False, self._t("add_event_error_start_time"), None, None
+
+              if end_hour < 0 or end_hour > 23 or end_minute < 0 or end_minute > 59:
+                  return False, self._t("add_event_error_end_time"), None, None
+
+              day_span = 0
+              original_start_iso = str(original_event.get("start_datetime", "")).strip()
+              original_end_iso = str(original_event.get("end_datetime", "")).strip()
+              if original_start_iso and original_end_iso:
+                  try:
+                      original_start_dt = datetime.datetime.fromisoformat(original_start_iso)
+                      original_end_dt = datetime.datetime.fromisoformat(original_end_iso)
+                      day_span = max(
+                          (original_end_dt.date() - original_start_dt.date()).days,
+                          0,
+                      )
+                  except Exception:
+                      day_span = 0
+
+              end_date = event_date + datetime.timedelta(days=day_span)
+              start_dt = datetime.datetime(
+                  event_date.year,
+                  event_date.month,
+                  event_date.day,
+                  start_hour,
+                  start_minute,
+              )
+              end_dt = datetime.datetime(
+                  end_date.year,
+                  end_date.month,
+                  end_date.day,
+                  end_hour,
+                  end_minute,
+              )
+
+              if end_dt <= start_dt:
+                  return False, self._t("add_event_error_end_before_start"), None, None
+
+              return True, "", start_dt, end_dt
+
+              def _build_recurrence_payload(self, raw_data, start_date):
+          '''
+          if old not in core:
+              raise SystemExit('time helper anchor not found')
+          core = core.replace(old, new, 1)
+
+          old = '''        is_valid, error_text, start_date = self._parse_day_month_to_date(raw_data)
+              if not is_valid:
+                  return False, error_text, None
+
+              calendar_id = str(original_event.get("calendar_id", "")).strip()
+          '''
+          new = '''        # Editing must preserve the year of the loaded event. The generic
+              # add-event parser intentionally chooses the next matching date, which
+              # is useful when creating a new event but can silently move an existing
+              # event to the following year after its anniversary has passed.
+              try:
+                  original_start_date = datetime.date.fromisoformat(
+                      str(original_event.get("date", "")).strip()
+                  )
+              except Exception:
+                  return False, self._t("edit_event_error_failed"), None
+
+              is_valid, error_text, start_date = self._parse_single_date(
+                  raw_data.get("day", ""),
+                  raw_data.get("month", ""),
+                  "add_event_error_day_required",
+                  "add_event_error_month_required",
+                  "add_event_error_invalid_date",
+                  reference_date=datetime.date(original_start_date.year, 1, 1),
+              )
+              if not is_valid:
+                  return False, error_text, None
+
+              calendar_id = str(original_event.get("calendar_id", "")).strip()
+          '''
+          marker = '    def _build_update_event_payload(self, raw_data, original_event):'
+          start = core.index(marker)
+          tail = core[start:]
+          if old not in tail:
+              raise SystemExit('update date anchor not found')
+          tail = tail.replace(old, new, 1)
+          core = core[:start] + tail
+
+          old = '''        else:
+                  is_valid, error_text, start_dt, end_dt = self._parse_add_event_time_range(raw_data, start_date)
+                  if not is_valid:
+                      return False, error_text, None
+
+                  payload["start_datetime"] = start_dt.isoformat()
+                  payload["end_datetime"] = end_dt.isoformat()
+
+              if recurrence_scope == "instance":
+          '''
+          new = '''        else:
+                  is_valid, error_text, start_dt, end_dt = self._parse_update_event_time_range(
+                      raw_data,
+                      start_date,
+                      original_event,
+                  )
+                  if not is_valid:
+                      return False, error_text, None
+
+                  payload["start_datetime"] = start_dt.isoformat()
+                  payload["end_datetime"] = end_dt.isoformat()
+
+              if recurrence_scope == "instance":
+          '''
+          marker = '    def _build_update_event_payload(self, raw_data, original_event):'
+          start = core.index(marker)
+          tail = core[start:]
+          if old not in tail:
+              raise SystemExit('update time anchor not found')
+          tail = tail.replace(old, new, 1)
+          core = core[:start] + tail
+
+          old = '''    def _show_operation_error_dialog(self, message_key, event_payload, result, report_path, operation_name):
+              report_content = self._build_error_report(operation_name, event_payload, result)
+
+              dialog = ErrorDetailsDialog(
+                  self._get_dialog_parent(),
+                  title=self._t("error_dialog_title"),
+                  message=self._t(message_key),
+                  details_label=self._t("error_dialog_details"),
+                  close_label=self._t("error_dialog_close"),
+              )
+              try:
+                  dialog_result = self._show_modal_dialog(dialog)
+              finally:
+                  dialog.Destroy()
+
+              try:
+                  self._save_error_report(report_path, report_content)
+              except Exception:
+                  pass
+
+              if dialog_result == wx.ID_MORE:
+                  opened = self._open_path(report_path)
+                  if not opened:
+                      self._show_message(
+                          self._t("error_details_open_failed"),
+                          self._t("error_dialog_title"),
+                      )
+          '''
+          new = '''    def _show_operation_error_dialog(self, message_key, event_payload, result, report_path, operation_name):
+              report_content = self._build_error_report(operation_name, event_payload, result)
+
+              try:
+                  self._save_error_report(report_path, report_content)
+              except Exception as error:
+                  report_content += (
+                      "\\n\\nThe report could not be saved to disk.\\n"
+                      f"Save error: {repr(error)}"
+                  )
+
+              dialog = ErrorDetailsDialog(
+                  self._get_dialog_parent(),
+                  title=self._t("error_dialog_title"),
+                  message=self._t(message_key),
+                  details_label=self._t("error_dialog_details"),
+                  close_label=self._t("error_dialog_close"),
+              )
+              try:
+                  dialog_result = self._show_modal_dialog(dialog)
+              finally:
+                  dialog.Destroy()
+
+              if dialog_result == wx.ID_MORE:
+                  # Show the report inside an accessible NVDA dialog. Opening a .txt
+                  # file through the Windows file association remains unreliable on
+                  # some systems and previously hid the useful technical details.
+                  self._show_readonly_dialog(
+                      self._t("error_dialog_title"),
+                      report_content,
+                  )
+          '''
+          if old not in core:
+              raise SystemExit('error details anchor not found')
+          core = core.replace(old, new, 1)
+          core_path.write_text(core, encoding='utf-8', newline='\n')
+
+          auth = auth_path.read_text(encoding='utf-8')
+          old = '''        event_body = {
+                  "summary": summary,
+              }
+
+              if "location" in payload:
+                  event_body["location"] = location
+
+              recurrence = _build_rrule(payload)
+              event_timezone = get_calendar_timezone(service)
+          '''
+          new = '''        # Google recommends reading the current event and then updating the
+              # complete resource. This also lets us replace the entire start/end
+              # objects when converting between timed and all-day events, so stale
+              # dateTime/date fields cannot remain in the resource.
+              event_body = service.events().get(
+                  calendarId=calendar_id,
+                  eventId=event_id,
+              ).execute()
+              if not isinstance(event_body, dict):
+                  raise ValueError("invalid event resource")
+
+              event_body["summary"] = summary
+
+              if "location" in payload:
+                  event_body["location"] = location
+
+              recurrence = _build_rrule(payload)
+              event_timezone = get_calendar_timezone(service)
+          '''
+          if old not in auth:
+              raise SystemExit('auth body anchor not found')
+          auth = auth.replace(old, new, 1)
+
+          old = '''        if recurrence_scope != "instance" and "recurrence_mode" in payload:
+                  event_body["recurrence"] = recurrence
+
+              updated = service.events().patch(
+                  calendarId=calendar_id,
+                  eventId=event_id,
+                  body=event_body
+              ).execute()
+          '''
+          new = '''        if recurrence_scope != "instance" and "recurrence_mode" in payload:
+                  if recurrence:
+                      event_body["recurrence"] = recurrence
+                  else:
+                      event_body.pop("recurrence", None)
+
+              update_kwargs = {
+                  "calendarId": calendar_id,
+                  "eventId": event_id,
+                  "body": event_body,
+              }
+              if event_body.get("attachments"):
+                  update_kwargs["supportsAttachments"] = True
+              if event_body.get("conferenceData"):
+                  update_kwargs["conferenceDataVersion"] = 1
+
+              updated = service.events().update(**update_kwargs).execute()
+          '''
+          if old not in auth:
+              raise SystemExit('auth update anchor not found')
+          auth = auth.replace(old, new, 1)
+          auth_path.write_text(auth, encoding='utf-8', newline='\n')
+
+          manifest = manifest_path.read_text(encoding='utf-8')
+          if 'version = 1.0.3' not in manifest:
+              raise SystemExit('manifest version anchor not found')
+          manifest_path.write_text(
+              manifest.replace('version = 1.0.3', 'version = 1.0.4', 1),
+              encoding='utf-8',
+              newline='\n',
+          )
+
+          changelog = changelog_path.read_text(encoding='utf-8')
+          entry = '''## 1.0.4 - 2026-07-25
+
+          ### Fixed
+
+          - Editing an existing event now preserves the year of the loaded event instead of moving a past start date to the following year.
+          - Editing a multi-day timed event now preserves the original number of calendar days between its start and end.
+          - Converting an event between timed and all-day formats now replaces the complete Google Calendar start and end objects by using the recommended get-then-update flow.
+          - Error details are now displayed directly in an accessible read-only dialog, even when Windows cannot open the saved text report.
+
+          '''
+          anchor = '## 1.0.3 - 2026-07-21\n'
+          if anchor not in changelog:
+              raise SystemExit('changelog anchor not found')
+          changelog_path.write_text(
+              changelog.replace(anchor, entry + anchor, 1),
+              encoding='utf-8',
+              newline='\n',
+          )
+          PY
+
+      - name: Validate Python and version
+        shell: bash
+        run: |
+          python -m py_compile \
+            globalPlugins/googleCalendarManager/core.py \
+            globalPlugins/googleCalendarManager/auth_helper.py
+          grep -F 'version = 1.0.4' manifest.ini
+          grep -F 'service.events().update' globalPlugins/googleCalendarManager/auth_helper.py
+          grep -F 'reference_date=datetime.date(original_start_date.year, 1, 1)' globalPlugins/googleCalendarManager/core.py
+
+      - name: Commit fix and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-1.0.4-event-edit-fix.yml
+          git add \
+            globalPlugins/googleCalendarManager/core.py \
+            globalPlugins/googleCalendarManager/auth_helper.py \
+            manifest.ini \
+            CHANGELOG.md
+          git commit -m "Fix event editing and error details"
+          git push origin HEAD:agent/fix-event-editing-1.0.4
