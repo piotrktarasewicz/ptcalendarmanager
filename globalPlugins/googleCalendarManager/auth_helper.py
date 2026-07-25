@@ -1034,9 +1034,18 @@ def api_update_event(payload, lang="en"):
         if not calendar_id or not event_id or not summary:
             raise ValueError("missing required fields")
 
-        event_body = {
-            "summary": summary,
-        }
+        # Google recommends reading the current event and then updating the
+        # complete resource. This also lets us replace the entire start/end
+        # objects when converting between timed and all-day events, so stale
+        # dateTime/date fields cannot remain in the resource.
+        event_body = service.events().get(
+            calendarId=calendar_id,
+            eventId=event_id,
+        ).execute()
+        if not isinstance(event_body, dict):
+            raise ValueError("invalid event resource")
+
+        event_body["summary"] = summary
 
         if "location" in payload:
             event_body["location"] = location
@@ -1084,13 +1093,22 @@ def api_update_event(payload, lang="en"):
             }
 
         if recurrence_scope != "instance" and "recurrence_mode" in payload:
-            event_body["recurrence"] = recurrence
+            if recurrence:
+                event_body["recurrence"] = recurrence
+            else:
+                event_body.pop("recurrence", None)
 
-        updated = service.events().patch(
-            calendarId=calendar_id,
-            eventId=event_id,
-            body=event_body
-        ).execute()
+        update_kwargs = {
+            "calendarId": calendar_id,
+            "eventId": event_id,
+            "body": event_body,
+        }
+        if event_body.get("attachments"):
+            update_kwargs["supportsAttachments"] = True
+        if event_body.get("conferenceData"):
+            update_kwargs["conferenceDataVersion"] = 1
+
+        updated = service.events().update(**update_kwargs).execute()
 
         return {
             "ok": True,
