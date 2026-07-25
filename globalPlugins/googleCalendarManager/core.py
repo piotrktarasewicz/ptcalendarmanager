@@ -721,6 +721,60 @@ class GlobalPlugin(BaseGlobalPlugin):
 
         return True, "", start_dt, end_dt
 
+    def _parse_update_event_time_range(self, raw_data, event_date, original_event):
+        try:
+            start_hour = int(str(raw_data.get("start_hour", "")).strip())
+            start_minute = int(str(raw_data.get("start_minute", "")).strip())
+        except Exception:
+            return False, self._t("add_event_error_start_time"), None, None
+
+        try:
+            end_hour = int(str(raw_data.get("end_hour", "")).strip())
+            end_minute = int(str(raw_data.get("end_minute", "")).strip())
+        except Exception:
+            return False, self._t("add_event_error_end_time"), None, None
+
+        if start_hour < 0 or start_hour > 23 or start_minute < 0 or start_minute > 59:
+            return False, self._t("add_event_error_start_time"), None, None
+
+        if end_hour < 0 or end_hour > 23 or end_minute < 0 or end_minute > 59:
+            return False, self._t("add_event_error_end_time"), None, None
+
+        day_span = 0
+        original_start_iso = str(original_event.get("start_datetime", "")).strip()
+        original_end_iso = str(original_event.get("end_datetime", "")).strip()
+        if original_start_iso and original_end_iso:
+            try:
+                original_start_dt = datetime.datetime.fromisoformat(original_start_iso)
+                original_end_dt = datetime.datetime.fromisoformat(original_end_iso)
+                day_span = max(
+                    (original_end_dt.date() - original_start_dt.date()).days,
+                    0,
+                )
+            except Exception:
+                day_span = 0
+
+        end_date = event_date + datetime.timedelta(days=day_span)
+        start_dt = datetime.datetime(
+            event_date.year,
+            event_date.month,
+            event_date.day,
+            start_hour,
+            start_minute,
+        )
+        end_dt = datetime.datetime(
+            end_date.year,
+            end_date.month,
+            end_date.day,
+            end_hour,
+            end_minute,
+        )
+
+        if end_dt <= start_dt:
+            return False, self._t("add_event_error_end_before_start"), None, None
+
+        return True, "", start_dt, end_dt
+
     def _build_recurrence_payload(self, raw_data, start_date):
         recurrence_mode = recurrence_index_to_mode(raw_data.get("recurrence_index", 0))
         recurrence_payload = {
@@ -819,7 +873,25 @@ class GlobalPlugin(BaseGlobalPlugin):
         if not title:
             return False, self._t("add_event_error_title_required"), None
 
-        is_valid, error_text, start_date = self._parse_day_month_to_date(raw_data)
+        # Editing must preserve the year of the loaded event. The generic
+        # add-event parser intentionally chooses the next matching date, which
+        # is useful when creating a new event but can silently move an existing
+        # event to the following year after its anniversary has passed.
+        try:
+            original_start_date = datetime.date.fromisoformat(
+                str(original_event.get("date", "")).strip()
+            )
+        except Exception:
+            return False, self._t("edit_event_error_failed"), None
+
+        is_valid, error_text, start_date = self._parse_single_date(
+            raw_data.get("day", ""),
+            raw_data.get("month", ""),
+            "add_event_error_day_required",
+            "add_event_error_month_required",
+            "add_event_error_invalid_date",
+            reference_date=datetime.date(original_start_date.year, 1, 1),
+        )
         if not is_valid:
             return False, error_text, None
 
@@ -858,7 +930,11 @@ class GlobalPlugin(BaseGlobalPlugin):
 
             payload["end_date"] = end_date.isoformat()
         else:
-            is_valid, error_text, start_dt, end_dt = self._parse_add_event_time_range(raw_data, start_date)
+            is_valid, error_text, start_dt, end_dt = self._parse_update_event_time_range(
+                raw_data,
+                start_date,
+                original_event,
+            )
             if not is_valid:
                 return False, error_text, None
 
@@ -1154,6 +1230,14 @@ class GlobalPlugin(BaseGlobalPlugin):
     def _show_operation_error_dialog(self, message_key, event_payload, result, report_path, operation_name):
         report_content = self._build_error_report(operation_name, event_payload, result)
 
+        try:
+            self._save_error_report(report_path, report_content)
+        except Exception as error:
+            report_content += (
+                "\n\nThe report could not be saved to disk.\n"
+                f"Save error: {repr(error)}"
+            )
+
         dialog = ErrorDetailsDialog(
             self._get_dialog_parent(),
             title=self._t("error_dialog_title"),
@@ -1166,18 +1250,14 @@ class GlobalPlugin(BaseGlobalPlugin):
         finally:
             dialog.Destroy()
 
-        try:
-            self._save_error_report(report_path, report_content)
-        except Exception:
-            pass
-
         if dialog_result == wx.ID_MORE:
-            opened = self._open_path(report_path)
-            if not opened:
-                self._show_message(
-                    self._t("error_details_open_failed"),
-                    self._t("error_dialog_title"),
-                )
+            # Show the report inside an accessible NVDA dialog. Opening a .txt
+            # file through the Windows file association remains unreliable on
+            # some systems and previously hid the useful technical details.
+            self._show_readonly_dialog(
+                self._t("error_dialog_title"),
+                report_content,
+            )
 
     def _show_add_event_dialog(self, default_date=None):
         def _task():

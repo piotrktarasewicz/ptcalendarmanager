@@ -2,6 +2,15 @@
 
 All notable changes to Google Calendar Manager are documented in this file.
 
+## 1.0.4 - 2026-07-25
+
+### Fixed
+
+- Editing an existing event now preserves the year of the loaded event instead of moving a past start date to the following year.
+- Editing a multi-day timed event now preserves the original number of calendar days between its start and end.
+- Converting an event between timed and all-day formats now replaces the complete Google Calendar start and end objects by using the recommended get-then-update flow.
+- Error details are now displayed directly in an accessible read-only dialog, even when Windows cannot open the saved text report.
+
 ## 1.0.3 - 2026-07-21
 
 ### Changed
