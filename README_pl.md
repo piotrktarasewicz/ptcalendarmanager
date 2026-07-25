@@ -2,7 +2,7 @@
 
 [English version of this description](README.md)
 
-[Pobierz Google Calendar Manager 1.0.3](https://github.com/piotrktarasewicz/nvda-google-calendar-manager/releases/download/v1.0.3/googleCalendarManager-1.0.3.nvda-addon)
+[Pobierz Google Calendar Manager 1.0.4](https://github.com/piotrktarasewicz/nvda-google-calendar-manager/releases/download/v1.0.4/googleCalendarManager-1.0.4.nvda-addon)
 
 Google Calendar Manager to dodatek do NVDA dla systemu Windows. Pozwala użytkownikom NVDA zalogować się do Kalendarza Google, wybrać kalendarze, odczytywać wydarzenia, wyszukiwać wydarzenia oraz wykonywać podstawowe operacje na wydarzeniach z klawiatury.
 
@@ -10,7 +10,9 @@ Dodatek jest przeznaczony do bezpośredniej obsługi z poziomu NVDA. Nie zastęp
 
 ## Aktualny status
 
-Wersja 1.0.3 jest najnowszą publiczną wersją testową.
+Wersja 1.0.4 jest najnowszą publiczną wersją testową.
+
+W tej wersji poprawiono zachowanie roku podczas edycji, obsługę wielodniowych wydarzeń godzinowych, zmianę wydarzenia godzinowego na całodniowe oraz wyświetlanie technicznych szczegółów błędu w dostępnym oknie NVDA.
 
 Paczkę dodatku można pobrać i zainstalować, ale logowanie do Google działa obecnie tylko dla kont Google dodanych przez autora jako zatwierdzeni użytkownicy testowi OAuth. Pełne publiczne logowanie wymaga weryfikacji aplikacji OAuth przez Google.
 
