@@ -1,0 +1,59 @@
+name: Run isolated event editing fix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-event-edit-fix-main.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out test branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-event-editing-1.0.4
+          fetch-depth: 0
+
+      - name: Apply and validate patch
+        shell: bash
+        run: |
+          git apply --check event-edit-1.0.4.patch
+          git apply event-edit-1.0.4.patch
+          python -m py_compile \
+            globalPlugins/googleCalendarManager/core.py \
+            globalPlugins/googleCalendarManager/auth_helper.py
+          grep -F 'version = 1.0.4' manifest.ini
+          grep -F 'service.events().update' globalPlugins/googleCalendarManager/auth_helper.py
+          grep -F 'reference_date=datetime.date(original_start_date.year, 1, 1)' globalPlugins/googleCalendarManager/core.py
+
+      - name: Commit test branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm \
+            event-edit-1.0.4.patch \
+            .github/workflows/apply-1.0.4-event-edit-fix.yml
+          git add \
+            globalPlugins/googleCalendarManager/core.py \
+            globalPlugins/googleCalendarManager/auth_helper.py \
+            manifest.ini \
+            CHANGELOG.md
+          git commit -m "Fix event editing and error details"
+          git push origin HEAD:agent/fix-event-editing-1.0.4
+
+      - name: Remove temporary workflow from main
+        shell: bash
+        run: |
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+          git rm .github/workflows/apply-event-edit-fix-main.yml
+          git commit -m "Remove temporary event editing workflow"
+          git push origin main
