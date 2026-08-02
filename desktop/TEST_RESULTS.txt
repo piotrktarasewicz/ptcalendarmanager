@@ -1,19 +1,30 @@
-GCM by Piotrek 0.3.0 — wyniki testów automatycznych
+GCM by Piotrek 0.3.1 — wyniki testów automatycznych
 
-Kontrola składni: poprawna.
-Testy jednostkowe: 10/10 poprawnych.
+Spreadsheet runtime warmup failed during python startup
+Traceback (most recent call last):
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
+artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
+test_all_day_body_uses_exclusive_google_end_date (test_models.CreateEventTests.test_all_day_body_uses_exclusive_google_end_date) ... ok
+test_calendar_write_permission (test_models.CreateEventTests.test_calendar_write_permission) ... ok
+test_timed_body_preserves_dates_times_and_timezone (test_models.CreateEventTests.test_timed_body_preserves_dates_times_and_timezone) ... ok
+test_timed_event_must_end_after_start (test_models.CreateEventTests.test_timed_event_must_end_after_start) ... ok
+test_all_day_multi_day_event (test_models.ModelTests.test_all_day_multi_day_event) ... ok
+test_collection (test_models.ModelTests.test_collection) ... ok
+test_count_text (test_models.ModelTests.test_count_text) ... ok
+test_month_range (test_models.ModelTests.test_month_range) ... ok
+test_parse_date (test_models.ModelTests.test_parse_date) ... ok
+test_timed_event (test_models.ModelTests.test_timed_event) ... ok
 
-Sprawdzono:
-- zakres miesiąca i liczbę dni;
-- odmianę liczby wydarzeń;
-- parsowanie dat;
-- wydarzenia całodniowe i wielodniowe;
-- wydarzenia godzinowe;
-- filtrowanie i wyszukiwanie;
-- rozpoznawanie praw zapisu do kalendarza;
-- wyłączną datę końcową Google dla wydarzeń całodniowych;
-- daty, godziny i strefę czasową wydarzeń godzinowych;
-- odrzucanie wydarzeń kończących się przed rozpoczęciem.
+----------------------------------------------------------------------
+Ran 10 tests in 0.001s
 
-Test rzeczywistego zapisu do konta Google musi zostać wykonany przez użytkownika,
-ponieważ środowisko budowania nie ma dostępu do jego konta ani tokenu OAuth.
+OK
+
+Kontrola składni wszystkich plików Python: OK
+Jawne nazwy dostępności wszystkich pól formularza: OK

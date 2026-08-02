@@ -27,7 +27,7 @@ from gcm_core.paths import copy_client_secret, find_client_secret, migrate_from_
 from gcm_core.settings import AppSettings, load_settings, save_settings
 from .dialogs import CalendarSelectionDialog, EventCreateDialog, SearchResultsDialog
 
-APP_TITLE = "GCM by Piotrek 0.3.0 — odczyt i dodawanie wydarzeń"
+APP_TITLE = "GCM by Piotrek 0.3.1 — odczyt i dodawanie wydarzeń"
 T = TypeVar("T")
 
 
@@ -400,7 +400,7 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_search(self, event: wx.Event) -> None:
-        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. Wersja 0.3.0 szuka w bieżącym miesiącu.", "Wyszukaj wydarzenia", "")
+        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. Wersja 0.3.1 szuka w bieżącym miesiącu.", "Wyszukaj wydarzenia", "")
         try:
             result = dialog.ShowModal()
             query = dialog.GetValue().strip()

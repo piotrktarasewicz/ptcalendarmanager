@@ -4,6 +4,8 @@ import datetime as dt
 
 import wx
 
+from .accessibility import apply_accessible_name
+
 from gcm_core.models import (
     CalendarEvent,
     CalendarInfo,
@@ -29,20 +31,19 @@ class EventCreateDialog(wx.Dialog):
         )
         self._calendars = calendars
         self._draft: EventDraft | None = None
+        self._accessible_objects: list[wx.Accessible] = []
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         form = wx.FlexGridSizer(cols=2, vgap=8, hgap=12)
         form.AddGrowableCol(1, 1)
 
         self.title_ctrl = wx.TextCtrl(self)
-        self.title_ctrl.SetName("Tytuł wydarzenia")
 
         labels = [
             calendar.name + (", kalendarz główny" if calendar.primary else "")
             for calendar in calendars
         ]
         self.calendar_ctrl = wx.Choice(self, choices=labels)
-        self.calendar_ctrl.SetName("Kalendarz docelowy")
         default_index = next(
             (index for index, calendar in enumerate(calendars) if calendar.primary),
             0,
@@ -54,29 +55,69 @@ class EventCreateDialog(wx.Dialog):
             self,
             value=default_date.strftime("%d.%m.%Y"),
         )
-        self.start_date_ctrl.SetName("Data rozpoczęcia, format dzień miesiąc rok")
 
         self.all_day_ctrl = wx.CheckBox(self, label="Wydarzenie całodniowe")
-        self.all_day_ctrl.SetName("Wydarzenie całodniowe")
 
         self.start_time_ctrl = wx.TextCtrl(self, value="09:00")
-        self.start_time_ctrl.SetName("Godzina rozpoczęcia, format godzina dwukropek minuty")
 
         self.end_date_ctrl = wx.TextCtrl(
             self,
             value=default_date.strftime("%d.%m.%Y"),
         )
-        self.end_date_ctrl.SetName("Data zakończenia włącznie, format dzień miesiąc rok")
 
         self.end_time_ctrl = wx.TextCtrl(self, value="10:00")
-        self.end_time_ctrl.SetName("Godzina zakończenia, format godzina dwukropek minuty")
 
         self.location_ctrl = wx.TextCtrl(self)
-        self.location_ctrl.SetName("Lokalizacja")
 
         self.description_ctrl = wx.TextCtrl(self, style=wx.TE_MULTILINE)
-        self.description_ctrl.SetName("Opis wydarzenia")
         self.description_ctrl.SetMinSize((460, 110))
+
+
+        self._name_control(
+            self.title_ctrl,
+            "Tytuł wydarzenia",
+            "Wpisz nazwę wydarzenia.",
+        )
+        self._name_control(
+            self.calendar_ctrl,
+            "Kalendarz docelowy",
+            "Wybierz kalendarz, w którym wydarzenie zostanie zapisane.",
+        )
+        self._name_control(
+            self.start_date_ctrl,
+            "Data rozpoczęcia, DD.MM.RRRR",
+            "Wpisz datę rozpoczęcia w formacie dzień, miesiąc, rok.",
+        )
+        self._name_control(
+            self.all_day_ctrl,
+            "Wydarzenie całodniowe",
+            "Zaznacz, aby pominąć godziny rozpoczęcia i zakończenia.",
+        )
+        self._name_control(
+            self.start_time_ctrl,
+            "Godzina rozpoczęcia, GG:MM",
+            "Wpisz godzinę rozpoczęcia w formacie godzina, dwukropek, minuty.",
+        )
+        self._name_control(
+            self.end_date_ctrl,
+            "Data zakończenia włącznie, DD.MM.RRRR",
+            "Wpisz ostatni dzień wydarzenia.",
+        )
+        self._name_control(
+            self.end_time_ctrl,
+            "Godzina zakończenia, GG:MM",
+            "Wpisz godzinę zakończenia w formacie godzina, dwukropek, minuty.",
+        )
+        self._name_control(
+            self.location_ctrl,
+            "Lokalizacja",
+            "Wpisz miejsce wydarzenia albo pozostaw pole puste.",
+        )
+        self._name_control(
+            self.description_ctrl,
+            "Opis wydarzenia",
+            "Wpisz dodatkowy opis albo pozostaw pole puste.",
+        )
 
         def add_row(label: str, control: wx.Window) -> None:
             form.Add(wx.StaticText(self, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
@@ -111,6 +152,17 @@ class EventCreateDialog(wx.Dialog):
         self.all_day_ctrl.Bind(wx.EVT_CHECKBOX, self._on_all_day)
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
         wx.CallAfter(self.title_ctrl.SetFocus)
+
+
+    def _name_control(
+        self,
+        control: wx.Window,
+        name: str,
+        description: str = "",
+    ) -> None:
+        accessible = apply_accessible_name(control, name, description)
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
 
     def _on_all_day(self, event: wx.CommandEvent) -> None:
         enabled = not self.all_day_ctrl.GetValue()
