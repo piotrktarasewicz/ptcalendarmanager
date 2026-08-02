@@ -28,36 +28,25 @@ if not defined PYTHON_CMD (
 )
 
 echo Znaleziono zgodny interpreter: %PYTHON_CMD%
-if not exist ".venv-build\Scripts\python.exe" (
-    echo Tworzenie srodowiska do budowania...
-    %PYTHON_CMD% -m venv .venv-build
+if not exist ".venv\Scripts\python.exe" (
+    echo Tworzenie srodowiska Python...
+    %PYTHON_CMD% -m venv .venv
     if errorlevel 1 goto :error
+    call ".venv\Scripts\activate.bat"
+    python -m pip install --upgrade pip
+    if errorlevel 1 goto :error
+    python -m pip install -r requirements.txt
+    if errorlevel 1 goto :error
+) else (
+    call ".venv\Scripts\activate.bat"
 )
-call ".venv-build\Scripts\activate.bat"
-python -m pip install --upgrade pip
+set "PYTHONPATH=%CD%\src"
+python launcher.py
 if errorlevel 1 goto :error
-python -m pip install -r requirements-build.txt
-if errorlevel 1 goto :error
-rmdir /s /q build 2>nul
-rmdir /s /q "dist\GCM by Piotrek" 2>nul
-python -m PyInstaller ^
-    --noconfirm ^
-    --clean ^
-    --windowed ^
-    --onedir ^
-    --name "GCM by Piotrek" ^
-    --paths src ^
-    --collect-all googleapiclient ^
-    --collect-all google_auth_oauthlib ^
-    launcher.py
-if errorlevel 1 goto :error
-echo.
-echo Gotowe. Program znajduje sie w:
-echo dist\GCM by Piotrek
-pause
 exit /b 0
 :error
 echo.
-echo Budowanie programu nie powiodlo sie.
+echo Uruchomienie GCM by Piotrek nie powiodlo sie.
+echo Sprawdz komunikaty powyzej oraz plik last_error.txt w katalogu danych aplikacji.
 pause
 exit /b 1

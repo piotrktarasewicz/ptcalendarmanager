@@ -1,120 +1,98 @@
-# GCM by Piotrek — prototyp dostępności wxPython
+# GCM by Piotrek 0.2.0 — pierwszy etap właściwej aplikacji
 
-To jest pierwszy, całkowicie niezależny od NVDA prototyp interfejsu aplikacji
-GCM by Piotrek.
+GCM by Piotrek to dostępny klient Kalendarza Google dla Windows, projektowany
+od początku do obsługi klawiaturą i współpracy z NVDA, JAWS-em oraz Narratorem.
 
-## Cel tej wersji
+Wersja 0.2.0 jest pierwszym etapem właściwej aplikacji. Łączy sprawdzony
+interfejs wxPython z nowym, niezależnym od NVDA pakietem `gcm_core`.
 
-Ta wersja nie łączy się jeszcze z Kalendarzem Google. Jej jedynym celem jest
-sprawdzenie, czy prosty interfejs zbudowany ze standardowych kontrolek wxPython
-jest wygodny i poprawnie odczytywany przez:
+## Co działa w tej wersji
 
-- NVDA,
-- JAWS,
-- Narrator systemu Windows,
-- inne czytniki ekranu.
+- logowanie do Google w domyślnej przeglądarce;
+- automatyczne odświeżanie tokenu OAuth;
+- próba bezpiecznego skopiowania istniejącego tokenu, ustawień i pliku
+  `client_secret.json` z dodatku NVDA;
+- lista kalendarzy i wybór kalendarzy używanych przez aplikację;
+- pobieranie prawdziwych wydarzeń dla wybranego miesiąca;
+- lista wszystkich dni miesiąca z liczbą wydarzeń;
+- lista wydarzeń dla zaznaczonego dnia;
+- wydarzenia godzinowe, całodniowe i wielodniowe;
+- poprzedni i następny miesiąc, dzisiaj oraz przejście do daty;
+- wyszukiwanie w wydarzeniach pobranych dla bieżącego miesiąca;
+- dostępne okno szczegółów wydarzenia;
+- operacje sieciowe wykonywane poza głównym wątkiem interfejsu.
 
-Prototyp zawiera:
+## Czego jeszcze nie ma
 
-- listę wszystkich dni wybranego miesiąca,
-- listę wydarzeń dla zaznaczonego dnia,
-- przechodzenie do poprzedniego i następnego miesiąca,
-- przejście do konkretnej daty,
-- wyszukiwanie przykładowych wydarzeń,
-- dodawanie, edycję i usuwanie wydarzeń w pamięci,
-- szczegóły wydarzenia,
-- przycisk odświeżania,
-- skróty klawiaturowe.
+Przyciski Dodaj, Edytuj i Usuń są już obecne, ale w wersji 0.2.0 nie wykonują
+zmian w Google. Jest to celowy etap tylko do odczytu. Najpierw sprawdzamy
+logowanie, prawdziwe dane, listy, fokus i stabilność z trzema czytnikami ekranu.
 
-Dane są przykładowe. Po zamknięciu aplikacji wszystkie zmiany przepadają.
+## Ochrona działającego dodatku NVDA
 
-## Dlaczego nie ma graficznej siatki kalendarza
+Aplikacja nie zmienia i nie usuwa plików dodatku NVDA. Przy pierwszym
+uruchomieniu może skopiować do własnego katalogu:
 
-Dni miesiąca są pokazane jako zwykła lista. Jest to celowe. Standardowe listy,
-przyciski, pola tekstowe i pola wyboru mają znacznie większą szansę działać
-poprawnie z wieloma czytnikami ekranu niż własnoręcznie rysowane kafelki lub
-kontrolki kalendarza.
+- `%APPDATA%\nvda\googleCalendarManager\token.json`,
+- `%APPDATA%\nvda\googleCalendarManager\settings.json`,
+- `client_secret.json` z katalogu zainstalowanego dodatku.
 
-## Zalecane środowisko
+Własne dane aplikacji są przechowywane w:
 
-- Windows 10 albo Windows 11,
-- 64-bitowy Python 3.10, 3.11, 3.12 albo 3.13,
-- wxPython 4.2.5.
+`%APPDATA%\GCM by Piotrek`
 
-## Najprostsze uruchomienie
+Wylogowanie w aplikacji usuwa wyłącznie jej własną kopię tokenu. Nie wylogowuje
+dodatku NVDA.
 
-1. Rozpakuj cały katalog.
-2. Uruchom plik `uruchom_prototyp.bat`.
-3. Skrypt automatycznie wykryje zgodny Python 3.10–3.13.
-4. Przy pierwszym uruchomieniu zostanie utworzone środowisko `.venv` i pobrany
-   wxPython.
-5. Po instalacji otworzy się aplikacja.
+## Uruchomienie
 
-Możesz też uruchomić ręcznie:
+1. Rozpakuj cały katalog do nowego miejsca.
+2. Uruchom `uruchom_gcm.bat`.
+3. Skrypt wykryje 64-bitowy Python 3.10–3.13, utworzy `.venv`, zainstaluje
+   zależności i uruchomi aplikację.
+4. Pierwsza instalacja bibliotek wymaga Internetu.
 
-```bat
-py -3.12 -m venv .venv
-call .venv\Scripts\activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-set PYTHONPATH=%CD%\src
-python launcher.py
-```
+Jeżeli aplikacja znajdzie token z dodatku NVDA, spróbuje od razu pobrać
+kalendarze i wydarzenia. Jeżeli tokenu nie znajdzie albo jest nieważny, użyj
+przycisku `Zaloguj do Google`.
 
-## Budowanie pliku EXE
+## Gdy aplikacja nie znajdzie konfiguracji OAuth
 
-Na Windows uruchom:
+Po wybraniu `Zaloguj do Google` aplikacja pozwoli wskazać plik
+`client_secret.json`. Możesz wskazać plik z katalogu zainstalowanego dodatku
+NVDA. Zostanie skopiowany do katalogu danych GCM by Piotrek.
 
-```bat
-zbuduj_exe.bat
-```
+Typowa lokalizacja:
 
-Po poprawnym zbudowaniu aplikacja znajdzie się w katalogu:
-
-```text
-dist\GCM by Piotrek - prototyp\GCM by Piotrek - prototyp.exe
-```
-
-Zastosowany jest wariant katalogowy, a nie pojedynczy plik EXE. Na pierwszym
-etapie jest on łatwiejszy do diagnozowania i zwykle uruchamia się szybciej.
+`%APPDATA%\nvda\addons\googleCalendarManager\globalPlugins\googleCalendarManager\client_secret.json`
 
 ## Skróty
 
-- `Ctrl+N` — dodaj wydarzenie,
-- `Ctrl+E` — edytuj zaznaczone wydarzenie,
-- `Delete` — usuń zaznaczone wydarzenie,
-- `Ctrl+F` — wyszukaj,
-- `Ctrl+G` — przejdź do daty,
-- `Ctrl+D` — przejdź do dzisiaj,
-- `Alt+Strzałka w lewo` — poprzedni miesiąc,
-- `Alt+Strzałka w prawo` — następny miesiąc,
-- `F5` — odśwież,
-- `Enter` na liście dni — przejdź do listy wydarzeń,
-- `Enter` na liście wydarzeń — pokaż szczegóły,
-- `Alt+F4` — zamknij aplikację.
+- `Ctrl+L` — zaloguj lub wyloguj;
+- `Ctrl+K` — wybierz kalendarze;
+- `Ctrl+N` — dodaj wydarzenie, w 0.2.0 pokazuje informację o następnym etapie;
+- `Ctrl+E` — edytuj, w 0.2.0 tylko informacja;
+- `Delete` — usuń, w 0.2.0 tylko informacja;
+- `Ctrl+F` — wyszukaj w pobranym miesiącu;
+- `Ctrl+G` — przejdź do daty;
+- `Ctrl+D` — dzisiaj;
+- `F5` — pobierz miesiąc ponownie z Google;
+- `Alt+Strzałka w lewo` — poprzedni miesiąc;
+- `Alt+Strzałka w prawo` — następny miesiąc;
+- `Enter` na liście dni — przejdź do listy wydarzeń;
+- `Enter` na wydarzeniu — pokaż szczegóły.
 
-## Ważne
+## Budowanie EXE
 
-Nie oceniamy jeszcze wyglądu ani integracji z Google. Najpierw sprawdzamy:
+Uruchom `zbuduj_exe.bat`. Program zostanie utworzony w katalogu:
 
-- czy wszystkie kontrolki mają poprawne nazwy,
-- czy listy są odczytywane,
-- czy kolejność Tabulatora jest logiczna,
-- czy fokus trafia we właściwe miejsca,
-- czy formularze są wygodne,
-- czy aplikacja działa podobnie z NVDA, JAWS-em i Narratorem.
+`dist\GCM by Piotrek\GCM by Piotrek.exe`
 
-Dokładny scenariusz znajduje się w pliku `PLAN_TESTOW_DOSTEPNOSCI.md`.
+Na tym etapie używamy wariantu katalogowego `onedir`, który jest prostszy do
+diagnozowania niż pojedynczy plik EXE.
 
+## Bezpieczeństwo etapu 0.2.0
 
-## Gdy pojawia się komunikat „No suitable Python runtime found”
-
-Oznacza to, że Windows ma zainstalowany launcher `py`, ale nie ma żadnego
-właściwego interpretera Pythona. Sam launcher nie wystarcza do uruchomienia
-programu.
-
-Zainstaluj 64-bitowy Python 3.12 albo 3.13 ze strony python.org. Podczas
-instalacji zaznacz `Add Python to PATH`. Następnie ponownie uruchom
-`uruchom_prototyp.bat`.
-
-Wersja 0.1.1 skryptu wykrywa automatycznie Python 3.10, 3.11, 3.12 albo 3.13.
+Kod interfejsu nie importuje żadnych modułów NVDA. Rdzeń Google znajduje się w
+osobnym pakiecie `gcm_core`. Nie wykonujemy jeszcze operacji zapisu, dlatego
+nawet błąd interfejsu nie powinien zmienić wydarzeń w kalendarzu.

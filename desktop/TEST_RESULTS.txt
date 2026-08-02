@@ -1,0 +1,11 @@
+test_all_day_multi_day_event (test_models.ModelTests.test_all_day_multi_day_event) ... ok
+test_collection (test_models.ModelTests.test_collection) ... ok
+test_count_text (test_models.ModelTests.test_count_text) ... ok
+test_month_range (test_models.ModelTests.test_month_range) ... ok
+test_parse_date (test_models.ModelTests.test_parse_date) ... ok
+test_timed_event (test_models.ModelTests.test_timed_event) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.000s
+
+OK
