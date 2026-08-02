@@ -38,16 +38,17 @@ kontrolki kalendarza.
 ## Zalecane środowisko
 
 - Windows 10 albo Windows 11,
-- 64-bitowy Python 3.12,
+- 64-bitowy Python 3.10, 3.11, 3.12 albo 3.13,
 - wxPython 4.2.5.
 
 ## Najprostsze uruchomienie
 
 1. Rozpakuj cały katalog.
 2. Uruchom plik `uruchom_prototyp.bat`.
-3. Przy pierwszym uruchomieniu zostanie utworzone środowisko `.venv` i pobrany
+3. Skrypt automatycznie wykryje zgodny Python 3.10–3.13.
+4. Przy pierwszym uruchomieniu zostanie utworzone środowisko `.venv` i pobrany
    wxPython.
-4. Po instalacji otworzy się aplikacja.
+5. Po instalacji otworzy się aplikacja.
 
 Możesz też uruchomić ręcznie:
 
@@ -104,3 +105,16 @@ Nie oceniamy jeszcze wyglądu ani integracji z Google. Najpierw sprawdzamy:
 - czy aplikacja działa podobnie z NVDA, JAWS-em i Narratorem.
 
 Dokładny scenariusz znajduje się w pliku `PLAN_TESTOW_DOSTEPNOSCI.md`.
+
+
+## Gdy pojawia się komunikat „No suitable Python runtime found”
+
+Oznacza to, że Windows ma zainstalowany launcher `py`, ale nie ma żadnego
+właściwego interpretera Pythona. Sam launcher nie wystarcza do uruchomienia
+programu.
+
+Zainstaluj 64-bitowy Python 3.12 albo 3.13 ze strony python.org. Podczas
+instalacji zaznacz `Add Python to PATH`. Następnie ponownie uruchom
+`uruchom_prototyp.bat`.
+
+Wersja 0.1.1 skryptu wykrywa automatycznie Python 3.10, 3.11, 3.12 albo 3.13.
