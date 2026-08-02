@@ -1,0 +1,11 @@
+[project]
+name = "gcm-by-piotrek-wx-prototype"
+version = "0.1.0"
+description = "Accessibility prototype for a desktop Google Calendar client."
+requires-python = ">=3.10"
+dependencies = [
+    "wxPython==4.2.5",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
