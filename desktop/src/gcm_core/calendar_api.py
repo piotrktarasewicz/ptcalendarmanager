@@ -2,7 +2,34 @@ from __future__ import annotations
 
 import datetime as dt
 
-from .models import CalendarEvent, CalendarInfo, event_from_google
+from .models import CalendarEvent, CalendarInfo, EventDraft, event_from_google
+
+
+def build_event_body(draft: EventDraft, time_zone: str) -> dict:
+    draft.validate()
+    body: dict = {"summary": draft.title.strip()}
+    if draft.location.strip():
+        body["location"] = draft.location.strip()
+    if draft.description.strip():
+        body["description"] = draft.description.strip()
+
+    if draft.all_day:
+        body["start"] = {"date": draft.start_date.isoformat()}
+        body["end"] = {
+            "date": (draft.end_date_inclusive + dt.timedelta(days=1)).isoformat()
+        }
+    else:
+        start_dt = dt.datetime.combine(draft.start_date, draft.start_time)
+        end_dt = dt.datetime.combine(draft.end_date_inclusive, draft.end_time)
+        body["start"] = {
+            "dateTime": start_dt.isoformat(),
+            "timeZone": time_zone or "Europe/Warsaw",
+        }
+        body["end"] = {
+            "dateTime": end_dt.isoformat(),
+            "timeZone": time_zone or "Europe/Warsaw",
+        }
+    return body
 
 
 class CalendarGateway:
@@ -22,6 +49,8 @@ class CalendarGateway:
                         name=str(item.get("summaryOverride") or item.get("summary") or "Bez nazwy"),
                         primary=bool(item.get("primary", False)),
                         selected=bool(item.get("selected", False)),
+                        access_role=str(item.get("accessRole") or "reader"),
+                        time_zone=str(item.get("timeZone") or "Europe/Warsaw"),
                     )
                 )
             page_token = response.get("nextPageToken")
@@ -59,3 +88,18 @@ class CalendarGateway:
                 if not page_token:
                     break
         return events
+
+    def create_event(self, calendar: CalendarInfo, draft: EventDraft) -> CalendarEvent:
+        if not calendar.can_write:
+            raise PermissionError(
+                f"Kalendarz {calendar.name} nie pozwala temu kontu dodawać wydarzeń."
+            )
+        if draft.calendar_id != calendar.calendar_id:
+            raise ValueError("Wybrany kalendarz nie odpowiada danym wydarzenia.")
+        body = build_event_body(draft, calendar.time_zone)
+        item = self._service.events().insert(
+            calendarId=calendar.calendar_id,
+            body=body,
+            sendUpdates="none",
+        ).execute()
+        return event_from_google(item, calendar)

@@ -1,8 +1,197 @@
 from __future__ import annotations
 
+import datetime as dt
+
 import wx
 
-from gcm_core.models import CalendarEvent, CalendarInfo, count_text, format_full_date
+from gcm_core.models import (
+    CalendarEvent,
+    CalendarInfo,
+    EventDraft,
+    count_text,
+    format_full_date,
+    parse_polish_date,
+    parse_polish_time,
+)
+
+
+class EventCreateDialog(wx.Dialog):
+    def __init__(
+        self,
+        parent: wx.Window,
+        calendars: list[CalendarInfo],
+        default_date: dt.date,
+    ) -> None:
+        super().__init__(
+            parent,
+            title="Dodaj wydarzenie",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._calendars = calendars
+        self._draft: EventDraft | None = None
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        form = wx.FlexGridSizer(cols=2, vgap=8, hgap=12)
+        form.AddGrowableCol(1, 1)
+
+        self.title_ctrl = wx.TextCtrl(self)
+        self.title_ctrl.SetName("Tytuł wydarzenia")
+
+        labels = [
+            calendar.name + (", kalendarz główny" if calendar.primary else "")
+            for calendar in calendars
+        ]
+        self.calendar_ctrl = wx.Choice(self, choices=labels)
+        self.calendar_ctrl.SetName("Kalendarz docelowy")
+        default_index = next(
+            (index for index, calendar in enumerate(calendars) if calendar.primary),
+            0,
+        )
+        if calendars:
+            self.calendar_ctrl.SetSelection(default_index)
+
+        self.start_date_ctrl = wx.TextCtrl(
+            self,
+            value=default_date.strftime("%d.%m.%Y"),
+        )
+        self.start_date_ctrl.SetName("Data rozpoczęcia, format dzień miesiąc rok")
+
+        self.all_day_ctrl = wx.CheckBox(self, label="Wydarzenie całodniowe")
+        self.all_day_ctrl.SetName("Wydarzenie całodniowe")
+
+        self.start_time_ctrl = wx.TextCtrl(self, value="09:00")
+        self.start_time_ctrl.SetName("Godzina rozpoczęcia, format godzina dwukropek minuty")
+
+        self.end_date_ctrl = wx.TextCtrl(
+            self,
+            value=default_date.strftime("%d.%m.%Y"),
+        )
+        self.end_date_ctrl.SetName("Data zakończenia włącznie, format dzień miesiąc rok")
+
+        self.end_time_ctrl = wx.TextCtrl(self, value="10:00")
+        self.end_time_ctrl.SetName("Godzina zakończenia, format godzina dwukropek minuty")
+
+        self.location_ctrl = wx.TextCtrl(self)
+        self.location_ctrl.SetName("Lokalizacja")
+
+        self.description_ctrl = wx.TextCtrl(self, style=wx.TE_MULTILINE)
+        self.description_ctrl.SetName("Opis wydarzenia")
+        self.description_ctrl.SetMinSize((460, 110))
+
+        def add_row(label: str, control: wx.Window) -> None:
+            form.Add(wx.StaticText(self, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
+            form.Add(control, 1, wx.EXPAND)
+
+        add_row("Tytuł:", self.title_ctrl)
+        add_row("Kalendarz:", self.calendar_ctrl)
+        add_row("Data rozpoczęcia, DD.MM.RRRR:", self.start_date_ctrl)
+        form.Add(wx.StaticText(self, label="Typ wydarzenia:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(self.all_day_ctrl, 1, wx.EXPAND)
+        add_row("Godzina rozpoczęcia, GG:MM:", self.start_time_ctrl)
+        add_row("Data zakończenia włącznie, DD.MM.RRRR:", self.end_date_ctrl)
+        add_row("Godzina zakończenia, GG:MM:", self.end_time_ctrl)
+        add_row("Lokalizacja:", self.location_ctrl)
+        add_row("Opis:", self.description_ctrl)
+        sizer.Add(form, 1, wx.ALL | wx.EXPAND, 12)
+
+        buttons = wx.StdDialogButtonSizer()
+        self.save_button = wx.Button(self, wx.ID_OK, "Utwórz wydarzenie")
+        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "Anuluj")
+        self.save_button.SetDefault()
+        buttons.AddButton(self.save_button)
+        buttons.AddButton(self.cancel_button)
+        buttons.Realize()
+        sizer.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
+
+        self.SetSizerAndFit(sizer)
+        self.SetMinSize((680, 560))
+        self.SetSize((760, 640))
+        self.CentreOnParent()
+
+        self.all_day_ctrl.Bind(wx.EVT_CHECKBOX, self._on_all_day)
+        self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
+        wx.CallAfter(self.title_ctrl.SetFocus)
+
+    def _on_all_day(self, event: wx.CommandEvent) -> None:
+        enabled = not self.all_day_ctrl.GetValue()
+        self.start_time_ctrl.Enable(enabled)
+        self.end_time_ctrl.Enable(enabled)
+        event.Skip()
+
+    def _show_error(self, text: str, control: wx.Window | None = None) -> None:
+        dialog = wx.MessageDialog(
+            self,
+            text,
+            "Nieprawidłowe dane wydarzenia",
+            wx.OK | wx.ICON_ERROR,
+        )
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+        if control is not None:
+            control.SetFocus()
+
+    def _on_save(self, event: wx.CommandEvent) -> None:
+        title = self.title_ctrl.GetValue().strip()
+        if not title:
+            self._show_error("Wpisz tytuł wydarzenia.", self.title_ctrl)
+            return
+
+        calendar_index = self.calendar_ctrl.GetSelection()
+        if not 0 <= calendar_index < len(self._calendars):
+            self._show_error("Wybierz kalendarz.", self.calendar_ctrl)
+            return
+
+        try:
+            start_date = parse_polish_date(self.start_date_ctrl.GetValue())
+        except ValueError as error:
+            self._show_error(str(error), self.start_date_ctrl)
+            return
+        try:
+            end_date = parse_polish_date(self.end_date_ctrl.GetValue())
+        except ValueError as error:
+            self._show_error(str(error), self.end_date_ctrl)
+            return
+
+        all_day = self.all_day_ctrl.GetValue()
+        start_time = None
+        end_time = None
+        if not all_day:
+            try:
+                start_time = parse_polish_time(self.start_time_ctrl.GetValue())
+            except ValueError as error:
+                self._show_error(str(error), self.start_time_ctrl)
+                return
+            try:
+                end_time = parse_polish_time(self.end_time_ctrl.GetValue())
+            except ValueError as error:
+                self._show_error(str(error), self.end_time_ctrl)
+                return
+
+        calendar = self._calendars[calendar_index]
+        draft = EventDraft(
+            calendar_id=calendar.calendar_id,
+            title=title,
+            all_day=all_day,
+            start_date=start_date,
+            end_date_inclusive=end_date,
+            start_time=start_time,
+            end_time=end_time,
+            location=self.location_ctrl.GetValue().strip(),
+            description=self.description_ctrl.GetValue().strip(),
+        )
+        try:
+            draft.validate()
+        except ValueError as error:
+            self._show_error(str(error))
+            return
+
+        self._draft = draft
+        self.EndModal(wx.ID_OK)
+
+    def get_draft(self) -> EventDraft | None:
+        return self._draft
 
 
 class CalendarSelectionDialog(wx.Dialog):

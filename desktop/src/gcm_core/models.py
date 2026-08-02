@@ -23,6 +23,43 @@ class CalendarInfo:
     name: str
     primary: bool = False
     selected: bool = False
+    access_role: str = "reader"
+    time_zone: str = "Europe/Warsaw"
+
+    @property
+    def can_write(self) -> bool:
+        return self.access_role in {"writer", "owner"}
+
+
+@dataclass(frozen=True, slots=True)
+class EventDraft:
+    calendar_id: str
+    title: str
+    all_day: bool
+    start_date: dt.date
+    end_date_inclusive: dt.date
+    start_time: dt.time | None = None
+    end_time: dt.time | None = None
+    location: str = ""
+    description: str = ""
+
+    def validate(self) -> None:
+        if not self.calendar_id.strip():
+            raise ValueError("Wybierz kalendarz.")
+        if not self.title.strip():
+            raise ValueError("Wpisz tytuł wydarzenia.")
+        if self.end_date_inclusive < self.start_date:
+            raise ValueError("Data zakończenia nie może być wcześniejsza od daty rozpoczęcia.")
+        if self.all_day:
+            return
+        if self.start_time is None:
+            raise ValueError("Podaj godzinę rozpoczęcia.")
+        if self.end_time is None:
+            raise ValueError("Podaj godzinę zakończenia.")
+        start = dt.datetime.combine(self.start_date, self.start_time)
+        end = dt.datetime.combine(self.end_date_inclusive, self.end_time)
+        if end <= start:
+            raise ValueError("Koniec wydarzenia musi być późniejszy od początku.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,3 +264,15 @@ def parse_polish_date(text: str) -> dt.date:
         return dt.date(year, month, day)
     except (TypeError, ValueError) as error:
         raise ValueError("Podana data jest nieprawidłowa.") from error
+
+
+def parse_polish_time(text: str) -> dt.time:
+    cleaned = str(text or "").strip().replace(".", ":")
+    parts = [part.strip() for part in cleaned.split(":")]
+    if len(parts) != 2:
+        raise ValueError("Podaj godzinę w formacie GG:MM.")
+    try:
+        hour, minute = (int(part) for part in parts)
+        return dt.time(hour, minute)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Podana godzina jest nieprawidłowa.") from error

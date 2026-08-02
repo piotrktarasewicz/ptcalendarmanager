@@ -1,11 +1,19 @@
-test_all_day_multi_day_event (test_models.ModelTests.test_all_day_multi_day_event) ... ok
-test_collection (test_models.ModelTests.test_collection) ... ok
-test_count_text (test_models.ModelTests.test_count_text) ... ok
-test_month_range (test_models.ModelTests.test_month_range) ... ok
-test_parse_date (test_models.ModelTests.test_parse_date) ... ok
-test_timed_event (test_models.ModelTests.test_timed_event) ... ok
+GCM by Piotrek 0.3.0 — wyniki testów automatycznych
 
-----------------------------------------------------------------------
-Ran 6 tests in 0.000s
+Kontrola składni: poprawna.
+Testy jednostkowe: 10/10 poprawnych.
 
-OK
+Sprawdzono:
+- zakres miesiąca i liczbę dni;
+- odmianę liczby wydarzeń;
+- parsowanie dat;
+- wydarzenia całodniowe i wielodniowe;
+- wydarzenia godzinowe;
+- filtrowanie i wyszukiwanie;
+- rozpoznawanie praw zapisu do kalendarza;
+- wyłączną datę końcową Google dla wydarzeń całodniowych;
+- daty, godziny i strefę czasową wydarzeń godzinowych;
+- odrzucanie wydarzeń kończących się przed rozpoczęciem.
+
+Test rzeczywistego zapisu do konta Google musi zostać wykonany przez użytkownika,
+ponieważ środowisko budowania nie ma dostępu do jego konta ani tokenu OAuth.

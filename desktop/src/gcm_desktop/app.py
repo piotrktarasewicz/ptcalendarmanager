@@ -14,18 +14,20 @@ from gcm_core.models import (
     CalendarEvent,
     CalendarInfo,
     EventCollection,
+    EventDraft,
     count_text,
     format_full_date,
     format_month,
+    format_short_date,
     month_days,
     month_range,
     parse_polish_date,
 )
 from gcm_core.paths import copy_client_secret, find_client_secret, migrate_from_nvda
 from gcm_core.settings import AppSettings, load_settings, save_settings
-from .dialogs import CalendarSelectionDialog, SearchResultsDialog
+from .dialogs import CalendarSelectionDialog, EventCreateDialog, SearchResultsDialog
 
-APP_TITLE = "GCM by Piotrek 0.2.0 — odczyt Kalendarza Google"
+APP_TITLE = "GCM by Piotrek 0.3.0 — odczyt i dodawanie wydarzeń"
 T = TypeVar("T")
 
 
@@ -42,6 +44,7 @@ class MainFrame(wx.Frame):
         self._day_values: list[dt.date] = []
         self._event_values: list[CalendarEvent] = []
         self._busy = False
+        self._focus_event_after_refresh: str | None = None
 
         panel = wx.Panel(self)
         panel.SetName("Główne okno GCM by Piotrek")
@@ -115,7 +118,7 @@ class MainFrame(wx.Frame):
         self.today_button.Bind(wx.EVT_BUTTON, self._on_today)
         self.goto_button.Bind(wx.EVT_BUTTON, self._on_goto)
         self.search_button.Bind(wx.EVT_BUTTON, self._on_search)
-        self.add_button.Bind(wx.EVT_BUTTON, self._on_write_not_ready)
+        self.add_button.Bind(wx.EVT_BUTTON, self._on_add)
         self.refresh_button.Bind(wx.EVT_BUTTON, lambda event: self._refresh_google())
         self.days_list.Bind(wx.EVT_LISTBOX, self._on_day_selected)
         self.days_list.Bind(wx.EVT_KEY_DOWN, self._on_days_key)
@@ -146,7 +149,7 @@ class MainFrame(wx.Frame):
         self.SetAcceleratorTable(wx.AcceleratorTable(entries))
         self.Bind(wx.EVT_MENU, self._on_login, id=ids["login"])
         self.Bind(wx.EVT_MENU, self._on_calendars, id=ids["calendars"])
-        self.Bind(wx.EVT_MENU, self._on_write_not_ready, id=ids["add"])
+        self.Bind(wx.EVT_MENU, self._on_add, id=ids["add"])
         self.Bind(wx.EVT_MENU, self._on_write_not_ready, id=ids["edit"])
         self.Bind(wx.EVT_MENU, self._on_write_not_ready, id=ids["delete"])
         self.Bind(wx.EVT_MENU, self._on_search, id=ids["search"])
@@ -228,6 +231,12 @@ class MainFrame(wx.Frame):
         selected = set(self.settings.selected_calendar_ids)
         return [calendar for calendar in self.calendars if calendar.calendar_id in selected]
 
+    def _writable_selected_calendars(self) -> list[CalendarInfo]:
+        selected = [calendar for calendar in self._selected_calendars() if calendar.can_write]
+        if selected:
+            return selected
+        return [calendar for calendar in self.calendars if calendar.can_write]
+
     def _load_gateway_and_calendars(self) -> tuple[list[CalendarInfo], list[CalendarEvent]]:
         credentials = oauth.ensure_valid_credentials()
         if credentials is None:
@@ -266,11 +275,16 @@ class MainFrame(wx.Frame):
         self.events.replace(events)
         selected = self.selected_date
         self._render_month(select_date=selected)
+        if self._focus_event_after_refresh:
+            self._render_events(self._focus_event_after_refresh)
+            self._focus_event_after_refresh = None
+            self.events_list.SetFocus()
+        else:
+            self.days_list.SetFocus()
         self._update_account_state()
         self._set_status(
             f"Pobrano {count_text(len(events))} z {len(self._selected_calendars())} kalendarzy."
         )
-        self.days_list.SetFocus()
 
     def _render_month(self, select_date: dt.date | None = None) -> None:
         self.month_label.SetLabel(format_month(self.current_year, self.current_month))
@@ -386,7 +400,7 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_search(self, event: wx.Event) -> None:
-        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. Wersja 0.2.0 szuka w bieżącym miesiącu.", "Wyszukaj wydarzenia", "")
+        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. Wersja 0.3.0 szuka w bieżącym miesiącu.", "Wyszukaj wydarzenia", "")
         try:
             result = dialog.ShowModal()
             query = dialog.GetValue().strip()
@@ -499,6 +513,97 @@ class MainFrame(wx.Frame):
         save_settings(self.settings)
         self._refresh_google()
 
+    def _on_add(self, event: wx.Event) -> None:
+        if not oauth.is_logged_in():
+            self._show_message(
+                "Najpierw zaloguj się do Google.",
+                "Logowanie wymagane",
+                error=True,
+            )
+            return
+        writable = self._writable_selected_calendars()
+        if not writable:
+            self._show_message(
+                "Nie znaleziono kalendarza, do którego to konto może dodawać wydarzenia. "
+                "Sprawdź wybór kalendarzy i uprawnienia konta.",
+                "Brak kalendarza do zapisu",
+                error=True,
+            )
+            return
+
+        dialog = EventCreateDialog(self, writable, self.selected_date)
+        try:
+            result = dialog.ShowModal()
+            draft = dialog.get_draft()
+        finally:
+            dialog.Destroy()
+        if result != wx.ID_OK or draft is None:
+            return
+
+        calendar = next(
+            (item for item in writable if item.calendar_id == draft.calendar_id),
+            None,
+        )
+        if calendar is None:
+            self._show_message(
+                "Wybrany kalendarz nie jest już dostępny do zapisu.",
+                "Nie można dodać wydarzenia",
+                error=True,
+            )
+            return
+
+        if draft.all_day:
+            when = (
+                format_short_date(draft.start_date)
+                if draft.start_date == draft.end_date_inclusive
+                else f"od {format_short_date(draft.start_date)} do "
+                     f"{format_short_date(draft.end_date_inclusive)} włącznie"
+            )
+        else:
+            when = (
+                f"{format_short_date(draft.start_date)}, {draft.start_time:%H:%M} — "
+                f"{format_short_date(draft.end_date_inclusive)}, {draft.end_time:%H:%M}"
+            )
+        confirm = wx.MessageDialog(
+            self,
+            f"Czy utworzyć wydarzenie?\n\n"
+            f"Tytuł: {draft.title}\n"
+            f"Kalendarz: {calendar.name}\n"
+            f"Termin: {when}",
+            "Potwierdź utworzenie wydarzenia",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+        )
+        try:
+            confirmed = confirm.ShowModal()
+        finally:
+            confirm.Destroy()
+        if confirmed != wx.ID_YES:
+            return
+
+        def create() -> CalendarEvent:
+            credentials = oauth.ensure_valid_credentials()
+            if credentials is None:
+                raise RuntimeError("Brak ważnego logowania Google.")
+            return CalendarGateway(credentials).create_event(calendar, draft)
+
+        self._run_task(
+            busy_message=f"Tworzenie wydarzenia: {draft.title}...",
+            target=create,
+            on_success=self._after_create,
+        )
+
+    def _after_create(self, created: CalendarEvent) -> None:
+        self.current_year = created.start_date.year
+        self.current_month = created.start_date.month
+        self.selected_date = created.start_date
+        self._focus_event_after_refresh = created.event_id
+        self._show_message(
+            f"Wydarzenie „{created.title}” zostało utworzone w kalendarzu "
+            f"{created.calendar_name}.",
+            "Wydarzenie utworzone",
+        )
+        self._refresh_google()
+
     def _on_details(self, event: wx.Event) -> None:
         selected = self._selected_event()
         if selected is None:
@@ -524,8 +629,8 @@ class MainFrame(wx.Frame):
 
     def _on_write_not_ready(self, event: wx.Event) -> None:
         self._show_message(
-            "Wersja 0.2.0 działa tylko do odczytu. Dodawanie, edycja i usuwanie zostaną podłączone po sprawdzeniu logowania oraz prawdziwych wydarzeń.",
-            "Funkcja w następnym etapie",
+            "Dodawanie wydarzeń jest już aktywne. Edycja i usuwanie zostaną podłączone w następnym, osobno testowanym etapie.",
+            "Funkcja jeszcze niedostępna",
         )
 
     def _show_message(self, message: str, title: str, *, error: bool = False) -> None:

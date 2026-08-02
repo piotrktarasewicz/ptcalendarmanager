@@ -1,9 +1,11 @@
 import datetime as dt
 import unittest
 
+from gcm_core.calendar_api import build_event_body
 from gcm_core.models import (
     CalendarInfo,
     EventCollection,
+    EventDraft,
     count_text,
     event_from_google,
     month_days,
@@ -71,6 +73,53 @@ class ModelTests(unittest.TestCase):
         collection = EventCollection([first, second])
         self.assertEqual(len(collection.for_date(dt.date(2026, 8, 3))), 2)
         self.assertEqual(collection.search("lekarz")[0].event_id, "a")
+
+
+class CreateEventTests(unittest.TestCase):
+    def test_calendar_write_permission(self) -> None:
+        self.assertTrue(CalendarInfo("a", "A", access_role="owner").can_write)
+        self.assertTrue(CalendarInfo("a", "A", access_role="writer").can_write)
+        self.assertFalse(CalendarInfo("a", "A", access_role="reader").can_write)
+
+    def test_all_day_body_uses_exclusive_google_end_date(self) -> None:
+        draft = EventDraft(
+            calendar_id="cal-1",
+            title="Urlop",
+            all_day=True,
+            start_date=dt.date(2026, 8, 10),
+            end_date_inclusive=dt.date(2026, 8, 12),
+        )
+        body = build_event_body(draft, "Europe/Warsaw")
+        self.assertEqual(body["start"]["date"], "2026-08-10")
+        self.assertEqual(body["end"]["date"], "2026-08-13")
+
+    def test_timed_body_preserves_dates_times_and_timezone(self) -> None:
+        draft = EventDraft(
+            calendar_id="cal-1",
+            title="Nocne spotkanie",
+            all_day=False,
+            start_date=dt.date(2026, 8, 10),
+            end_date_inclusive=dt.date(2026, 8, 11),
+            start_time=dt.time(23, 30),
+            end_time=dt.time(0, 30),
+        )
+        body = build_event_body(draft, "Europe/Warsaw")
+        self.assertEqual(body["start"]["dateTime"], "2026-08-10T23:30:00")
+        self.assertEqual(body["end"]["dateTime"], "2026-08-11T00:30:00")
+        self.assertEqual(body["start"]["timeZone"], "Europe/Warsaw")
+
+    def test_timed_event_must_end_after_start(self) -> None:
+        draft = EventDraft(
+            calendar_id="cal-1",
+            title="Błędne",
+            all_day=False,
+            start_date=dt.date(2026, 8, 10),
+            end_date_inclusive=dt.date(2026, 8, 10),
+            start_time=dt.time(10, 0),
+            end_time=dt.time(9, 0),
+        )
+        with self.assertRaises(ValueError):
+            draft.validate()
 
 
 if __name__ == "__main__":

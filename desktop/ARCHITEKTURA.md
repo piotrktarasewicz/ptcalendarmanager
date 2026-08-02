@@ -1,35 +1,41 @@
 # Architektura GCM by Piotrek
 
-## Obecny podział
+Projekt jest podzielony na dwie niezależne warstwy.
 
-### `gcm_core`
+## `gcm_core`
 
-Niezależna od czytnika ekranu i wxPython warstwa odpowiedzialna za:
+Rdzeń nie importuje NVDA ani wxPython. Zawiera:
 
-- ścieżki danych użytkownika;
-- migrację kopii plików z dodatku NVDA;
-- ustawienia aplikacji;
-- OAuth i token Google;
-- pobieranie kalendarzy i wydarzeń;
-- model wydarzenia oraz obliczanie wystąpień na poszczególnych dniach.
+- modele kalendarzy, wydarzeń i danych nowego wydarzenia;
+- walidację dat i godzin;
+- logowanie OAuth i przechowywanie tokenu;
+- ustawienia użytkownika;
+- pobieranie kalendarzy oraz wydarzeń;
+- budowanie danych wysyłanych do Google;
+- tworzenie wydarzeń przez Calendar API;
+- zapisywanie szczegółów błędów.
 
-### `gcm_desktop`
+Docelowo ten sam rdzeń może zostać użyty zarówno przez aplikację desktopową,
+jak i dodatek NVDA.
 
-Warstwa aplikacji Windows:
+## `gcm_desktop`
 
-- główne okno wxPython;
-- listy dni i wydarzeń;
-- standardowe przyciski i okna dialogowe;
-- zarządzanie fokusem;
-- wykonywanie operacji sieciowych w wątku roboczym;
-- komunikaty statusu i błędów.
+Warstwa wxPython odpowiada za:
 
-## Docelowy wspólny rdzeń z dodatkiem NVDA
+- główne okno;
+- listę dni i listę wydarzeń;
+- formularz tworzenia wydarzenia;
+- wybór kalendarzy;
+- okna szczegółów, wyszukiwania i potwierdzeń;
+- fokus, skróty klawiaturowe i komunikaty dla użytkownika;
+- uruchamianie operacji sieciowych poza wątkiem interfejsu.
 
-Po ustabilizowaniu odczytu prawdziwych danych funkcje tworzenia, aktualizacji i
-usuwania wydarzeń zostaną przeniesione do `gcm_core`. Następnie dodatek NVDA
-będzie mógł wywoływać ten sam rdzeń przez cienką warstwę `gcm_nvda`, a aplikacja
-przez `gcm_desktop`.
+Interfejs przekazuje do rdzenia obiekt `EventDraft`. Rdzeń waliduje go ponownie,
+buduje zgodny z Google obiekt wydarzenia i wykonuje zapis. Dzięki temu reguły
+zapisu nie są uzależnione od wxPython.
 
-Nie zmieniamy teraz działającego dodatku 1.0.4. Najpierw weryfikujemy rdzeń w
-samodzielnej aplikacji, aby nie ryzykować regresji w wersji publicznej.
+## Dane użytkownika
+
+Aplikacja przechowuje własne pliki w `%APPDATA%\GCM by Piotrek` i nie zmienia
+plików dodatku NVDA. Przy pierwszym uruchomieniu może jedynie skopiować zgodne
+pliki z dodatku, pozostawiając oryginały bez zmian.
