@@ -89,6 +89,11 @@ class CalendarEvent:
     def supports_basic_edit(self) -> bool:
         return not self.locked and self.event_type == "default"
 
+    @property
+    def supports_delete(self) -> bool:
+        """Google can delete all ordinary and special event types unless locked."""
+        return not self.locked and bool(self.event_id)
+
     def to_draft(self) -> EventDraft:
         if self.all_day:
             return EventDraft(

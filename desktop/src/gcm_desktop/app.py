@@ -32,7 +32,7 @@ from .dialogs import (
     SearchResultsDialog,
 )
 
-APP_TITLE = "GCM by Piotrek 0.4.0 — odczyt, dodawanie i edycja wydarzeń"
+APP_TITLE = "GCM by Piotrek 0.5.0 — pełna obsługa wydarzeń"
 T = TypeVar("T")
 
 
@@ -50,6 +50,7 @@ class MainFrame(wx.Frame):
         self._event_values: list[CalendarEvent] = []
         self._busy = False
         self._focus_event_after_refresh: str | None = None
+        self._focus_events_after_refresh = False
 
         panel = wx.Panel(self)
         panel.SetName("Główne okno GCM by Piotrek")
@@ -131,7 +132,7 @@ class MainFrame(wx.Frame):
         self.events_list.Bind(wx.EVT_LISTBOX_DCLICK, self._on_details)
         self.details_button.Bind(wx.EVT_BUTTON, self._on_details)
         self.edit_button.Bind(wx.EVT_BUTTON, self._on_edit)
-        self.delete_button.Bind(wx.EVT_BUTTON, self._on_write_not_ready)
+        self.delete_button.Bind(wx.EVT_BUTTON, self._on_delete)
 
     def _install_accelerators(self) -> None:
         ids = {name: wx.NewIdRef() for name in (
@@ -156,7 +157,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self._on_calendars, id=ids["calendars"])
         self.Bind(wx.EVT_MENU, self._on_add, id=ids["add"])
         self.Bind(wx.EVT_MENU, self._on_edit, id=ids["edit"])
-        self.Bind(wx.EVT_MENU, self._on_write_not_ready, id=ids["delete"])
+        self.Bind(wx.EVT_MENU, self._on_delete, id=ids["delete"])
         self.Bind(wx.EVT_MENU, self._on_search, id=ids["search"])
         self.Bind(wx.EVT_MENU, self._on_goto, id=ids["goto"])
         self.Bind(wx.EVT_MENU, self._on_today, id=ids["today"])
@@ -304,6 +305,10 @@ class MainFrame(wx.Frame):
         if self._focus_event_after_refresh:
             self._render_events(self._focus_event_after_refresh)
             self._focus_event_after_refresh = None
+            self._focus_events_after_refresh = False
+            self.events_list.SetFocus()
+        elif self._focus_events_after_refresh:
+            self._focus_events_after_refresh = False
             self.events_list.SetFocus()
         else:
             self.days_list.SetFocus()
@@ -743,6 +748,119 @@ class MainFrame(wx.Frame):
         )
         self._refresh_google()
 
+    def _on_delete(self, event: wx.Event) -> None:
+        if not oauth.is_logged_in():
+            self._show_message(
+                "Najpierw zaloguj się do Google.",
+                "Logowanie wymagane",
+                error=True,
+            )
+            return
+
+        selected = self._selected_event()
+        if selected is None:
+            self._show_message(
+                "Dla tego dnia nie ma zaznaczonego wydarzenia.",
+                "Nie można usunąć wydarzenia",
+                error=True,
+            )
+            return
+
+        calendar = self._calendar_for_event(selected)
+        if calendar is None:
+            self._show_message(
+                "Nie znaleziono kalendarza tego wydarzenia. Odśwież dane i spróbuj ponownie.",
+                "Nie można usunąć wydarzenia",
+                error=True,
+            )
+            return
+
+        if not calendar.can_write:
+            self._show_message(
+                f"Kalendarz {calendar.name} jest dostępny tylko do odczytu.",
+                "Brak uprawnień do usuwania",
+                error=True,
+            )
+            return
+
+        if not selected.supports_delete:
+            self._show_message(
+                "Google oznaczył to wydarzenie jako zablokowane i nie pozwala go usunąć.",
+                "Nie można usunąć wydarzenia",
+                error=True,
+            )
+            return
+
+        notices: list[str] = []
+        if selected.is_recurring_instance:
+            notices.append(
+                "To jest pojedyncze wystąpienie wydarzenia cyklicznego. "
+                "Usunięty zostanie tylko zaznaczony termin, a nie cała seria."
+            )
+        if selected.has_attendees:
+            notices.append(
+                "Wydarzenie ma uczestników. Google wyśle im informację o anulowaniu."
+            )
+        if selected.event_type != "default":
+            event_type_labels = {
+                "birthday": "urodziny",
+                "focusTime": "czas skupienia",
+                "fromGmail": "wydarzenie utworzone z Gmaila",
+                "outOfOffice": "poza biurem",
+                "workingLocation": "miejsce pracy",
+            }
+            kind = event_type_labels.get(selected.event_type, selected.event_type)
+            notices.append(f"To jest specjalny typ wydarzenia: {kind}.")
+
+        notice_text = "\n\n" + "\n\n".join(notices) if notices else ""
+        confirm = wx.MessageDialog(
+            self,
+            f"Czy na pewno usunąć to wydarzenie?\n\n"
+            f"{selected.details_text()}\n\n"
+            f"Tej operacji nie można cofnąć w aplikacji GCM."
+            f"{notice_text}",
+            "Potwierdź usunięcie wydarzenia",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+        )
+        try:
+            confirmed = confirm.ShowModal()
+        finally:
+            confirm.Destroy()
+
+        if confirmed != wx.ID_YES:
+            self.events_list.SetFocus()
+            return
+
+        deleted_title = selected.title
+        deleted_calendar_name = calendar.name
+        deleted_date = self.selected_date
+
+        def delete() -> tuple[str, str, dt.date]:
+            credentials = oauth.ensure_valid_credentials()
+            if credentials is None:
+                raise RuntimeError("Brak ważnego logowania Google.")
+            CalendarGateway(credentials).delete_event(calendar, selected)
+            return deleted_title, deleted_calendar_name, deleted_date
+
+        self._run_task(
+            busy_message=f"Usuwanie wydarzenia: {selected.title}...",
+            target=delete,
+            on_success=self._after_delete,
+        )
+
+    def _after_delete(self, result: tuple[str, str, dt.date]) -> None:
+        title, calendar_name, selected_date = result
+        self.selected_date = selected_date
+        self.current_year = selected_date.year
+        self.current_month = selected_date.month
+        self._focus_event_after_refresh = None
+        self._focus_events_after_refresh = True
+        self._show_message(
+            f"Wydarzenie „{title}” zostało usunięte z kalendarza {calendar_name}.",
+            "Wydarzenie usunięte",
+        )
+        self._refresh_google()
+
     def _on_details(self, event: wx.Event) -> None:
         selected = self._selected_event()
         if selected is None:
@@ -765,13 +883,6 @@ class MainFrame(wx.Frame):
             dialog.ShowModal()
         finally:
             dialog.Destroy()
-
-    def _on_write_not_ready(self, event: wx.Event) -> None:
-        self._show_message(
-            "Odczyt, dodawanie i edycja wydarzeń są aktywne. "
-            "Usuwanie zostanie podłączone w następnym, osobno testowanym etapie.",
-            "Usuwanie jeszcze niedostępne",
-        )
 
     def _show_message(self, message: str, title: str, *, error: bool = False) -> None:
         style = wx.OK | (wx.ICON_ERROR if error else wx.ICON_INFORMATION)

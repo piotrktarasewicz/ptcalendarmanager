@@ -52,3 +52,18 @@ pliki z dodatku, pozostawiając oryginały bez zmian.
 - Wydarzenie pozostaje w swoim kalendarzu.
 - Instancja wydarzenia cyklicznego jest edytowana osobno.
 - Specjalne typy wydarzeń są na razie blokowane.
+
+
+## Etap 0.5.0 — usuwanie
+
+`CalendarGateway.delete_event()` przyjmuje konkretny obiekt
+`CalendarEvent`. Dla wystąpienia cyklicznego przekazuje do Google
+identyfikator instancji, a nie `recurring_event_id`, dlatego usuwa tylko
+zaznaczony termin.
+
+Interfejs nie udostępnia jeszcze operacji usunięcia całej serii.
+`sendUpdates` ma wartość `all` tylko wtedy, gdy wydarzenie ma uczestników
+innych niż sam właściciel; w pozostałych przypadkach ma wartość `none`.
+
+Po usunięciu dane są pobierane ponownie z Google, a fokus wraca do listy
+wydarzeń wybranego dnia.

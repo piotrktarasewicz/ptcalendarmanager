@@ -1,53 +1,66 @@
-# GCM by Piotrek 0.4.0 — edycja wydarzeń Google
+# GCM by Piotrek 0.5.0 — pełny podstawowy przepływ wydarzeń
 
-GCM by Piotrek to dostępny klient Kalendarza Google dla Windows. Interfejs
-wxPython jest testowany z NVDA, JAWS-em i Narratorem.
+GCM by Piotrek to dostępny klient Kalendarza Google dla Windows,
+rozwijany i praktycznie testowany z NVDA, JAWS-em i Narratorem.
 
-## Nowości w wersji 0.4.0
+Wersja 0.5.0 domyka podstawową obsługę wydarzeń:
 
-Wersja umożliwia edytowanie zwykłych wydarzeń znajdujących się w kalendarzach,
-do których konto ma prawo zapisu.
+- odczyt;
+- dodawanie;
+- edycję;
+- usuwanie.
 
-Można zmienić:
+## Usuwanie wydarzeń
+
+Zaznacz wydarzenie i użyj przycisku `Usuń` albo klawisza `Delete`.
+
+Przed wykonaniem operacji aplikacja pokazuje:
 
 - tytuł;
-- typ: całodniowe albo godzinowe;
-- datę i godzinę rozpoczęcia;
-- datę i godzinę zakończenia;
-- lokalizację;
-- opis.
+- kalendarz;
+- termin;
+- lokalizację i opis;
+- ostrzeżenie, że operacji nie można cofnąć w GCM.
 
-Kalendarz wydarzenia jest zachowywany. Przenoszenie wydarzeń między
-kalendarzami nie jest jeszcze dostępne.
+Przycisk `Nie` jest domyślnym wyborem.
 
-Aktualizacja używa częściowej operacji Google Calendar API. Pola, których GCM
-jeszcze nie obsługuje — na przykład przypomnienia i dane konferencji — nie są
-nadpisywane.
+## Wydarzenia cykliczne
 
-Jeżeli wydarzenie ma uczestników, przed zapisem pojawia się informacja, że
-Google wyśle im aktualizację. Jeżeli zaznaczone wydarzenie jest pojedynczym
-wystąpieniem cyklu, aplikacja ostrzega, że zmiana dotyczy tylko tej instancji.
+Wersja 0.5.0 usuwa wyłącznie zaznaczone wystąpienie wydarzenia cyklicznego.
+Nie oferuje usuwania całej serii, dzięki czemu nie można wybrać tej
+operacji przypadkowo.
 
-Specjalne wydarzenia, takie jak urodziny, miejsce pracy, czas skupienia i
-wydarzenia utworzone automatycznie z Gmaila, są na razie chronione przed
-edycją.
+## Uczestnicy
+
+Jeżeli wydarzenie ma rzeczywistych uczestników, aplikacja ostrzega o tym
+przed usunięciem, a Google otrzymuje polecenie wysłania im informacji
+o anulowaniu.
+
+## Specjalne typy wydarzeń
+
+Usunięcie jest dostępne dla zwykłych i specjalnych typów wydarzeń, o ile:
+
+- kalendarz pozwala na zapis;
+- wydarzenie ma identyfikator Google;
+- Google nie oznaczył go jako zablokowane.
+
+Typ specjalny jest jawnie podany w oknie potwierdzenia.
+
+## Po prawidłowym usunięciu
+
+Aplikacja:
+
+1. pokazuje potwierdzenie;
+2. ponownie pobiera wydarzenia z Google;
+3. pozostaje na tym samym dniu;
+4. ustawia fokus na liście wydarzeń tego dnia.
 
 ## Uruchomienie
 
-Rozpakuj wersję 0.4.0 do nowego katalogu i uruchom `uruchom_gcm.bat`.
+Rozpakuj archiwum do nowego katalogu i uruchom `uruchom_gcm.bat`.
 
-Token i ustawienia są przechowywane w `%APPDATA%\GCM by Piotrek`, dlatego
-logowanie oraz wybór kalendarzy powinny zostać zachowane.
+Logowanie i ustawienia są przechowywane w:
 
-## Skróty
+`%APPDATA%\GCM by Piotrek`
 
-- `Ctrl+N` — dodaj wydarzenie;
-- `Ctrl+E` — edytuj zaznaczone wydarzenie;
-- `Delete` — usuwanie, jeszcze niedostępne;
-- `Ctrl+L` — zaloguj lub wyloguj;
-- `Ctrl+K` — wybierz kalendarze;
-- `Ctrl+F` — wyszukaj w bieżącym miesiącu;
-- `Ctrl+G` — przejdź do daty;
-- `Ctrl+D` — dzisiaj;
-- `F5` — odśwież;
-- `Alt+Strzałka w lewo` i `Alt+Strzałka w prawo` — zmiana miesiąca.
+dlatego powinny pozostać zachowane między wersjami.

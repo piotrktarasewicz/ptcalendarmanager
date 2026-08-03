@@ -130,6 +130,29 @@ class CalendarGateway:
         ).execute()
         return event_from_google(item, calendar)
 
+    def delete_event(
+        self,
+        calendar: CalendarInfo,
+        existing: CalendarEvent,
+    ) -> None:
+        if not calendar.can_write:
+            raise PermissionError(
+                f"Kalendarz {calendar.name} nie pozwala temu kontu usuwać wydarzeń."
+            )
+        if not existing.event_id:
+            raise ValueError("Wydarzenie nie ma identyfikatora Google.")
+        if existing.calendar_id != calendar.calendar_id:
+            raise ValueError("Wydarzenie nie należy do wskazanego kalendarza.")
+        if not existing.supports_delete:
+            raise ValueError(
+                "Google oznaczył to wydarzenie jako zablokowane i nie pozwala go usunąć."
+            )
+        self._service.events().delete(
+            calendarId=calendar.calendar_id,
+            eventId=existing.event_id,
+            sendUpdates="all" if existing.has_attendees else "none",
+        ).execute()
+
     def create_event(self, calendar: CalendarInfo, draft: EventDraft) -> CalendarEvent:
         if not calendar.can_write:
             raise PermissionError(

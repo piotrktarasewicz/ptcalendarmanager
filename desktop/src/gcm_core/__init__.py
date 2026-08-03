@@ -1,3 +1,3 @@
 """Shared, screen-reader-independent core for GCM by Piotrek."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

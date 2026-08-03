@@ -284,5 +284,148 @@ class EditEventTests(unittest.TestCase):
         self.assertNotIn("attendees", gateway._service.events_resource.kwargs["body"])
 
 
+
+
+class DeleteEventTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.calendar = CalendarInfo(
+            "cal-1",
+            "Główny",
+            primary=True,
+            access_role="owner",
+            time_zone="Europe/Warsaw",
+        )
+
+    @staticmethod
+    def _event(
+        *,
+        event_id: str = "e-delete",
+        attendees=None,
+        recurring_event_id: str = "",
+        locked: bool = False,
+        event_type: str = "default",
+    ):
+        data = {
+            "id": event_id,
+            "summary": "Do usunięcia",
+            "start": {"date": "2026-08-10"},
+            "end": {"date": "2026-08-11"},
+            "locked": locked,
+            "eventType": event_type,
+        }
+        if attendees is not None:
+            data["attendees"] = attendees
+        if recurring_event_id:
+            data["recurringEventId"] = recurring_event_id
+        return data
+
+    @staticmethod
+    def _gateway():
+        class FakeRequest:
+            def execute(self):
+                return None
+
+        class FakeEvents:
+            def __init__(self):
+                self.kwargs = None
+
+            def delete(self, **kwargs):
+                self.kwargs = kwargs
+                return FakeRequest()
+
+        class FakeService:
+            def __init__(self):
+                self.events_resource = FakeEvents()
+
+            def events(self):
+                return self.events_resource
+
+        gateway = CalendarGateway.__new__(CalendarGateway)
+        gateway._service = FakeService()
+        return gateway
+
+    def test_delete_sends_updates_to_real_attendees(self) -> None:
+        event = event_from_google(
+            self._event(attendees=[{"email": "guest@example.com"}]),
+            self.calendar,
+        )
+        gateway = self._gateway()
+        gateway.delete_event(self.calendar, event)
+        self.assertEqual(gateway._service.events_resource.kwargs["sendUpdates"], "all")
+
+    def test_delete_does_not_notify_when_only_owner_is_present(self) -> None:
+        event = event_from_google(
+            self._event(attendees=[{"email": "me@example.com", "self": True}]),
+            self.calendar,
+        )
+        gateway = self._gateway()
+        gateway.delete_event(self.calendar, event)
+        self.assertEqual(gateway._service.events_resource.kwargs["sendUpdates"], "none")
+
+    def test_recurring_instance_uses_instance_id_not_series_id(self) -> None:
+        event = event_from_google(
+            self._event(
+                event_id="instance-20260810",
+                recurring_event_id="series-1",
+            ),
+            self.calendar,
+        )
+        gateway = self._gateway()
+        gateway.delete_event(self.calendar, event)
+        self.assertEqual(
+            gateway._service.events_resource.kwargs["eventId"],
+            "instance-20260810",
+        )
+        self.assertNotEqual(
+            gateway._service.events_resource.kwargs["eventId"],
+            event.recurring_event_id,
+        )
+
+    def test_special_event_type_can_be_deleted(self) -> None:
+        event = event_from_google(
+            self._event(event_type="birthday"),
+            self.calendar,
+        )
+        self.assertTrue(event.supports_delete)
+        gateway = self._gateway()
+        gateway.delete_event(self.calendar, event)
+        self.assertEqual(
+            gateway._service.events_resource.kwargs["eventId"],
+            event.event_id,
+        )
+
+    def test_locked_event_is_rejected(self) -> None:
+        event = event_from_google(
+            self._event(locked=True),
+            self.calendar,
+        )
+        self.assertFalse(event.supports_delete)
+        gateway = self._gateway()
+        with self.assertRaises(ValueError):
+            gateway.delete_event(self.calendar, event)
+
+    def test_read_only_calendar_is_rejected(self) -> None:
+        read_only = CalendarInfo(
+            "cal-1",
+            "Tylko odczyt",
+            access_role="reader",
+        )
+        event = event_from_google(self._event(), read_only)
+        gateway = self._gateway()
+        with self.assertRaises(PermissionError):
+            gateway.delete_event(read_only, event)
+
+    def test_event_from_another_calendar_is_rejected(self) -> None:
+        other_calendar = CalendarInfo(
+            "cal-2",
+            "Inny",
+            access_role="owner",
+        )
+        event = event_from_google(self._event(), other_calendar)
+        gateway = self._gateway()
+        with self.assertRaises(ValueError):
+            gateway.delete_event(self.calendar, event)
+
+
 if __name__ == "__main__":
     unittest.main()

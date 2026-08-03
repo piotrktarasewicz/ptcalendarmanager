@@ -1,9 +1,26 @@
-GCM by Piotrek 0.4.0 — wyniki testów automatycznych
+GCM by Piotrek 0.5.0 — wyniki testów automatycznych
 
+Spreadsheet runtime warmup failed during python startup
+Traceback (most recent call last):
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
+artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
 test_all_day_body_uses_exclusive_google_end_date (test_models.CreateEventTests.test_all_day_body_uses_exclusive_google_end_date) ... ok
 test_calendar_write_permission (test_models.CreateEventTests.test_calendar_write_permission) ... ok
 test_timed_body_preserves_dates_times_and_timezone (test_models.CreateEventTests.test_timed_body_preserves_dates_times_and_timezone) ... ok
 test_timed_event_must_end_after_start (test_models.CreateEventTests.test_timed_event_must_end_after_start) ... ok
+test_delete_does_not_notify_when_only_owner_is_present (test_models.DeleteEventTests.test_delete_does_not_notify_when_only_owner_is_present) ... ok
+test_delete_sends_updates_to_real_attendees (test_models.DeleteEventTests.test_delete_sends_updates_to_real_attendees) ... ok
+test_event_from_another_calendar_is_rejected (test_models.DeleteEventTests.test_event_from_another_calendar_is_rejected) ... ok
+test_locked_event_is_rejected (test_models.DeleteEventTests.test_locked_event_is_rejected) ... ok
+test_read_only_calendar_is_rejected (test_models.DeleteEventTests.test_read_only_calendar_is_rejected) ... ok
+test_recurring_instance_uses_instance_id_not_series_id (test_models.DeleteEventTests.test_recurring_instance_uses_instance_id_not_series_id) ... ok
+test_special_event_type_can_be_deleted (test_models.DeleteEventTests.test_special_event_type_can_be_deleted) ... ok
 test_all_day_event_converts_to_edit_draft (test_models.EditEventTests.test_all_day_event_converts_to_edit_draft) ... ok
 test_gateway_patch_preserves_event_and_notifies_attendees (test_models.EditEventTests.test_gateway_patch_preserves_event_and_notifies_attendees) ... ok
 test_google_metadata_marks_recurring_and_attendees (test_models.EditEventTests.test_google_metadata_marks_recurring_and_attendees) ... ok
@@ -19,12 +36,11 @@ test_parse_date (test_models.ModelTests.test_parse_date) ... ok
 test_timed_event (test_models.ModelTests.test_timed_event) ... ok
 
 ----------------------------------------------------------------------
-Ran 17 tests in 0.001s
+Ran 24 tests in 0.001s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Formularz dodawania i edycji korzysta z jawnych nazw dostępności: OK
-Częściowa aktualizacja wydarzeń Google: OK
-Ochrona specjalnych typów wydarzeń: OK
-Obsługa pojedynczej instancji cyklu i uczestników: OK
+Obsługa usuwania i parametru sendUpdates: OK
+Ochrona pojedynczego wystąpienia cyklu: OK
+Brak powtórzonych danych w oknie potwierdzenia: OK
