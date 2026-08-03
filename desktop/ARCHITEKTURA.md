@@ -67,3 +67,20 @@ innych niż sam właściciel; w pozostałych przypadkach ma wartość `none`.
 
 Po usunięciu dane są pobierane ponownie z Google, a fokus wraca do listy
 wydarzeń wybranego dnia.
+
+
+## Etap 0.6.0 — zakres usuwania cyklu
+
+Model `CalendarEvent` przechowuje `originalStartTime` zwrócone przez Google.
+Jest ono potrzebne do określenia miejsca wystąpienia w serii również po
+przesunięciu pojedynczego terminu.
+
+`delete_recurring_series()` usuwa identyfikator nadrzędny
+`recurringEventId`.
+
+`delete_recurring_from()` pobiera wydarzenie nadrzędne, usuwa z RRULE
+dotychczasowe `COUNT` albo `UNTIL` i ustawia nowe `UNTIL` bezpośrednio przed
+wybranym wystąpieniem. Elementy takie jak `EXDATE` są zachowywane.
+
+Dla pierwszego wystąpienia skrócenie RRULE przed DTSTART byłoby
+nieprawidłowe, dlatego metoda usuwa wtedy całe wydarzenie nadrzędne.

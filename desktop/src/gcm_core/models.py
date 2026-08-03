@@ -77,6 +77,7 @@ class CalendarEvent:
     description: str = ""
     html_link: str = ""
     recurring_event_id: str = ""
+    original_start: dt.date | dt.datetime | None = None
     has_attendees: bool = False
     event_type: str = "default"
     locked: bool = False
@@ -226,6 +227,15 @@ def parse_google_datetime(value: str) -> dt.datetime:
     return parsed.astimezone()
 
 
+def parse_google_start_marker(value: dict | None) -> dt.date | dt.datetime | None:
+    marker = value or {}
+    if marker.get("date"):
+        return dt.date.fromisoformat(str(marker["date"]))
+    if marker.get("dateTime"):
+        return parse_google_datetime(str(marker["dateTime"]))
+    return None
+
+
 def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
     start = item.get("start") or {}
     end = item.get("end") or {}
@@ -246,6 +256,7 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
             description=str(item.get("description") or ""),
             html_link=str(item.get("htmlLink") or ""),
             recurring_event_id=str(item.get("recurringEventId") or ""),
+            original_start=parse_google_start_marker(item.get("originalStartTime")),
             has_attendees=any(
                 not bool(attendee.get("self", False))
                 for attendee in (item.get("attendees") or [])
@@ -272,6 +283,7 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
         description=str(item.get("description") or ""),
         html_link=str(item.get("htmlLink") or ""),
         recurring_event_id=str(item.get("recurringEventId") or ""),
+        original_start=parse_google_start_marker(item.get("originalStartTime")),
         has_attendees=any(
             not bool(attendee.get("self", False))
             for attendee in (item.get("attendees") or [])

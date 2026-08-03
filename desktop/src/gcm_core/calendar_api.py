@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import datetime as dt
 
-from .models import CalendarEvent, CalendarInfo, EventDraft, event_from_google
+from .models import (
+    CalendarEvent,
+    CalendarInfo,
+    EventDraft,
+    event_from_google,
+    parse_google_start_marker,
+)
 
 
 def _build_event_time(draft: EventDraft, time_zone: str) -> tuple[dict, dict]:
@@ -42,6 +48,64 @@ def build_event_patch_body(draft: EventDraft, time_zone: str) -> dict:
         "start": start,
         "end": end,
     }
+
+
+def recurrence_until_before(
+    target: dt.date | dt.datetime,
+) -> str:
+    """
+    Return an inclusive RFC5545 UNTIL immediately before the target occurrence.
+    """
+    if isinstance(target, dt.datetime):
+        aware = target
+        if aware.tzinfo is None:
+            aware = aware.replace(tzinfo=dt.datetime.now().astimezone().tzinfo)
+        cutoff = (
+            aware.astimezone(dt.timezone.utc).replace(microsecond=0)
+            - dt.timedelta(seconds=1)
+        )
+        return cutoff.strftime("%Y%m%dT%H%M%SZ")
+    return (target - dt.timedelta(days=1)).strftime("%Y%m%d")
+
+
+def trim_recurrence_before(
+    recurrence: list[str],
+    target: dt.date | dt.datetime,
+) -> list[str]:
+    """Replace COUNT/UNTIL in RRULE with an UNTIL before target."""
+    until = recurrence_until_before(target)
+    result: list[str] = []
+    found_rrule = False
+
+    for line in recurrence:
+        text = str(line)
+        if not text.upper().startswith("RRULE:"):
+            result.append(text)
+            continue
+
+        found_rrule = True
+        kept: list[str] = []
+        for part in text[6:].split(";"):
+            clean = part.strip()
+            if not clean:
+                continue
+            key = clean.split("=", 1)[0].upper()
+            if key in {"COUNT", "UNTIL"}:
+                continue
+            kept.append(clean)
+        kept.append(f"UNTIL={until}")
+        result.append("RRULE:" + ";".join(kept))
+
+    if not found_rrule:
+        raise ValueError("Wydarzenie nadrzędne nie zawiera reguły RRULE.")
+    return result
+
+
+def _markers_are_compatible(
+    first: dt.date | dt.datetime,
+    target: dt.date | dt.datetime,
+) -> bool:
+    return isinstance(first, dt.datetime) == isinstance(target, dt.datetime)
 
 
 class CalendarGateway:
@@ -130,7 +194,7 @@ class CalendarGateway:
         ).execute()
         return event_from_google(item, calendar)
 
-    def delete_event(
+    def _validate_delete_target(
         self,
         calendar: CalendarInfo,
         existing: CalendarEvent,
@@ -139,19 +203,97 @@ class CalendarGateway:
             raise PermissionError(
                 f"Kalendarz {calendar.name} nie pozwala temu kontu usuwać wydarzeń."
             )
-        if not existing.event_id:
-            raise ValueError("Wydarzenie nie ma identyfikatora Google.")
         if existing.calendar_id != calendar.calendar_id:
             raise ValueError("Wydarzenie nie należy do wskazanego kalendarza.")
         if not existing.supports_delete:
             raise ValueError(
                 "Google oznaczył to wydarzenie jako zablokowane i nie pozwala go usunąć."
             )
+
+    @staticmethod
+    def _send_updates(existing: CalendarEvent) -> str:
+        return "all" if existing.has_attendees else "none"
+
+    def delete_event(
+        self,
+        calendar: CalendarInfo,
+        existing: CalendarEvent,
+    ) -> None:
+        self._validate_delete_target(calendar, existing)
+        if not existing.event_id:
+            raise ValueError("Wydarzenie nie ma identyfikatora Google.")
         self._service.events().delete(
             calendarId=calendar.calendar_id,
             eventId=existing.event_id,
-            sendUpdates="all" if existing.has_attendees else "none",
+            sendUpdates=self._send_updates(existing),
         ).execute()
+
+    def delete_recurring_series(
+        self,
+        calendar: CalendarInfo,
+        instance: CalendarEvent,
+    ) -> None:
+        self._validate_delete_target(calendar, instance)
+        if not instance.is_recurring_instance:
+            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+        self._service.events().delete(
+            calendarId=calendar.calendar_id,
+            eventId=instance.recurring_event_id,
+            sendUpdates=self._send_updates(instance),
+        ).execute()
+
+    def delete_recurring_from(
+        self,
+        calendar: CalendarInfo,
+        instance: CalendarEvent,
+    ) -> bool:
+        """
+        Delete target and all later instances by trimming the parent RRULE.
+
+        Returns True if target is the first occurrence and the whole parent
+        series was deleted instead.
+        """
+        self._validate_delete_target(calendar, instance)
+        if not instance.is_recurring_instance:
+            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+
+        target = instance.original_start
+        if target is None:
+            target = instance.start_dt if not instance.all_day else instance.start_date
+        if target is None:
+            raise ValueError("Brak pierwotnego czasu rozpoczęcia wystąpienia cyklu.")
+
+        parent = self._service.events().get(
+            calendarId=calendar.calendar_id,
+            eventId=instance.recurring_event_id,
+        ).execute()
+
+        first = parse_google_start_marker(parent.get("start"))
+        if first is None:
+            raise ValueError("Wydarzenie nadrzędne nie ma daty rozpoczęcia.")
+        if not _markers_are_compatible(first, target):
+            raise ValueError("Typ daty wystąpienia nie odpowiada typowi całego cyklu.")
+
+        if target <= first:
+            self._service.events().delete(
+                calendarId=calendar.calendar_id,
+                eventId=instance.recurring_event_id,
+                sendUpdates=self._send_updates(instance),
+            ).execute()
+            return True
+
+        recurrence = [str(value) for value in (parent.get("recurrence") or [])]
+        if not recurrence:
+            raise ValueError("Wydarzenie nadrzędne nie zawiera reguły powtarzania.")
+
+        parent["recurrence"] = trim_recurrence_before(recurrence, target)
+        self._service.events().update(
+            calendarId=calendar.calendar_id,
+            eventId=instance.recurring_event_id,
+            body=parent,
+            sendUpdates=self._send_updates(instance),
+        ).execute()
+        return False
 
     def create_event(self, calendar: CalendarInfo, draft: EventDraft) -> CalendarEvent:
         if not calendar.can_write:

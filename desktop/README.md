@@ -1,66 +1,58 @@
-# GCM by Piotrek 0.5.0 — pełny podstawowy przepływ wydarzeń
+# GCM by Piotrek 0.6.0 — pełne usuwanie wydarzeń cyklicznych
 
-GCM by Piotrek to dostępny klient Kalendarza Google dla Windows,
-rozwijany i praktycznie testowany z NVDA, JAWS-em i Narratorem.
+GCM by Piotrek jest dostępnym klientem Kalendarza Google dla Windows,
+testowanym z NVDA, JAWS-em i Narratorem.
 
-Wersja 0.5.0 domyka podstawową obsługę wydarzeń:
+Wersja 0.6.0 rozszerza usuwanie wydarzeń cyklicznych o trzy zakresy:
 
-- odczyt;
-- dodawanie;
-- edycję;
-- usuwanie.
+1. Usuń tylko to wystąpienie.
+2. Usuń to i wszystkie kolejne wystąpienia.
+3. Usuń cały cykl.
 
-## Usuwanie wydarzeń
+## Bezpieczny wybór
 
-Zaznacz wydarzenie i użyj przycisku `Usuń` albo klawisza `Delete`.
+Po naciśnięciu `Delete` na wydarzeniu cyklicznym pojawia się standardowe
+okno wyboru. Domyślnie zaznaczony jest najbezpieczniejszy wariant:
+`Usuń tylko to wystąpienie`.
 
-Przed wykonaniem operacji aplikacja pokazuje:
+Po wyborze zakresu pojawia się osobne potwierdzenie. Domyślną odpowiedzią
+jest `Nie`.
 
-- tytuł;
-- kalendarz;
-- termin;
-- lokalizację i opis;
-- ostrzeżenie, że operacji nie można cofnąć w GCM.
+## Tylko to wystąpienie
 
-Przycisk `Nie` jest domyślnym wyborem.
+Google otrzymuje identyfikator wybranego wystąpienia. Pozostałe terminy
+serii nie są zmieniane.
 
-## Wydarzenia cykliczne
+## To i kolejne
 
-Wersja 0.5.0 usuwa wyłącznie zaznaczone wystąpienie wydarzenia cyklicznego.
-Nie oferuje usuwania całej serii, dzięki czemu nie można wybrać tej
-operacji przypadkowo.
+Aplikacja pobiera wydarzenie nadrzędne i kończy jego regułę RRULE tuż
+przed pierwotnym czasem rozpoczęcia wybranego wystąpienia. Nie usuwa
+kolejnych terminów jeden po drugim i nie tworzy wielu wyjątków.
+
+Jeżeli wybrane wystąpienie jest pierwszym terminem serii, operacja ma
+taki sam skutek jak usunięcie całego cyklu.
+
+Program wykorzystuje `originalStartTime`, a nie aktualny czas początku.
+Dzięki temu prawidłowo rozpoznaje pozycję wystąpienia nawet po ręcznym
+przesunięciu pojedynczego terminu.
+
+## Cały cykl
+
+Aplikacja usuwa wydarzenie nadrzędne na podstawie `recurringEventId`.
+Znikają wystąpienia wcześniejsze, zaznaczone i późniejsze.
 
 ## Uczestnicy
 
-Jeżeli wydarzenie ma rzeczywistych uczestników, aplikacja ostrzega o tym
-przed usunięciem, a Google otrzymuje polecenie wysłania im informacji
-o anulowaniu.
+Jeśli wydarzenie ma uczestników, aplikacja ostrzega przed operacją,
+a Google otrzymuje polecenie wysłania informacji o anulowaniu.
 
-## Specjalne typy wydarzeń
+## Po operacji
 
-Usunięcie jest dostępne dla zwykłych i specjalnych typów wydarzeń, o ile:
-
-- kalendarz pozwala na zapis;
-- wydarzenie ma identyfikator Google;
-- Google nie oznaczył go jako zablokowane.
-
-Typ specjalny jest jawnie podany w oknie potwierdzenia.
-
-## Po prawidłowym usunięciu
-
-Aplikacja:
-
-1. pokazuje potwierdzenie;
-2. ponownie pobiera wydarzenia z Google;
-3. pozostaje na tym samym dniu;
-4. ustawia fokus na liście wydarzeń tego dnia.
+Aplikacja pozostaje na wybranym dniu, pobiera dane ponownie z Google
+i ustawia fokus na liście wydarzeń tego dnia.
 
 ## Uruchomienie
 
 Rozpakuj archiwum do nowego katalogu i uruchom `uruchom_gcm.bat`.
 
-Logowanie i ustawienia są przechowywane w:
-
-`%APPDATA%\GCM by Piotrek`
-
-dlatego powinny pozostać zachowane między wersjami.
+Token i ustawienia pozostają w `%APPDATA%\GCM by Piotrek`.

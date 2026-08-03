@@ -1,4 +1,4 @@
-GCM by Piotrek 0.5.0 — wyniki testów automatycznych
+GCM by Piotrek 0.6.0 — wyniki testów automatycznych
 
 Spreadsheet runtime warmup failed during python startup
 Traceback (most recent call last):
@@ -34,13 +34,23 @@ test_count_text (test_models.ModelTests.test_count_text) ... ok
 test_month_range (test_models.ModelTests.test_month_range) ... ok
 test_parse_date (test_models.ModelTests.test_parse_date) ... ok
 test_timed_event (test_models.ModelTests.test_timed_event) ... ok
+test_all_day_until_is_previous_date (test_models.RecurringDeleteScopeTests.test_all_day_until_is_previous_date) ... ok
+test_delete_following_from_first_deletes_parent (test_models.RecurringDeleteScopeTests.test_delete_following_from_first_deletes_parent) ... ok
+test_delete_following_updates_parent_rrule (test_models.RecurringDeleteScopeTests.test_delete_following_updates_parent_rrule) ... ok
+test_delete_series_notifies_guests (test_models.RecurringDeleteScopeTests.test_delete_series_notifies_guests) ... ok
+test_delete_whole_series_uses_parent_id (test_models.RecurringDeleteScopeTests.test_delete_whole_series_uses_parent_id) ... ok
+test_non_recurring_event_is_rejected_for_series_delete (test_models.RecurringDeleteScopeTests.test_non_recurring_event_is_rejected_for_series_delete) ... ok
+test_original_start_time_is_retained (test_models.RecurringDeleteScopeTests.test_original_start_time_is_retained) ... ok
+test_timed_until_is_utc_second_before (test_models.RecurringDeleteScopeTests.test_timed_until_is_utc_second_before) ... ok
+test_trim_replaces_count_and_preserves_exdate (test_models.RecurringDeleteScopeTests.test_trim_replaces_count_and_preserves_exdate) ... ok
 
 ----------------------------------------------------------------------
-Ran 24 tests in 0.001s
+Ran 33 tests in 0.001s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Obsługa usuwania i parametru sendUpdates: OK
-Ochrona pojedynczego wystąpienia cyklu: OK
-Brak powtórzonych danych w oknie potwierdzenia: OK
+Usuwanie pojedynczego wystąpienia: OK
+Skracanie RRULE dla tego i kolejnych: OK
+Usuwanie całej serii przez recurringEventId: OK
+Obsługa originalStartTime: OK

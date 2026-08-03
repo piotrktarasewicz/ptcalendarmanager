@@ -32,7 +32,7 @@ from .dialogs import (
     SearchResultsDialog,
 )
 
-APP_TITLE = "GCM by Piotrek 0.5.0 — pełna obsługa wydarzeń"
+APP_TITLE = "GCM by Piotrek 0.6.0 — pełna obsługa cykli"
 T = TypeVar("T")
 
 
@@ -431,7 +431,7 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_search(self, event: wx.Event) -> None:
-        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. Wersja 0.4.0 szuka w bieżącym miesiącu.", "Wyszukaj wydarzenia", "")
+        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. GCM szuka w wydarzeniach pobranych dla bieżącego miesiąca.", "Wyszukaj wydarzenia", "")
         try:
             result = dialog.ShowModal()
             query = dialog.GetValue().strip()
@@ -672,7 +672,7 @@ class MainFrame(wx.Frame):
                 kind = event_type_labels.get(selected.event_type, selected.event_type)
                 reason = (
                     f"To jest specjalny typ wydarzenia: {kind}. "
-                    "Wersja 0.4.0 edytuje na razie zwykłe wydarzenia kalendarza."
+                    "GCM edytuje obecnie zwykłe wydarzenia kalendarza."
                 )
             self._show_message(
                 reason,
@@ -748,6 +748,30 @@ class MainFrame(wx.Frame):
         )
         self._refresh_google()
 
+    def _choose_recurring_delete_scope(self) -> str | None:
+        choices = [
+            "Usuń tylko to wystąpienie",
+            "Usuń to i wszystkie kolejne wystąpienia",
+            "Usuń cały cykl",
+        ]
+        dialog = wx.SingleChoiceDialog(
+            self,
+            "Wybierz zakres usuwania wydarzenia cyklicznego. "
+            "Domyślnie zaznaczone jest najbezpieczniejsze usunięcie jednego terminu.",
+            "Zakres usuwania cyklu",
+            choices,
+        )
+        dialog.SetName("Zakres usuwania wydarzenia cyklicznego")
+        dialog.SetSelection(0)
+        try:
+            result = dialog.ShowModal()
+            selection = dialog.GetSelection()
+        finally:
+            dialog.Destroy()
+        if result != wx.ID_OK or selection < 0:
+            return None
+        return ("single", "following", "series")[selection]
+
     def _on_delete(self, event: wx.Event) -> None:
         if not oauth.is_logged_in():
             self._show_message(
@@ -791,12 +815,33 @@ class MainFrame(wx.Frame):
             )
             return
 
-        notices: list[str] = []
+        scope = "single"
         if selected.is_recurring_instance:
-            notices.append(
-                "To jest pojedyncze wystąpienie wydarzenia cyklicznego. "
-                "Usunięty zostanie tylko zaznaczony termin, a nie cała seria."
-            )
+            scope = self._choose_recurring_delete_scope()
+            if scope is None:
+                self.events_list.SetFocus()
+                return
+
+        scope_text = {
+            "single": (
+                "Usunięte zostanie tylko zaznaczone wystąpienie. "
+                "Pozostałe terminy cyklu pozostaną bez zmian."
+                if selected.is_recurring_instance
+                else "Usunięte zostanie to wydarzenie."
+            ),
+            "following": (
+                "Usunięte zostanie zaznaczone wystąpienie oraz wszystkie późniejsze "
+                "terminy tej serii. Wcześniejsze wystąpienia pozostaną. "
+                "Jeżeli zaznaczony termin jest pierwszym wystąpieniem, skutek będzie "
+                "równy usunięciu całego cyklu."
+            ),
+            "series": (
+                "Usunięty zostanie cały cykl: wcześniejsze, zaznaczone i wszystkie "
+                "późniejsze wystąpienia."
+            ),
+        }[scope]
+
+        notices: list[str] = [scope_text]
         if selected.has_attendees:
             notices.append(
                 "Wydarzenie ma uczestników. Google wyśle im informację o anulowaniu."
@@ -812,14 +857,19 @@ class MainFrame(wx.Frame):
             kind = event_type_labels.get(selected.event_type, selected.event_type)
             notices.append(f"To jest specjalny typ wydarzenia: {kind}.")
 
-        notice_text = "\n\n" + "\n\n".join(notices) if notices else ""
+        confirm_title = {
+            "single": "Potwierdź usunięcie wydarzenia",
+            "following": "Potwierdź usunięcie tego i kolejnych wystąpień",
+            "series": "Potwierdź usunięcie całego cyklu",
+        }[scope]
+        notices_text = "\n".join(notices)
         confirm = wx.MessageDialog(
             self,
-            f"Czy na pewno usunąć to wydarzenie?\n\n"
+            f"Czy na pewno wykonać tę operację?\n\n"
             f"{selected.details_text()}\n\n"
-            f"Tej operacji nie można cofnąć w aplikacji GCM."
-            f"{notice_text}",
-            "Potwierdź usunięcie wydarzenia",
+            f"{notices_text}\n\n"
+            f"Tej operacji nie można cofnąć w aplikacji GCM.",
+            confirm_title,
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
         )
         try:
@@ -835,30 +885,70 @@ class MainFrame(wx.Frame):
         deleted_calendar_name = calendar.name
         deleted_date = self.selected_date
 
-        def delete() -> tuple[str, str, dt.date]:
+        def delete() -> tuple[str, str, dt.date, str, bool]:
             credentials = oauth.ensure_valid_credentials()
             if credentials is None:
                 raise RuntimeError("Brak ważnego logowania Google.")
-            CalendarGateway(credentials).delete_event(calendar, selected)
-            return deleted_title, deleted_calendar_name, deleted_date
+            gateway = CalendarGateway(credentials)
+            parent_deleted = False
+            if scope == "series":
+                gateway.delete_recurring_series(calendar, selected)
+            elif scope == "following":
+                parent_deleted = gateway.delete_recurring_from(calendar, selected)
+            else:
+                gateway.delete_event(calendar, selected)
+            return (
+                deleted_title,
+                deleted_calendar_name,
+                deleted_date,
+                scope,
+                parent_deleted,
+            )
 
+        busy_text = {
+            "single": f"Usuwanie wydarzenia: {selected.title}...",
+            "following": f"Usuwanie tego i kolejnych wystąpień: {selected.title}...",
+            "series": f"Usuwanie całego cyklu: {selected.title}...",
+        }[scope]
         self._run_task(
-            busy_message=f"Usuwanie wydarzenia: {selected.title}...",
+            busy_message=busy_text,
             target=delete,
             on_success=self._after_delete,
         )
 
-    def _after_delete(self, result: tuple[str, str, dt.date]) -> None:
-        title, calendar_name, selected_date = result
+    def _after_delete(
+        self,
+        result: tuple[str, str, dt.date, str, bool],
+    ) -> None:
+        title, calendar_name, selected_date, scope, parent_deleted = result
         self.selected_date = selected_date
         self.current_year = selected_date.year
         self.current_month = selected_date.month
         self._focus_event_after_refresh = None
         self._focus_events_after_refresh = True
-        self._show_message(
-            f"Wydarzenie „{title}” zostało usunięte z kalendarza {calendar_name}.",
-            "Wydarzenie usunięte",
-        )
+
+        if scope == "series":
+            message = (
+                f"Cały cykl „{title}” został usunięty z kalendarza {calendar_name}."
+            )
+        elif scope == "following":
+            if parent_deleted:
+                message = (
+                    f"Zaznaczony termin był pierwszym wystąpieniem. "
+                    f"Cały cykl „{title}” został usunięty z kalendarza {calendar_name}."
+                )
+            else:
+                message = (
+                    f"Zaznaczone i wszystkie kolejne wystąpienia „{title}” "
+                    f"zostały usunięte z kalendarza {calendar_name}."
+                )
+        else:
+            message = (
+                f"Wybrane wydarzenie „{title}” zostało usunięte "
+                f"z kalendarza {calendar_name}."
+            )
+
+        self._show_message(message, "Usuwanie zakończone")
         self._refresh_google()
 
     def _on_details(self, event: wx.Event) -> None:

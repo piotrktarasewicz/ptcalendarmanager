@@ -1,7 +1,13 @@
 import datetime as dt
 import unittest
 
-from gcm_core.calendar_api import CalendarGateway, build_event_body, build_event_patch_body
+from gcm_core.calendar_api import (
+    CalendarGateway,
+    build_event_body,
+    build_event_patch_body,
+    recurrence_until_before,
+    trim_recurrence_before,
+)
 from gcm_core.models import (
     CalendarInfo,
     EventCollection,
@@ -425,6 +431,193 @@ class DeleteEventTests(unittest.TestCase):
         gateway = self._gateway()
         with self.assertRaises(ValueError):
             gateway.delete_event(self.calendar, event)
+
+
+
+
+class RecurringDeleteScopeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.calendar = CalendarInfo(
+            "cal-1",
+            "Główny",
+            access_role="owner",
+            time_zone="Europe/Warsaw",
+        )
+
+    def _instance(
+        self,
+        *,
+        original_date: str = "2026-08-17",
+        timed: bool = False,
+        attendees=None,
+    ):
+        if timed:
+            start = {"dateTime": "2026-08-17T10:00:00+02:00"}
+            end = {"dateTime": "2026-08-17T11:00:00+02:00"}
+            original = {"dateTime": original_date}
+        else:
+            start = {"date": "2026-08-17"}
+            end = {"date": "2026-08-18"}
+            original = {"date": original_date}
+        data = {
+            "id": "instance-2",
+            "recurringEventId": "series-1",
+            "originalStartTime": original,
+            "summary": "Cykl",
+            "start": start,
+            "end": end,
+        }
+        if attendees is not None:
+            data["attendees"] = attendees
+        return event_from_google(data, self.calendar)
+
+    @staticmethod
+    def _gateway(parent):
+        class FakeRequest:
+            def __init__(self, response=None):
+                self.response = response
+
+            def execute(self):
+                return self.response
+
+        class FakeEvents:
+            def __init__(self, parent_event):
+                self.parent_event = parent_event
+                self.get_kwargs = None
+                self.update_kwargs = None
+                self.delete_kwargs = None
+
+            def get(self, **kwargs):
+                self.get_kwargs = kwargs
+                return FakeRequest(dict(self.parent_event))
+
+            def update(self, **kwargs):
+                self.update_kwargs = kwargs
+                return FakeRequest(kwargs["body"])
+
+            def delete(self, **kwargs):
+                self.delete_kwargs = kwargs
+                return FakeRequest(None)
+
+        class FakeService:
+            def __init__(self, parent_event):
+                self.events_resource = FakeEvents(parent_event)
+
+            def events(self):
+                return self.events_resource
+
+        gateway = CalendarGateway.__new__(CalendarGateway)
+        gateway._service = FakeService(parent)
+        return gateway
+
+    def test_original_start_time_is_retained(self) -> None:
+        event = self._instance()
+        self.assertEqual(event.original_start, dt.date(2026, 8, 17))
+
+    def test_all_day_until_is_previous_date(self) -> None:
+        self.assertEqual(
+            recurrence_until_before(dt.date(2026, 8, 17)),
+            "20260816",
+        )
+
+    def test_timed_until_is_utc_second_before(self) -> None:
+        marker = dt.datetime(
+            2026,
+            8,
+            17,
+            10,
+            0,
+            tzinfo=dt.timezone(dt.timedelta(hours=2)),
+        )
+        self.assertEqual(
+            recurrence_until_before(marker),
+            "20260817T075959Z",
+        )
+
+    def test_trim_replaces_count_and_preserves_exdate(self) -> None:
+        result = trim_recurrence_before(
+            [
+                "RRULE:FREQ=WEEKLY;COUNT=10;BYDAY=MO",
+                "EXDATE;VALUE=DATE:20260824",
+            ],
+            dt.date(2026, 8, 17),
+        )
+        self.assertEqual(
+            result[0],
+            "RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20260816",
+        )
+        self.assertEqual(result[1], "EXDATE;VALUE=DATE:20260824")
+
+    def test_delete_following_updates_parent_rrule(self) -> None:
+        parent = {
+            "id": "series-1",
+            "summary": "Cykl",
+            "start": {"date": "2026-08-03"},
+            "end": {"date": "2026-08-04"},
+            "recurrence": ["RRULE:FREQ=WEEKLY;COUNT=10"],
+        }
+        gateway = self._gateway(parent)
+        whole_series_deleted = gateway.delete_recurring_from(
+            self.calendar,
+            self._instance(),
+        )
+        self.assertFalse(whole_series_deleted)
+        events = gateway._service.events_resource
+        self.assertIsNone(events.delete_kwargs)
+        self.assertEqual(events.update_kwargs["eventId"], "series-1")
+        self.assertEqual(
+            events.update_kwargs["body"]["recurrence"],
+            ["RRULE:FREQ=WEEKLY;UNTIL=20260816"],
+        )
+
+    def test_delete_following_from_first_deletes_parent(self) -> None:
+        parent = {
+            "id": "series-1",
+            "summary": "Cykl",
+            "start": {"date": "2026-08-17"},
+            "end": {"date": "2026-08-18"},
+            "recurrence": ["RRULE:FREQ=WEEKLY;COUNT=10"],
+        }
+        gateway = self._gateway(parent)
+        whole_series_deleted = gateway.delete_recurring_from(
+            self.calendar,
+            self._instance(),
+        )
+        self.assertTrue(whole_series_deleted)
+        events = gateway._service.events_resource
+        self.assertIsNone(events.update_kwargs)
+        self.assertEqual(events.delete_kwargs["eventId"], "series-1")
+
+    def test_delete_whole_series_uses_parent_id(self) -> None:
+        gateway = self._gateway({})
+        gateway.delete_recurring_series(self.calendar, self._instance())
+        self.assertEqual(
+            gateway._service.events_resource.delete_kwargs["eventId"],
+            "series-1",
+        )
+
+    def test_delete_series_notifies_guests(self) -> None:
+        gateway = self._gateway({})
+        event = self._instance(attendees=[{"email": "guest@example.com"}])
+        gateway.delete_recurring_series(self.calendar, event)
+        self.assertEqual(
+            gateway._service.events_resource.delete_kwargs["sendUpdates"],
+            "all",
+        )
+
+    def test_non_recurring_event_is_rejected_for_series_delete(self) -> None:
+        event = event_from_google(
+            {
+                "id": "one",
+                "summary": "Jednorazowe",
+                "start": {"date": "2026-08-17"},
+                "end": {"date": "2026-08-18"},
+            },
+            self.calendar,
+        )
+        gateway = self._gateway({})
+        with self.assertRaises(ValueError):
+            gateway.delete_recurring_series(self.calendar, event)
 
 
 if __name__ == "__main__":
