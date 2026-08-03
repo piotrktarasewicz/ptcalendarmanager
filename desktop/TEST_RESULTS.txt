@@ -1,4 +1,4 @@
-GCM by Piotrek 0.8.0 — wyniki testów automatycznych
+GCM by Piotrek 0.9.0 — wyniki testów automatycznych
 
 Spreadsheet runtime warmup failed during python startup
 Traceback (most recent call last):
@@ -10,6 +10,17 @@ Traceback (most recent call last):
   File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
   File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
 artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
+test_advanced_series_is_rejected_for_whole_series_edit (test_models.BasicRecurrenceTests.test_advanced_series_is_rejected_for_whole_series_edit) ... ok
+test_one_off_event_can_be_converted_to_cycle (test_models.BasicRecurrenceTests.test_one_off_event_can_be_converted_to_cycle) ... ok
+test_parser_accepts_simple_rules_from_google_ui (test_models.BasicRecurrenceTests.test_parser_accepts_simple_rules_from_google_ui) ... ok
+test_parser_blocks_advanced_rules (test_models.BasicRecurrenceTests.test_parser_blocks_advanced_rules) ... ok
+test_parser_recognizes_quarterly_and_semiannual (test_models.BasicRecurrenceTests.test_parser_recognizes_quarterly_and_semiannual) ... ok
+test_recurrence_end_before_start_is_rejected (test_models.BasicRecurrenceTests.test_recurrence_end_before_start_is_rejected) ... ok
+test_recurrence_end_date_is_inclusive (test_models.BasicRecurrenceTests.test_recurrence_end_date_is_inclusive) ... ok
+test_supported_recurrence_lines (test_models.BasicRecurrenceTests.test_supported_recurrence_lines) ... ok
+test_timed_recurrence_until_uses_calendar_timezone (test_models.BasicRecurrenceTests.test_timed_recurrence_until_uses_calendar_timezone) ... ok
+test_timed_until_is_parsed_back_in_calendar_timezone (test_models.BasicRecurrenceTests.test_timed_until_is_parsed_back_in_calendar_timezone) ... ok
+test_whole_series_update_uses_parent_and_preserves_extra_fields (test_models.BasicRecurrenceTests.test_whole_series_update_uses_parent_and_preserves_extra_fields) ... ok
 test_all_day_body_uses_exclusive_google_end_date (test_models.CreateEventTests.test_all_day_body_uses_exclusive_google_end_date) ... ok
 test_calendar_write_permission (test_models.CreateEventTests.test_calendar_write_permission) ... ok
 test_timed_body_preserves_dates_times_and_timezone (test_models.CreateEventTests.test_timed_body_preserves_dates_times_and_timezone) ... ok
@@ -50,12 +61,16 @@ test_search_rejects_empty_query (test_models.SearchRangeTests.test_search_reject
 test_search_rejects_reversed_range (test_models.SearchRangeTests.test_search_rejects_reversed_range) ... ok
 
 ----------------------------------------------------------------------
-Ran 38 tests in 0.002s
+Ran 49 tests in 0.003s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Obecność F1 i okna pomocy: OK
-Obecność liter dostępu na głównych przyciskach: OK
-Obecność liter dostępu w formularzach: OK
-GetKeyboardShortcut w warstwie dostępności: OK
+Kontrola struktury AST i powielonych metod: OK
+Kontrola metadanych projektu i zależności tzdata: OK
+Tworzenie podstawowych cykli: OK
+Reguły kwartalne i półroczne: OK
+Data zakończenia cyklu i strefy czasowe: OK
+Edycja pojedynczego wystąpienia: zachowanie dotychczasowe
+Edycja całego prostego cyklu: OK
+Blokada uproszczenia złożonej reguły: OK

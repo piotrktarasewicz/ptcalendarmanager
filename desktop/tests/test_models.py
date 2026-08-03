@@ -5,6 +5,7 @@ from gcm_core.calendar_api import (
     CalendarGateway,
     build_event_body,
     build_event_patch_body,
+    build_recurrence_lines,
     recurrence_until_before,
     trim_recurrence_before,
 )
@@ -12,12 +13,14 @@ from gcm_core.models import (
     CalendarInfo,
     EventCollection,
     EventDraft,
+    RecurrenceSettings,
     SearchCriteria,
     count_text,
     event_from_google,
     month_days,
     month_range,
     parse_polish_date,
+    recurrence_from_google,
 )
 
 
@@ -715,6 +718,248 @@ class SearchRangeTests(unittest.TestCase):
         )
         results = gateway.search_events([self.calendar], criteria)
         self.assertEqual(results[0].event_id, "family")
+
+
+class BasicRecurrenceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.calendar = CalendarInfo(
+            "cal-1",
+            "Główny",
+            access_role="owner",
+            time_zone="Europe/Warsaw",
+        )
+
+    def _draft(
+        self,
+        mode: str,
+        end_date: dt.date | None = None,
+    ) -> EventDraft:
+        return EventDraft(
+            calendar_id=self.calendar.calendar_id,
+            title="Cykl testowy",
+            all_day=True,
+            start_date=dt.date(2026, 8, 3),
+            end_date_inclusive=dt.date(2026, 8, 3),
+            recurrence=RecurrenceSettings(
+                mode=mode,
+                end_date_inclusive=end_date,
+            ),
+        )
+
+    def test_supported_recurrence_lines(self) -> None:
+        expected = {
+            "daily": "RRULE:FREQ=DAILY",
+            "weekly": "RRULE:FREQ=WEEKLY;BYDAY=MO",
+            "monthly": "RRULE:FREQ=MONTHLY",
+            "quarterly": "RRULE:FREQ=MONTHLY;INTERVAL=3",
+            "semiannual": "RRULE:FREQ=MONTHLY;INTERVAL=6",
+            "yearly": "RRULE:FREQ=YEARLY",
+        }
+        for mode, rule in expected.items():
+            with self.subTest(mode=mode):
+                self.assertEqual(build_recurrence_lines(self._draft(mode)), [rule])
+
+    def test_recurrence_end_date_is_inclusive(self) -> None:
+        lines = build_recurrence_lines(
+            self._draft("quarterly", dt.date(2027, 8, 3))
+        )
+        self.assertEqual(
+            lines,
+            ["RRULE:FREQ=MONTHLY;INTERVAL=3;UNTIL=20270803"],
+        )
+
+    def test_timed_recurrence_until_uses_calendar_timezone(self) -> None:
+        draft = EventDraft(
+            calendar_id=self.calendar.calendar_id,
+            title="Spotkanie cykliczne",
+            all_day=False,
+            start_date=dt.date(2026, 8, 3),
+            end_date_inclusive=dt.date(2026, 8, 3),
+            start_time=dt.time(9, 0),
+            end_time=dt.time(10, 0),
+            recurrence=RecurrenceSettings(
+                mode="daily",
+                end_date_inclusive=dt.date(2026, 8, 3),
+            ),
+        )
+        self.assertEqual(
+            build_recurrence_lines(draft, "Europe/Warsaw"),
+            ["RRULE:FREQ=DAILY;UNTIL=20260803T215959Z"],
+        )
+
+    def test_timed_until_is_parsed_back_in_calendar_timezone(self) -> None:
+        recurrence = recurrence_from_google(
+            {"recurrence": ["RRULE:FREQ=DAILY;UNTIL=20260804T065959Z"]},
+            dt.date(2026, 8, 3),
+            "America/Los_Angeles",
+            all_day=False,
+        )
+        self.assertEqual(recurrence.end_date_inclusive, dt.date(2026, 8, 3))
+
+    def test_recurrence_end_before_start_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            self._draft("monthly", dt.date(2026, 8, 2)).validate()
+
+    def test_parser_recognizes_quarterly_and_semiannual(self) -> None:
+        quarterly = recurrence_from_google(
+            {"recurrence": ["RRULE:FREQ=MONTHLY;INTERVAL=3"]},
+            dt.date(2026, 8, 3),
+        )
+        semiannual = recurrence_from_google(
+            {"recurrence": ["RRULE:FREQ=MONTHLY;INTERVAL=6;BYMONTHDAY=3"]},
+            dt.date(2026, 8, 3),
+        )
+        self.assertTrue(quarterly.supported)
+        self.assertEqual(quarterly.mode, "quarterly")
+        self.assertTrue(semiannual.supported)
+        self.assertEqual(semiannual.mode, "semiannual")
+
+    def test_parser_accepts_simple_rules_from_google_ui(self) -> None:
+        weekly = recurrence_from_google(
+            {"recurrence": ["RRULE:FREQ=WEEKLY;WKST=MO;BYDAY=MO"]},
+            dt.date(2026, 8, 3),
+        )
+        yearly = recurrence_from_google(
+            {"recurrence": ["RRULE:FREQ=YEARLY;BYMONTH=8;BYMONTHDAY=3"]},
+            dt.date(2026, 8, 3),
+        )
+        self.assertEqual(weekly.mode, "weekly")
+        self.assertEqual(yearly.mode, "yearly")
+
+    def test_parser_blocks_advanced_rules(self) -> None:
+        advanced_rules = [
+            ["RRULE:FREQ=WEEKLY;BYDAY=MO,WE"],
+            ["RRULE:FREQ=MONTHLY;INTERVAL=2"],
+            ["RRULE:FREQ=DAILY;COUNT=10"],
+            ["RRULE:FREQ=MONTHLY", "EXDATE;VALUE=DATE:20260903"],
+        ]
+        for lines in advanced_rules:
+            with self.subTest(lines=lines):
+                parsed = recurrence_from_google(
+                    {"recurrence": lines},
+                    dt.date(2026, 8, 3),
+                )
+                self.assertFalse(parsed.supported)
+
+    @staticmethod
+    def _gateway(parent_resource=None):
+        class FakeRequest:
+            def __init__(self, response):
+                self.response = response
+
+            def execute(self):
+                return self.response
+
+        class FakeEvents:
+            def __init__(self, parent):
+                self.parent = dict(parent or {})
+                self.patch_kwargs = None
+                self.update_kwargs = None
+                self.get_kwargs = None
+
+            def get(self, **kwargs):
+                self.get_kwargs = kwargs
+                return FakeRequest(dict(self.parent))
+
+            def patch(self, **kwargs):
+                self.patch_kwargs = kwargs
+                response = dict(kwargs["body"])
+                response.setdefault("id", kwargs["eventId"])
+                return FakeRequest(response)
+
+            def update(self, **kwargs):
+                self.update_kwargs = kwargs
+                response = dict(kwargs["body"])
+                response.setdefault("id", kwargs["eventId"])
+                return FakeRequest(response)
+
+        class FakeService:
+            def __init__(self, parent):
+                self.events_resource = FakeEvents(parent)
+
+            def events(self):
+                return self.events_resource
+
+        gateway = CalendarGateway.__new__(CalendarGateway)
+        gateway._service = FakeService(parent_resource)
+        return gateway
+
+    def test_one_off_event_can_be_converted_to_cycle(self) -> None:
+        existing = event_from_google(
+            {
+                "id": "single-1",
+                "summary": "Jednorazowe",
+                "start": {"date": "2026-08-03"},
+                "end": {"date": "2026-08-04"},
+            },
+            self.calendar,
+        )
+        gateway = self._gateway()
+        gateway.update_event(self.calendar, existing, self._draft("monthly"))
+        body = gateway._service.events_resource.patch_kwargs["body"]
+        self.assertEqual(body["recurrence"], ["RRULE:FREQ=MONTHLY"])
+
+    def test_whole_series_update_uses_parent_and_preserves_extra_fields(self) -> None:
+        parent = {
+            "id": "series-1",
+            "summary": "Stary cykl",
+            "start": {"date": "2026-08-03"},
+            "end": {"date": "2026-08-04"},
+            "recurrence": ["RRULE:FREQ=MONTHLY;INTERVAL=3"],
+            "reminders": {"useDefault": True},
+            "conferenceData": {"entryPoints": [{"uri": "https://meet.google.com/test"}]},
+            "attendees": [{"email": "guest@example.com"}],
+        }
+        instance = event_from_google(
+            {
+                "id": "instance-1",
+                "recurringEventId": "series-1",
+                "summary": "Stary cykl",
+                "start": {"date": "2026-11-03"},
+                "end": {"date": "2026-11-04"},
+                "attendees": [{"email": "guest@example.com"}],
+            },
+            self.calendar,
+        )
+        gateway = self._gateway(parent)
+        updated = gateway.update_recurring_series(
+            self.calendar,
+            instance,
+            self._draft("semiannual", dt.date(2028, 8, 3)),
+        )
+        kwargs = gateway._service.events_resource.update_kwargs
+        self.assertEqual(kwargs["eventId"], "series-1")
+        self.assertEqual(kwargs["sendUpdates"], "all")
+        self.assertEqual(kwargs["conferenceDataVersion"], 1)
+        self.assertEqual(kwargs["body"]["reminders"], {"useDefault": True})
+        self.assertEqual(
+            kwargs["body"]["recurrence"],
+            ["RRULE:FREQ=MONTHLY;INTERVAL=6;UNTIL=20280803"],
+        )
+        self.assertEqual(updated.recurrence.mode, "semiannual")
+
+    def test_advanced_series_is_rejected_for_whole_series_edit(self) -> None:
+        parent = {
+            "id": "series-1",
+            "summary": "Zaawansowany cykl",
+            "start": {"date": "2026-08-03"},
+            "end": {"date": "2026-08-04"},
+            "recurrence": ["RRULE:FREQ=WEEKLY;BYDAY=MO,WE"],
+        }
+        instance = event_from_google(
+            {
+                "id": "instance-1",
+                "recurringEventId": "series-1",
+                "summary": "Zaawansowany cykl",
+                "start": {"date": "2026-08-03"},
+                "end": {"date": "2026-08-04"},
+            },
+            self.calendar,
+        )
+        gateway = self._gateway(parent)
+        with self.assertRaises(ValueError):
+            gateway.get_recurring_series(self.calendar, instance)
+
 
 
 if __name__ == "__main__":

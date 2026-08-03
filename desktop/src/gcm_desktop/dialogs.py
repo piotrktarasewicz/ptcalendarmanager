@@ -10,11 +10,15 @@ from gcm_core.models import (
     CalendarEvent,
     CalendarInfo,
     EventDraft,
+    RECURRENCE_CHOICES,
+    RecurrenceSettings,
     SearchCriteria,
     count_text,
     format_full_date,
     parse_polish_date,
     parse_polish_time,
+    recurrence_mode_from_index,
+    recurrence_mode_index,
 )
 
 
@@ -28,6 +32,7 @@ class EventCreateDialog(wx.Dialog):
         initial_event: CalendarEvent | None = None,
         title: str = "Dodaj wydarzenie",
         save_label: str = "Utwórz wydarzenie",
+        allow_recurrence_edit: bool = True,
     ) -> None:
         super().__init__(
             parent,
@@ -38,6 +43,7 @@ class EventCreateDialog(wx.Dialog):
         self._draft: EventDraft | None = None
         self._accessible_objects: list[wx.Accessible] = []
         self._initial_event = initial_event
+        self._allow_recurrence_edit = bool(allow_recurrence_edit)
 
         initial_draft = initial_event.to_draft() if initial_event else None
         form_date = initial_draft.start_date if initial_draft else default_date
@@ -102,6 +108,31 @@ class EventCreateDialog(wx.Dialog):
         )
         self.end_time_ctrl = wx.TextCtrl(self, value=end_time)
 
+        recurrence_labels = [label for _mode, label in RECURRENCE_CHOICES]
+        self.recurrence_ctrl = wx.Choice(self, choices=recurrence_labels)
+        initial_recurrence = initial_draft.recurrence if initial_draft else RecurrenceSettings()
+        self.recurrence_ctrl.SetSelection(recurrence_mode_index(initial_recurrence.mode))
+        if not self._allow_recurrence_edit:
+            self.recurrence_ctrl.SetSelection(0)
+
+        self.recurrence_no_end_ctrl = wx.CheckBox(
+            self,
+            label="Bez daty zakończenia cyklu",
+        )
+        self.recurrence_no_end_ctrl.SetValue(
+            bool(initial_recurrence.is_recurring and initial_recurrence.end_date_inclusive is None)
+        )
+        default_recurrence_end = initial_recurrence.end_date_inclusive
+        if default_recurrence_end is None:
+            try:
+                default_recurrence_end = form_date.replace(year=form_date.year + 1)
+            except ValueError:
+                default_recurrence_end = form_date + dt.timedelta(days=365)
+        self.recurrence_end_date_ctrl = wx.TextCtrl(
+            self,
+            value=default_recurrence_end.strftime("%d.%m.%Y"),
+        )
+
         self.location_ctrl = wx.TextCtrl(
             self,
             value=initial_draft.location if initial_draft else "",
@@ -151,6 +182,21 @@ class EventCreateDialog(wx.Dialog):
             "Wpisz godzinę zakończenia w formacie godzina, dwukropek, minuty.",
         )
         self._name_control(
+            self.recurrence_ctrl,
+            "Powtarzanie wydarzenia",
+            "Wybierz prosty rodzaj cyklu albo wydarzenie jednorazowe.",
+        )
+        self._name_control(
+            self.recurrence_no_end_ctrl,
+            "Bez daty zakończenia cyklu",
+            "Zaznacz, aby cykl nie miał określonej daty końcowej.",
+        )
+        self._name_control(
+            self.recurrence_end_date_ctrl,
+            "Data zakończenia cyklu włącznie, DD.MM.RRRR",
+            "Wpisz ostatni dzień, w którym cykl może utworzyć wystąpienie.",
+        )
+        self._name_control(
             self.location_ctrl,
             "Lokalizacja",
             "Wpisz miejsce wydarzenia albo pozostaw pole puste.",
@@ -173,6 +219,10 @@ class EventCreateDialog(wx.Dialog):
         add_row("Godzina rozpoczęcia, GG:MM:", self.start_time_ctrl)
         add_row("Data zakończenia włącznie, DD.MM.RRRR:", self.end_date_ctrl)
         add_row("Godzina zakończenia, GG:MM:", self.end_time_ctrl)
+        add_row("Powtarzanie:", self.recurrence_ctrl)
+        form.Add(wx.StaticText(self, label="Zakończenie cyklu:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(self.recurrence_no_end_ctrl, 1, wx.EXPAND)
+        add_row("Data zakończenia cyklu włącznie, DD.MM.RRRR:", self.recurrence_end_date_ctrl)
         add_row("Lokalizacja:", self.location_ctrl)
         add_row("Opis:", self.description_ctrl)
         sizer.Add(form, 1, wx.ALL | wx.EXPAND, 12)
@@ -203,13 +253,16 @@ class EventCreateDialog(wx.Dialog):
         sizer.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
 
         self.SetSizerAndFit(sizer)
-        self.SetMinSize((680, 560))
-        self.SetSize((760, 640))
+        self.SetMinSize((700, 650))
+        self.SetSize((790, 740))
         self.CentreOnParent()
 
         self.all_day_ctrl.Bind(wx.EVT_CHECKBOX, self._on_all_day)
+        self.recurrence_ctrl.Bind(wx.EVT_CHOICE, self._on_recurrence_changed)
+        self.recurrence_no_end_ctrl.Bind(wx.EVT_CHECKBOX, self._on_recurrence_changed)
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
         self._apply_all_day_state()
+        self._apply_recurrence_state()
         wx.CallAfter(self.title_ctrl.SetFocus)
 
     def _name_control(
@@ -235,6 +288,21 @@ class EventCreateDialog(wx.Dialog):
 
     def _on_all_day(self, event: wx.CommandEvent) -> None:
         self._apply_all_day_state()
+        event.Skip()
+
+    def _apply_recurrence_state(self) -> None:
+        self.recurrence_ctrl.Enable(self._allow_recurrence_edit)
+        recurring = (
+            self._allow_recurrence_edit
+            and recurrence_mode_from_index(self.recurrence_ctrl.GetSelection()) != "none"
+        )
+        self.recurrence_no_end_ctrl.Enable(recurring)
+        self.recurrence_end_date_ctrl.Enable(
+            recurring and not self.recurrence_no_end_ctrl.GetValue()
+        )
+
+    def _on_recurrence_changed(self, event: wx.CommandEvent) -> None:
+        self._apply_recurrence_state()
         event.Skip()
 
     def _show_error(self, text: str, control: wx.Window | None = None) -> None:
@@ -288,6 +356,19 @@ class EventCreateDialog(wx.Dialog):
                 self._show_error(str(error), self.end_time_ctrl)
                 return
 
+        recurrence_mode = "none"
+        recurrence_end = None
+        if self._allow_recurrence_edit:
+            recurrence_mode = recurrence_mode_from_index(self.recurrence_ctrl.GetSelection())
+            if recurrence_mode != "none" and not self.recurrence_no_end_ctrl.GetValue():
+                try:
+                    recurrence_end = parse_polish_date(
+                        self.recurrence_end_date_ctrl.GetValue()
+                    )
+                except ValueError as error:
+                    self._show_error(str(error), self.recurrence_end_date_ctrl)
+                    return
+
         calendar = self._calendars[calendar_index]
         draft = EventDraft(
             calendar_id=calendar.calendar_id,
@@ -299,6 +380,10 @@ class EventCreateDialog(wx.Dialog):
             end_time=end_time,
             location=self.location_ctrl.GetValue().strip(),
             description=self.description_ctrl.GetValue().strip(),
+            recurrence=RecurrenceSettings(
+                mode=recurrence_mode,
+                end_date_inclusive=recurrence_end,
+            ),
         )
         try:
             draft.validate()
@@ -319,6 +404,8 @@ class EventEditDialog(EventCreateDialog):
         parent: wx.Window,
         calendar: CalendarInfo,
         event: CalendarEvent,
+        *,
+        allow_recurrence_edit: bool = False,
     ) -> None:
         super().__init__(
             parent,
@@ -327,6 +414,7 @@ class EventEditDialog(EventCreateDialog):
             initial_event=event,
             title="Edytuj wydarzenie",
             save_label="Zapisz zmiany",
+            allow_recurrence_edit=allow_recurrence_edit,
         )
 
 

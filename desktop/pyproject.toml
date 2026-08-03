@@ -1,12 +1,13 @@
 [project]
 name = "gcm-by-piotrek"
-version = "0.8.0"
+version = "0.9.0"
 description = "Accessible Google Calendar desktop client for Windows"
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "wxPython==4.2.5",
     "google-api-python-client==2.198.0",
     "google-auth-oauthlib==1.4.0",
+    "tzdata==2026.3",
 ]
 
 [tool.pytest.ini_options]

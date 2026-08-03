@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import calendar
 import datetime as dt
-from dataclasses import dataclass
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from dataclasses import dataclass, field
 
 POLISH_MONTHS = (
     "", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
@@ -16,6 +17,192 @@ POLISH_WEEKDAYS = (
     "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela",
 )
 
+
+
+RECURRENCE_CHOICES = (
+    ("none", "Nie powtarza się"),
+    ("daily", "Codziennie"),
+    ("weekly", "Co tydzień"),
+    ("monthly", "Co miesiąc"),
+    ("quarterly", "Co 3 miesiące"),
+    ("semiannual", "Co 6 miesięcy"),
+    ("yearly", "Co rok"),
+)
+RECURRENCE_LABELS = dict(RECURRENCE_CHOICES)
+RRULE_WEEKDAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+
+
+@dataclass(frozen=True, slots=True)
+class RecurrenceSettings:
+    mode: str = "none"
+    end_date_inclusive: dt.date | None = None
+    supported: bool = True
+    raw_lines: tuple[str, ...] = ()
+
+    @property
+    def is_recurring(self) -> bool:
+        return self.mode != "none"
+
+    @property
+    def label(self) -> str:
+        if not self.supported:
+            return "zaawansowany cykl"
+        return RECURRENCE_LABELS.get(self.mode, self.mode)
+
+    def validate(self, start_date: dt.date) -> None:
+        if self.mode not in RECURRENCE_LABELS:
+            raise ValueError("Wybrany rodzaj powtarzania nie jest obsługiwany.")
+        if self.mode == "none":
+            return
+        if self.end_date_inclusive is not None and self.end_date_inclusive < start_date:
+            raise ValueError(
+                "Data zakończenia cyklu nie może być wcześniejsza od daty rozpoczęcia."
+            )
+
+    def display_text(self) -> str:
+        if not self.supported:
+            return "zaawansowany cykl utworzony poza GCM"
+        if not self.is_recurring:
+            return "nie powtarza się"
+        if self.end_date_inclusive is None:
+            return f"{self.label}, bez daty zakończenia"
+        return f"{self.label}, do {format_short_date(self.end_date_inclusive)} włącznie"
+
+
+def recurrence_mode_index(mode: str) -> int:
+    for index, (value, _label) in enumerate(RECURRENCE_CHOICES):
+        if value == mode:
+            return index
+    return 0
+
+
+def recurrence_mode_from_index(index: int) -> str:
+    if 0 <= index < len(RECURRENCE_CHOICES):
+        return RECURRENCE_CHOICES[index][0]
+    return "none"
+
+
+def _parse_rrule_parts(line: str) -> dict[str, str] | None:
+    text = str(line or "").strip()
+    if not text.upper().startswith("RRULE:"):
+        return None
+    result: dict[str, str] = {}
+    for part in text[6:].split(";"):
+        clean = part.strip()
+        if not clean or "=" not in clean:
+            return None
+        key, value = clean.split("=", 1)
+        key = key.strip().upper()
+        value = value.strip().upper()
+        if not key or not value or key in result:
+            return None
+        result[key] = value
+    return result
+
+
+def _parse_rrule_end_date(
+    value: str,
+    *,
+    time_zone: str,
+    all_day: bool,
+) -> dt.date | None:
+    text = str(value or "").strip().upper()
+    digits = "".join(character for character in text if character.isdigit())
+    if len(digits) < 8:
+        return None
+    try:
+        date_value = dt.date(int(digits[:4]), int(digits[4:6]), int(digits[6:8]))
+        if all_day or "T" not in text or len(digits) < 14:
+            return date_value
+        utc_value = dt.datetime(
+            date_value.year,
+            date_value.month,
+            date_value.day,
+            int(digits[8:10]),
+            int(digits[10:12]),
+            int(digits[12:14]),
+            tzinfo=dt.timezone.utc,
+        )
+        try:
+            zone = ZoneInfo(time_zone or "Europe/Warsaw")
+        except ZoneInfoNotFoundError:
+            zone = dt.datetime.now().astimezone().tzinfo or dt.timezone.utc
+        return utc_value.astimezone(zone).date()
+    except (TypeError, ValueError):
+        return None
+
+
+def recurrence_from_google(
+    item: dict,
+    start_date: dt.date,
+    time_zone: str = "Europe/Warsaw",
+    all_day: bool = True,
+) -> RecurrenceSettings:
+    lines = tuple(str(value) for value in (item.get("recurrence") or []))
+    if not lines:
+        return RecurrenceSettings()
+    if len(lines) != 1:
+        return RecurrenceSettings(mode="unsupported", supported=False, raw_lines=lines)
+
+    parts = _parse_rrule_parts(lines[0])
+    if not parts or "FREQ" not in parts or "COUNT" in parts:
+        return RecurrenceSettings(mode="unsupported", supported=False, raw_lines=lines)
+
+    # WKST does not change the meaning of the simple one-day rules supported by GCM.
+    relevant = {key: value for key, value in parts.items() if key != "WKST"}
+    allowed_common = {"FREQ", "INTERVAL", "UNTIL"}
+    freq = relevant.get("FREQ", "")
+    interval = relevant.get("INTERVAL", "1")
+    mode = "unsupported"
+    supported = True
+
+    if freq == "DAILY":
+        supported = set(relevant) <= allowed_common and interval == "1"
+        mode = "daily"
+    elif freq == "WEEKLY":
+        supported = set(relevant) <= allowed_common | {"BYDAY"} and interval == "1"
+        byday = relevant.get("BYDAY", RRULE_WEEKDAYS[start_date.weekday()])
+        supported = supported and byday == RRULE_WEEKDAYS[start_date.weekday()]
+        mode = "weekly"
+    elif freq == "MONTHLY":
+        supported = set(relevant) <= allowed_common | {"BYMONTHDAY"}
+        bymonthday = relevant.get("BYMONTHDAY", str(start_date.day))
+        supported = supported and bymonthday == str(start_date.day)
+        if interval == "1":
+            mode = "monthly"
+        elif interval == "3":
+            mode = "quarterly"
+        elif interval == "6":
+            mode = "semiannual"
+        else:
+            supported = False
+    elif freq == "YEARLY":
+        supported = set(relevant) <= allowed_common | {"BYMONTH", "BYMONTHDAY"}
+        supported = supported and interval == "1"
+        supported = supported and relevant.get("BYMONTH", str(start_date.month)) == str(start_date.month)
+        supported = supported and relevant.get("BYMONTHDAY", str(start_date.day)) == str(start_date.day)
+        mode = "yearly"
+    else:
+        supported = False
+
+    end_date = None
+    if "UNTIL" in relevant:
+        end_date = _parse_rrule_end_date(
+            relevant["UNTIL"],
+            time_zone=time_zone,
+            all_day=all_day,
+        )
+        if end_date is None:
+            supported = False
+
+    if not supported:
+        return RecurrenceSettings(mode="unsupported", supported=False, raw_lines=lines)
+    return RecurrenceSettings(
+        mode=mode,
+        end_date_inclusive=end_date,
+        supported=True,
+        raw_lines=lines,
+    )
 
 @dataclass(frozen=True, slots=True)
 class SearchCriteria:
@@ -59,6 +246,7 @@ class EventDraft:
     end_time: dt.time | None = None
     location: str = ""
     description: str = ""
+    recurrence: RecurrenceSettings = field(default_factory=RecurrenceSettings)
 
     def validate(self) -> None:
         if not self.calendar_id.strip():
@@ -67,6 +255,7 @@ class EventDraft:
             raise ValueError("Wpisz tytuł wydarzenia.")
         if self.end_date_inclusive < self.start_date:
             raise ValueError("Data zakończenia nie może być wcześniejsza od daty rozpoczęcia.")
+        self.recurrence.validate(self.start_date)
         if self.all_day:
             return
         if self.start_time is None:
@@ -98,6 +287,7 @@ class CalendarEvent:
     has_attendees: bool = False
     event_type: str = "default"
     locked: bool = False
+    recurrence: RecurrenceSettings = field(default_factory=RecurrenceSettings)
 
     @property
     def is_recurring_instance(self) -> bool:
@@ -122,6 +312,7 @@ class CalendarEvent:
                 end_date_inclusive=self.end_date_exclusive - dt.timedelta(days=1),
                 location=self.location,
                 description=self.description,
+                recurrence=self.recurrence,
             )
         if self.start_dt is None or self.end_dt is None:
             raise ValueError("Wydarzenie godzinowe nie ma pełnych danych czasu.")
@@ -135,6 +326,7 @@ class CalendarEvent:
             end_time=self.end_dt.time().replace(tzinfo=None, microsecond=0),
             location=self.location,
             description=self.description,
+            recurrence=self.recurrence,
         )
 
     def occurs_on(self, value: dt.date) -> bool:
@@ -178,6 +370,10 @@ class CalendarEvent:
         elif self.start_dt and self.end_dt:
             lines.append(f"Początek: {format_full_datetime(self.start_dt)}")
             lines.append(f"Koniec: {format_full_datetime(self.end_dt)}")
+        if self.is_recurring_instance:
+            lines.append("Powtarzanie: wydarzenie należy do cyklu")
+        elif self.recurrence.is_recurring or not self.recurrence.supported:
+            lines.append(f"Powtarzanie: {self.recurrence.display_text()}")
         lines.append(f"Lokalizacja: {self.location or 'brak'}")
         lines.append(f"Opis: {self.description or 'brak'}")
         return "\n".join(lines)
@@ -281,6 +477,12 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
             ),
             event_type=str(item.get("eventType") or "default"),
             locked=bool(item.get("locked", False)),
+            recurrence=recurrence_from_google(
+                item,
+                start_date,
+                str(start.get("timeZone") or calendar.time_zone),
+                all_day=True,
+            ),
         )
 
     start_dt = parse_google_datetime(str(start.get("dateTime")))
@@ -308,6 +510,12 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
         ),
         event_type=str(item.get("eventType") or "default"),
         locked=bool(item.get("locked", False)),
+        recurrence=recurrence_from_google(
+            item,
+            start_dt.date(),
+            str(start.get("timeZone") or calendar.time_zone),
+            all_day=False,
+        ),
     )
 
 

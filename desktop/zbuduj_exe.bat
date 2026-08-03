@@ -49,6 +49,7 @@ python -m PyInstaller ^
     --paths src ^
     --collect-all googleapiclient ^
     --collect-all google_auth_oauthlib ^
+    --collect-all tzdata ^
     launcher.py
 if errorlevel 1 goto :error
 echo.

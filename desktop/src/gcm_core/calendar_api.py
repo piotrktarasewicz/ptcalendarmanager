@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .models import (
     CalendarEvent,
@@ -8,6 +9,7 @@ from .models import (
     EventCollection,
     EventDraft,
     SearchCriteria,
+    RRULE_WEEKDAYS,
     event_from_google,
     parse_google_start_marker,
 )
@@ -28,6 +30,81 @@ def _build_event_time(draft: EventDraft, time_zone: str) -> tuple[dict, dict]:
     )
 
 
+
+
+def build_recurrence_lines(
+    draft: EventDraft,
+    time_zone: str = "Europe/Warsaw",
+) -> list[str]:
+    draft.recurrence.validate(draft.start_date)
+    mode = draft.recurrence.mode
+    if mode == "none":
+        return []
+
+    parts: list[str]
+    if mode == "daily":
+        parts = ["FREQ=DAILY"]
+    elif mode == "weekly":
+        parts = [
+            "FREQ=WEEKLY",
+            f"BYDAY={RRULE_WEEKDAYS[draft.start_date.weekday()]}",
+        ]
+    elif mode == "monthly":
+        parts = ["FREQ=MONTHLY"]
+    elif mode == "quarterly":
+        parts = ["FREQ=MONTHLY", "INTERVAL=3"]
+    elif mode == "semiannual":
+        parts = ["FREQ=MONTHLY", "INTERVAL=6"]
+    elif mode == "yearly":
+        parts = ["FREQ=YEARLY"]
+    else:
+        raise ValueError("Wybrany rodzaj powtarzania nie jest obsługiwany.")
+
+    if draft.recurrence.end_date_inclusive is not None:
+        if draft.all_day:
+            until = draft.recurrence.end_date_inclusive.strftime("%Y%m%d")
+        else:
+            try:
+                zone = ZoneInfo(time_zone or "Europe/Warsaw")
+            except ZoneInfoNotFoundError:
+                zone = dt.datetime.now().astimezone().tzinfo or dt.timezone.utc
+            local_cutoff = dt.datetime.combine(
+                draft.recurrence.end_date_inclusive,
+                dt.time(23, 59, 59),
+                tzinfo=zone,
+            )
+            until = local_cutoff.astimezone(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        parts.append(f"UNTIL={until}")
+    return ["RRULE:" + ";".join(parts)]
+
+
+def apply_draft_to_event_resource(
+    resource: dict,
+    draft: EventDraft,
+    time_zone: str,
+    *,
+    include_recurrence: bool,
+) -> dict:
+    draft.validate()
+    body = dict(resource)
+    body["summary"] = draft.title.strip()
+    if draft.location.strip():
+        body["location"] = draft.location.strip()
+    else:
+        body.pop("location", None)
+    if draft.description.strip():
+        body["description"] = draft.description.strip()
+    else:
+        body.pop("description", None)
+    body["start"], body["end"] = _build_event_time(draft, time_zone)
+    if include_recurrence:
+        recurrence = build_recurrence_lines(draft, time_zone)
+        if recurrence:
+            body["recurrence"] = recurrence
+        else:
+            body.pop("recurrence", None)
+    return body
+
 def build_event_body(draft: EventDraft, time_zone: str) -> dict:
     draft.validate()
     body: dict = {"summary": draft.title.strip()}
@@ -36,6 +113,9 @@ def build_event_body(draft: EventDraft, time_zone: str) -> dict:
     if draft.description.strip():
         body["description"] = draft.description.strip()
     body["start"], body["end"] = _build_event_time(draft, time_zone)
+    recurrence = build_recurrence_lines(draft, time_zone)
+    if recurrence:
+        body["recurrence"] = recurrence
     return body
 
 
@@ -201,12 +281,80 @@ class CalendarGateway:
                 "Ten rodzaj wydarzenia nie jest jeszcze obsługiwany przez edycję GCM."
             )
         body = build_event_patch_body(draft, calendar.time_zone)
+        if not existing.is_recurring_instance and draft.recurrence.is_recurring:
+            body["recurrence"] = build_recurrence_lines(draft, calendar.time_zone)
         item = self._service.events().patch(
             calendarId=calendar.calendar_id,
             eventId=existing.event_id,
             body=body,
             sendUpdates="all" if existing.has_attendees else "none",
         ).execute()
+        return event_from_google(item, calendar)
+
+    def get_recurring_series(
+        self,
+        calendar: CalendarInfo,
+        instance: CalendarEvent,
+    ) -> CalendarEvent:
+        if not instance.is_recurring_instance:
+            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+        item = self._service.events().get(
+            calendarId=calendar.calendar_id,
+            eventId=instance.recurring_event_id,
+        ).execute()
+        parent = event_from_google(item, calendar)
+        if not parent.recurrence.supported:
+            raise ValueError(
+                "Ten cykl ma zaawansowaną regułę powtarzania. "
+                "GCM może edytować pojedyncze wystąpienie, ale cały cykl trzeba "
+                "zmienić w oficjalnym Kalendarzu Google."
+            )
+        return parent
+
+    def update_recurring_series(
+        self,
+        calendar: CalendarInfo,
+        instance: CalendarEvent,
+        draft: EventDraft,
+    ) -> CalendarEvent:
+        if not calendar.can_write:
+            raise PermissionError(
+                f"Kalendarz {calendar.name} nie pozwala temu kontu edytować wydarzeń."
+            )
+        if not instance.is_recurring_instance:
+            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+        if instance.calendar_id != calendar.calendar_id:
+            raise ValueError("Wydarzenie nie należy do wskazanego kalendarza.")
+        if draft.calendar_id != calendar.calendar_id:
+            raise ValueError("Edycja nie może przenieść wydarzenia do innego kalendarza.")
+
+        resource = self._service.events().get(
+            calendarId=calendar.calendar_id,
+            eventId=instance.recurring_event_id,
+        ).execute()
+        parent = event_from_google(resource, calendar)
+        if not parent.recurrence.supported:
+            raise ValueError(
+                "Ten cykl ma zaawansowaną regułę powtarzania i nie może być "
+                "bezpiecznie uproszczony przez GCM."
+            )
+        body = apply_draft_to_event_resource(
+            resource,
+            draft,
+            calendar.time_zone,
+            include_recurrence=True,
+        )
+        update_kwargs = {
+            "calendarId": calendar.calendar_id,
+            "eventId": instance.recurring_event_id,
+            "body": body,
+            "sendUpdates": self._send_updates(instance),
+        }
+        if body.get("attachments"):
+            update_kwargs["supportsAttachments"] = True
+        if body.get("conferenceData"):
+            update_kwargs["conferenceDataVersion"] = 1
+        item = self._service.events().update(**update_kwargs).execute()
         return event_from_google(item, calendar)
 
     def _validate_delete_target(

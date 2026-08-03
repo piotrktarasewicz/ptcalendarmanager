@@ -118,3 +118,27 @@ Klawisz dostępu i skrót aplikacji są celowo rozdzielone:
 
 Pomoc jest zwykłym modalnym oknem z wielowierszowym polem tekstowym tylko do
 odczytu, dzięki czemu jej treść można czytać strzałkami, zaznaczać i kopiować.
+
+
+## Etap 0.9.0 — podstawowa cykliczność
+
+`RecurrenceSettings` opisuje zamknięty zestaw prostych trybów: brak cyklu,
+codziennie, co tydzień, co miesiąc, co 3 miesiące, co 6 miesięcy i co rok.
+Generator zapisuje je jako RRULE. Odstępy kwartalny i półroczny używają
+`FREQ=MONTHLY` wraz z `INTERVAL=3` albo `INTERVAL=6`.
+
+Data końca cyklu jest zapisywana przez `UNTIL`. Dla wydarzeń całodniowych jest
+to wartość datowa. Dla wydarzeń godzinowych koniec wskazanego dnia w strefie
+kalendarza jest przeliczany na UTC. Zależność `tzdata` zapewnia bazę stref IANA
+na Windowsie.
+
+Parser reguł przyjmuje tylko jedno RRULE i zamknięty zestaw składników. Akceptuje
+nieszkodliwe `WKST` oraz proste `BYDAY`, `BYMONTHDAY` i `BYMONTH`, jeśli zgadzają
+się z datą rozpoczęcia. Odrzuca `COUNT`, nietypowe `INTERVAL`, kilka dni tygodnia,
+dodatkowe linie oraz inne rozszerzenia. Dzięki temu edycja całej serii nie może
+przypadkowo uprościć cyklu utworzonego poza GCM.
+
+Edycja wystąpienia używa jego własnego identyfikatora i nie przesyła pola
+`recurrence`. Edycja całej prostej serii pobiera wydarzenie nadrzędne przez
+`recurringEventId`, zachowuje nieobsługiwane pola zasobu i zastępuje start, end
+oraz RRULE. Zwykłe wydarzenie może zostać zamienione w prosty cykl.

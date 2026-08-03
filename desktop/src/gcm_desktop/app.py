@@ -36,7 +36,7 @@ from .dialogs import (
     SearchResultsDialog,
 )
 
-APP_TITLE = "GCM by Piotrek 0.8.0 — pomoc i standardowe klawisze dostępu"
+APP_TITLE = "GCM by Piotrek 0.9.0 — podstawowe wydarzenia cykliczne"
 T = TypeVar("T")
 
 
@@ -864,7 +864,8 @@ class MainFrame(wx.Frame):
             f"Czy utworzyć wydarzenie?\n\n"
             f"Tytuł: {draft.title}\n"
             f"Kalendarz: {calendar.name}\n"
-            f"Termin: {when}",
+            f"Termin: {when}\n"
+            f"Powtarzanie: {draft.recurrence.display_text()}",
             "Potwierdź utworzenie wydarzenia",
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
         )
@@ -898,6 +899,29 @@ class MainFrame(wx.Frame):
             "Wydarzenie utworzone",
         )
         self._refresh_google()
+
+    def _choose_recurring_edit_scope(self) -> str | None:
+        choices = [
+            "Edytuj tylko to wystąpienie",
+            "Edytuj cały cykl",
+        ]
+        dialog = wx.SingleChoiceDialog(
+            self,
+            "Wybierz zakres edycji wydarzenia cyklicznego. "
+            "Domyślnie zaznaczone jest najbezpieczniejsze zmienienie jednego terminu.",
+            "Zakres edycji cyklu",
+            choices,
+        )
+        dialog.SetName("Zakres edycji wydarzenia cyklicznego")
+        dialog.SetSelection(0)
+        try:
+            result = dialog.ShowModal()
+            selection = dialog.GetSelection()
+        finally:
+            dialog.Destroy()
+        if result != wx.ID_OK or selection < 0:
+            return None
+        return ("instance", "series")[selection]
 
     def _on_edit(self, event: wx.Event) -> None:
         if not oauth.is_logged_in():
@@ -956,8 +980,57 @@ class MainFrame(wx.Frame):
             )
             return
 
-        original_draft = selected.to_draft()
-        dialog = EventEditDialog(self, calendar, selected)
+        if selected.is_recurring_instance:
+            scope = self._choose_recurring_edit_scope()
+            if scope is None:
+                self.events_list.SetFocus()
+                return
+            if scope == "series":
+                self._load_series_for_edit(calendar, selected)
+                return
+        self._show_edit_dialog(
+            calendar,
+            selected,
+            selected,
+            "instance" if selected.is_recurring_instance else "single",
+        )
+
+    def _load_series_for_edit(
+        self,
+        calendar: CalendarInfo,
+        instance: CalendarEvent,
+    ) -> None:
+        def load() -> CalendarEvent:
+            credentials = oauth.ensure_valid_credentials()
+            if credentials is None:
+                raise RuntimeError("Brak ważnego logowania Google.")
+            return CalendarGateway(credentials).get_recurring_series(calendar, instance)
+
+        self._run_task(
+            busy_message=f"Pobieranie całego cyklu: {instance.title}...",
+            target=load,
+            on_success=lambda parent: self._show_edit_dialog(
+                calendar,
+                instance,
+                parent,
+                "series",
+            ),
+        )
+
+    def _show_edit_dialog(
+        self,
+        calendar: CalendarInfo,
+        selected_instance: CalendarEvent,
+        form_event: CalendarEvent,
+        scope: str,
+    ) -> None:
+        original_draft = form_event.to_draft()
+        dialog = EventEditDialog(
+            self,
+            calendar,
+            form_event,
+            allow_recurrence_edit=scope in {"single", "series"},
+        )
         try:
             result = dialog.ShowModal()
             draft = dialog.get_draft()
@@ -973,22 +1046,43 @@ class MainFrame(wx.Frame):
             return
 
         notices: list[str] = []
-        if selected.is_recurring_instance:
+        if scope == "instance":
             notices.append(
-                "To jest pojedyncze wystąpienie wydarzenia cyklicznego. "
-                "Zmiana obejmie tylko wybrany termin, a nie całą serię."
+                "Zmiana obejmie tylko wybrane wystąpienie. Pozostałe terminy cyklu "
+                "i reguła powtarzania pozostaną bez zmian."
             )
-        if selected.has_attendees:
+        elif scope == "single" and draft.recurrence.is_recurring:
+            notices.append(
+                "To pojedyncze wydarzenie zostanie zamienione w cykl zgodnie z "
+                "wybraną regułą powtarzania."
+            )
+        elif scope == "series":
+            notices.append(
+                "Zmiana obejmie cały cykl, w tym jego tytuł, termin i podstawową "
+                "regułę powtarzania."
+            )
+            if not draft.recurrence.is_recurring:
+                notices.append(
+                    "Wybrano opcję „Nie powtarza się”. Cały cykl zostanie zamieniony "
+                    "w jedno wydarzenie w dacie początku serii."
+                )
+        if selected_instance.has_attendees:
             notices.append(
                 "Wydarzenie ma uczestników. Google wyśle im aktualizację po zapisaniu zmian."
             )
         notice_text = "\n\n" + "\n\n".join(notices) if notices else ""
+        recurrence_line = (
+            f"\nPowtarzanie: {draft.recurrence.display_text()}"
+            if scope == "series" or (scope == "single" and draft.recurrence.is_recurring)
+            else ""
+        )
         confirm = wx.MessageDialog(
             self,
             f"Czy zapisać zmiany w wydarzeniu?\n\n"
             f"Tytuł: {draft.title}\n"
             f"Kalendarz: {calendar.name}\n"
             f"Nowy termin: {self._draft_when_text(draft)}"
+            f"{recurrence_line}"
             f"{notice_text}",
             "Potwierdź edycję wydarzenia",
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
@@ -1000,27 +1094,61 @@ class MainFrame(wx.Frame):
         if confirmed != wx.ID_YES:
             return
 
-        def update() -> CalendarEvent:
+        selected_day = self.selected_date
+
+        def update() -> tuple[CalendarEvent, str, dt.date]:
             credentials = oauth.ensure_valid_credentials()
             if credentials is None:
                 raise RuntimeError("Brak ważnego logowania Google.")
-            return CalendarGateway(credentials).update_event(calendar, selected, draft)
+            gateway = CalendarGateway(credentials)
+            if scope == "series":
+                updated = gateway.update_recurring_series(
+                    calendar,
+                    selected_instance,
+                    draft,
+                )
+            else:
+                updated = gateway.update_event(calendar, selected_instance, draft)
+            result_scope = (
+                "converted"
+                if scope == "single" and draft.recurrence.is_recurring
+                else scope
+            )
+            return updated, result_scope, selected_day
 
+        busy = (
+            f"Zapisywanie zmian w całym cyklu: {draft.title}..."
+            if scope == "series"
+            else f"Zapisywanie zmian w wydarzeniu: {draft.title}..."
+        )
         self._run_task(
-            busy_message=f"Zapisywanie zmian w wydarzeniu: {draft.title}...",
+            busy_message=busy,
             target=update,
             on_success=self._after_update,
         )
 
-    def _after_update(self, updated: CalendarEvent) -> None:
-        self.current_year = updated.start_date.year
-        self.current_month = updated.start_date.month
-        self.selected_date = updated.start_date
-        self._focus_event_after_refresh = updated.event_id
-        self._show_message(
-            f"Zmiany w wydarzeniu „{updated.title}” zostały zapisane.",
-            "Wydarzenie zaktualizowane",
-        )
+    def _after_update(
+        self,
+        result: tuple[CalendarEvent, str, dt.date],
+    ) -> None:
+        updated, scope, selected_day = result
+        if scope in {"series", "converted"}:
+            self.current_year = selected_day.year
+            self.current_month = selected_day.month
+            self.selected_date = selected_day
+            self._focus_event_after_refresh = None
+            self._focus_events_after_refresh = True
+            if scope == "converted":
+                message = f"Wydarzenie „{updated.title}” zostało zamienione w cykl."
+            else:
+                message = f"Zmiany w całym cyklu „{updated.title}” zostały zapisane."
+        else:
+            self.current_year = updated.start_date.year
+            self.current_month = updated.start_date.month
+            self.selected_date = updated.start_date
+            self._focus_event_after_refresh = updated.event_id
+            message = f"Zmiany w wydarzeniu „{updated.title}” zostały zapisane."
+        self._show_message(message, "Wydarzenie zaktualizowane")
         self._refresh_google()
 
     def _choose_recurring_delete_scope(self) -> str | None:

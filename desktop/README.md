@@ -1,41 +1,71 @@
-# GCM by Piotrek 0.8.0 — pomoc i standardowe klawisze dostępu
+# GCM by Piotrek 0.9.0 — podstawowe wydarzenia cykliczne
 
 GCM by Piotrek jest dostępnym klientem Kalendarza Google dla Windows,
 testowanym z NVDA, JAWS-em i Narratorem.
 
-## Nowości w wersji 0.8.0
+## Nowości w wersji 0.9.0
 
-- przycisk `Pomoc i skróty`;
-- otwieranie pomocy klawiszem `F1`;
-- standardowe klawisze dostępu Windows `Alt+litera`;
-- programowe przekazywanie klawisza dostępu czytnikom ekranu;
-- podpowiedzi zawierające dodatkowe skróty aplikacji;
-- litery dostępu również na przyciskach formularzy i okien wynikowych.
+Podczas dodawania wydarzenia można wybrać:
 
-## Dwa rodzaje skrótów
+- Nie powtarza się;
+- Codziennie;
+- Co tydzień;
+- Co miesiąc;
+- Co 3 miesiące;
+- Co 6 miesięcy;
+- Co rok.
 
-Klawisz dostępu, na przykład `Alt+N`, aktywuje konkretny przycisk zgodnie
-ze standardem Windows. Litera jest oznaczona w etykiecie przycisku znakiem
-`&` i jest dodatkowo udostępniana przez `wx.Accessible`.
+Cykl może działać bez daty zakończenia albo kończyć się we wskazanym dniu.
+Data zakończenia cyklu jest wliczana do zakresu.
 
-Skrót aplikacji, na przykład `Ctrl+N`, wykonuje polecenie bezpośrednio,
-niezależnie od miejsca fokusu.
+Przy nowym wydarzeniu cyklicznym aplikacja domyślnie proponuje datę końcową
+oddaloną o rok od daty rozpoczęcia. Zaznaczenie pola „Bez daty zakończenia
+cyklu” wyłącza to ograniczenie.
 
-## Najważniejsze skróty aplikacji
+## Edycja
 
-- `Ctrl+L` — zaloguj albo wyloguj;
-- `Ctrl+K` — wybierz kalendarze;
-- `F1` — pomoc i skróty;
-- `Alt+Strzałka w lewo` i `Alt+Strzałka w prawo` — zmiana miesiąca;
-- `Ctrl+D` — dzisiaj;
-- `Ctrl+G` — przejdź do daty;
-- `Ctrl+F` — wyszukiwanie;
-- `Ctrl+N` — dodaj wydarzenie;
-- `F5` — odśwież;
-- `Ctrl+E` — edytuj;
-- `Delete` — usuń.
+Zwykłe wydarzenie można zamienić w jeden z obsługiwanych prostych cykli.
 
-Pełna lista liter `Alt+litera` znajduje się w oknie pomocy.
+Przy edycji wystąpienia istniejącego cyklu aplikacja pyta, czy zmiana ma objąć:
+
+1. tylko zaznaczone wystąpienie;
+2. cały cykl.
+
+Edycja pojedynczego wystąpienia nie pozwala zmienić reguły powtarzania.
+Edycja całego cyklu pozwala zmienić jego termin oraz jeden z podstawowych
+rodzajów powtarzania.
+
+Wybranie „Nie powtarza się” podczas edycji całego cyklu zamienia serię w jedno
+wydarzenie w dacie początku serii. Aplikacja wyraźnie ostrzega o tym przed
+zapisaniem.
+
+## Ochrona złożonych cykli
+
+GCM rozpoznaje wyłącznie proste reguły należące do obsługiwanego zestawu.
+Nie upraszcza automatycznie serii zawierających między innymi:
+
+- kilka dni tygodnia;
+- nietypowy odstęp;
+- liczbę wystąpień `COUNT`;
+- reguły pozycyjne;
+- dodatkowe `RDATE` albo `EXDATE`.
+
+Taką serię można nadal odczytać, edytować jako pojedyncze wystąpienie i usuwać
+zgodnie z dotychczasowym zakresem. Edycja całego cyklu wymaga oficjalnego
+Kalendarza Google.
+
+## Miesiące bez wybranego dnia
+
+Dla cykli miesięcznych, kwartalnych i półrocznych rozpoczętych 29., 30. albo
+31. dnia miesiąca Google może pominąć miesiąc, w którym taki dzień nie
+występuje. GCM nie próbuje samodzielnie przesuwać terminu na ostatni dzień
+miesiąca.
+
+## Strefa czasowa
+
+Użytkownik nie wybiera ręcznie strefy w formularzu. GCM korzysta ze strefy
+wybranego kalendarza. Pakiet `tzdata` został dodany, aby obliczenia daty końca
+cyklu działały prawidłowo również w systemie Windows.
 
 ## Uruchomienie
 
