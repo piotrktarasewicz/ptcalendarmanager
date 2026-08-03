@@ -100,3 +100,21 @@ Interfejs wykonuje operację w istniejącym wątku roboczym. Wynik wybrany poza
 aktualnym miesiącem nie jest wstawiany sztucznie do bieżącej kolekcji: aplikacja
 przechodzi do jego miesiąca, pobiera dane ponownie z Google i dopiero wtedy
 ustawia fokus według identyfikatora wydarzenia.
+
+
+## Etap 0.8.0 — pomoc i klawisze dostępu
+
+Główne przyciski używają standardowych etykiet wxWidgets z ampersandem,
+który oznacza mnemoniczną literę uruchamianą z klawiszem Alt.
+
+`ExplicitNameAccessible.GetKeyboardShortcut()` przekazuje ten sam klawisz
+dostępu przez Microsoft Active Accessibility. Pełny skrót aplikacji, taki
+jak `Ctrl+N`, pozostaje w opisie i w oknie pomocy.
+
+Klawisz dostępu i skrót aplikacji są celowo rozdzielone:
+
+- `Alt+litera` aktywuje konkretny przycisk zgodnie ze standardem Windows;
+- `Ctrl+litera`, `F1`, `F5` lub `Delete` wykonują polecenie bezpośrednio.
+
+Pomoc jest zwykłym modalnym oknem z wielowierszowym polem tekstowym tylko do
+odczytu, dzięki czemu jej treść można czytać strzałkami, zaznaczać i kopiować.

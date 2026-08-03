@@ -178,8 +178,24 @@ class EventCreateDialog(wx.Dialog):
         sizer.Add(form, 1, wx.ALL | wx.EXPAND, 12)
 
         buttons = wx.StdDialogButtonSizer()
-        self.save_button = wx.Button(self, wx.ID_OK, save_label)
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "Anuluj")
+        save_is_edit = save_label.lower().startswith("zapisz")
+        save_button_label = "&Zapisz zmiany" if save_is_edit else "&Utwórz wydarzenie"
+        save_button_name = "Zapisz zmiany" if save_is_edit else "Utwórz wydarzenie"
+        save_access_key = "Alt+Z" if save_is_edit else "Alt+U"
+        self.save_button = wx.Button(self, wx.ID_OK, save_button_label)
+        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        self._name_control(
+            self.save_button,
+            save_button_name,
+            "Zatwierdza dane w formularzu.",
+            save_access_key,
+        )
+        self._name_control(
+            self.cancel_button,
+            "Anuluj",
+            "Zamyka formularz bez zapisywania zmian.",
+            "Alt+A",
+        )
         self.save_button.SetDefault()
         buttons.AddButton(self.save_button)
         buttons.AddButton(self.cancel_button)
@@ -201,8 +217,14 @@ class EventCreateDialog(wx.Dialog):
         control: wx.Window,
         name: str,
         description: str = "",
+        keyboard_shortcut: str = "",
     ) -> None:
-        accessible = apply_accessible_name(control, name, description)
+        accessible = apply_accessible_name(
+            control,
+            name,
+            description,
+            keyboard_shortcut,
+        )
         if accessible is not None:
             self._accessible_objects.append(accessible)
 
@@ -318,6 +340,7 @@ class CalendarSelectionDialog(wx.Dialog):
         super().__init__(parent, title="Wybierz kalendarze", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self._calendars = calendars
         self._checkboxes: list[wx.CheckBox] = []
+        self._accessible_objects: list[wx.Accessible] = []
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         info = wx.StaticText(self, label="Zaznacz kalendarze, których wydarzenia mają być pokazywane.")
@@ -339,8 +362,30 @@ class CalendarSelectionDialog(wx.Dialog):
         sizer.Add(panel, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
         buttons = wx.StdDialogButtonSizer()
-        self.ok_button = wx.Button(self, wx.ID_OK, "Zapisz")
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "Anuluj")
+        self.ok_button = wx.Button(self, wx.ID_OK, "&Zapisz")
+        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        for control, name, shortcut, description in (
+            (
+                self.ok_button,
+                "Zapisz",
+                "Alt+Z",
+                "Zapisuje wybór kalendarzy.",
+            ),
+            (
+                self.cancel_button,
+                "Anuluj",
+                "Alt+A",
+                "Zamyka okno bez zmieniania wyboru kalendarzy.",
+            ),
+        ):
+            accessible = apply_accessible_name(
+                control,
+                name,
+                description,
+                shortcut,
+            )
+            if accessible is not None:
+                self._accessible_objects.append(accessible)
         self.ok_button.SetDefault()
         buttons.AddButton(self.ok_button)
         buttons.AddButton(self.cancel_button)
@@ -432,8 +477,20 @@ class SearchDialog(wx.Dialog):
         sizer.Add(note, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
         buttons = wx.StdDialogButtonSizer()
-        self.search_button = wx.Button(self, wx.ID_OK, "Wyszukaj")
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "Anuluj")
+        self.search_button = wx.Button(self, wx.ID_OK, "Wy&szukaj")
+        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        self._add_accessible_name(
+            self.search_button,
+            "Wyszukaj",
+            "Rozpoczyna wyszukiwanie w podanym zakresie.",
+            "Alt+S",
+        )
+        self._add_accessible_name(
+            self.cancel_button,
+            "Anuluj",
+            "Zamyka formularz wyszukiwania.",
+            "Alt+A",
+        )
         self.search_button.SetDefault()
         buttons.AddButton(self.search_button)
         buttons.AddButton(self.cancel_button)
@@ -453,8 +510,14 @@ class SearchDialog(wx.Dialog):
         control: wx.Window,
         name: str,
         description: str,
+        keyboard_shortcut: str = "",
     ) -> None:
-        accessible = apply_accessible_name(control, name, description)
+        accessible = apply_accessible_name(
+            control,
+            name,
+            description,
+            keyboard_shortcut,
+        )
         if accessible is not None:
             self._accessible_objects.append(accessible)
 
@@ -491,6 +554,7 @@ class SearchResultsDialog(wx.Dialog):
         super().__init__(parent, title="Wyniki wyszukiwania", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self._events = events
         self.selected_event: CalendarEvent | None = None
+        self._accessible_objects: list[wx.Accessible] = []
         sizer = wx.BoxSizer(wx.VERTICAL)
         summary = wx.StaticText(
             self,
@@ -510,8 +574,30 @@ class SearchResultsDialog(wx.Dialog):
             self.results.SetSelection(0)
         sizer.Add(self.results, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
         buttons = wx.StdDialogButtonSizer()
-        self.open_button = wx.Button(self, wx.ID_OK, "Przejdź do wydarzenia")
-        self.close_button = wx.Button(self, wx.ID_CANCEL, "Zamknij")
+        self.open_button = wx.Button(self, wx.ID_OK, "&Przejdź do wydarzenia")
+        self.close_button = wx.Button(self, wx.ID_CANCEL, "&Zamknij")
+        for control, name, shortcut, description in (
+            (
+                self.open_button,
+                "Przejdź do wydarzenia",
+                "Alt+P",
+                "Przechodzi do zaznaczonego wyniku w głównym oknie.",
+            ),
+            (
+                self.close_button,
+                "Zamknij",
+                "Alt+Z",
+                "Zamyka wyniki wyszukiwania.",
+            ),
+        ):
+            accessible = apply_accessible_name(
+                control,
+                name,
+                description,
+                shortcut,
+            )
+            if accessible is not None:
+                self._accessible_objects.append(accessible)
         self.open_button.Enable(bool(events))
         self.open_button.SetDefault()
         buttons.AddButton(self.open_button)
@@ -530,3 +616,46 @@ class SearchResultsDialog(wx.Dialog):
         if 0 <= index < len(self._events):
             self.selected_event = self._events[index]
             self.EndModal(wx.ID_OK)
+
+class HelpDialog(wx.Dialog):
+    def __init__(self, parent: wx.Window, help_text: str) -> None:
+        super().__init__(
+            parent,
+            title="Pomoc i skróty klawiaturowe",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._accessible_objects: list[wx.Accessible] = []
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        text = wx.TextCtrl(
+            self,
+            value=help_text,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
+        )
+        text.SetMinSize((720, 440))
+        accessible = apply_accessible_name(
+            text,
+            "Treść pomocy i lista skrótów",
+            "Czytaj strzałkami. Tekst można zaznaczać i kopiować.",
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(text, 1, wx.ALL | wx.EXPAND, 12)
+
+        close_button = wx.Button(self, wx.ID_OK, "&Zamknij")
+        close_button.SetDefault()
+        accessible = apply_accessible_name(
+            close_button,
+            "Zamknij",
+            "Zamyka pomoc i wraca do głównego okna.",
+            "Alt+Z",
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(close_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 12)
+
+        self.SetSizerAndFit(sizer)
+        self.SetMinSize((760, 520))
+        self.SetSize((820, 600))
+        self.CentreOnParent()
+        wx.CallAfter(text.SetFocus)

@@ -26,15 +26,17 @@ from gcm_core.models import (
 )
 from gcm_core.paths import copy_client_secret, find_client_secret, migrate_from_nvda
 from gcm_core.settings import AppSettings, load_settings, save_settings
+from .accessibility import ExplicitNameAccessible, apply_accessible_name
 from .dialogs import (
     CalendarSelectionDialog,
     EventCreateDialog,
     EventEditDialog,
+    HelpDialog,
     SearchDialog,
     SearchResultsDialog,
 )
 
-APP_TITLE = "GCM by Piotrek 0.7.0 — wyszukiwanie w zakresie dat"
+APP_TITLE = "GCM by Piotrek 0.8.0 — pomoc i standardowe klawisze dostępu"
 T = TypeVar("T")
 
 
@@ -53,29 +55,33 @@ class MainFrame(wx.Frame):
         self._busy = False
         self._focus_event_after_refresh: str | None = None
         self._focus_events_after_refresh = False
+        self._accessible_objects: list[wx.Accessible] = []
+        self._button_accessibility: dict[wx.Button, ExplicitNameAccessible] = {}
 
         panel = wx.Panel(self)
         panel.SetName("Główne okno GCM by Piotrek")
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
         account_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.login_button = wx.Button(panel, label="Zaloguj do Google")
-        self.calendar_button = wx.Button(panel, label="Wybierz kalendarze")
+        self.login_button = wx.Button(panel, label="Za&loguj do Google")
+        self.calendar_button = wx.Button(panel, label="Wybierz &kalendarze")
+        self.help_button = wx.Button(panel, label="Pomoc i skróty (&H)")
         self.account_label = wx.StaticText(panel, label="Konto Google: sprawdzanie stanu")
         account_row.Add(self.login_button, 0, wx.RIGHT, 8)
-        account_row.Add(self.calendar_button, 0, wx.RIGHT, 12)
+        account_row.Add(self.calendar_button, 0, wx.RIGHT, 8)
+        account_row.Add(self.help_button, 0, wx.RIGHT, 12)
         account_row.Add(self.account_label, 1, wx.ALIGN_CENTER_VERTICAL)
         main_sizer.Add(account_row, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
 
         nav_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.previous_button = wx.Button(panel, label="Poprzedni miesiąc")
-        self.today_button = wx.Button(panel, label="Dzisiaj")
-        self.next_button = wx.Button(panel, label="Następny miesiąc")
+        self.previous_button = wx.Button(panel, label="&Poprzedni miesiąc")
+        self.today_button = wx.Button(panel, label="&Dzisiaj")
+        self.next_button = wx.Button(panel, label="Następny &miesiąc")
         self.month_label = wx.StaticText(panel, label="")
-        self.goto_button = wx.Button(panel, label="Przejdź do daty")
-        self.search_button = wx.Button(panel, label="Wyszukaj")
-        self.add_button = wx.Button(panel, label="Dodaj wydarzenie")
-        self.refresh_button = wx.Button(panel, label="Odśwież")
+        self.goto_button = wx.Button(panel, label="Przejdź do daty (&G)")
+        self.search_button = wx.Button(panel, label="Wy&szukaj")
+        self.add_button = wx.Button(panel, label="Dodaj wydarze&nie")
+        self.refresh_button = wx.Button(panel, label="&Odśwież")
         for button in (self.previous_button, self.today_button, self.next_button):
             nav_row.Add(button, 0, wx.RIGHT, 6)
         nav_row.Add(self.month_label, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 12)
@@ -97,9 +103,9 @@ class MainFrame(wx.Frame):
         self.events_list.SetMinSize((540, 380))
         events_box.Add(self.events_list, 1, wx.ALL | wx.EXPAND, 8)
         event_buttons = wx.BoxSizer(wx.HORIZONTAL)
-        self.details_button = wx.Button(panel, label="Pokaż szczegóły")
-        self.edit_button = wx.Button(panel, label="Edytuj")
-        self.delete_button = wx.Button(panel, label="Usuń")
+        self.details_button = wx.Button(panel, label="Pokaż s&zczegóły")
+        self.edit_button = wx.Button(panel, label="&Edytuj")
+        self.delete_button = wx.Button(panel, label="&Usuń")
         event_buttons.Add(self.details_button, 0, wx.RIGHT, 8)
         event_buttons.Add(self.edit_button, 0, wx.RIGHT, 8)
         event_buttons.Add(self.delete_button, 0)
@@ -111,6 +117,7 @@ class MainFrame(wx.Frame):
         self.status_bar = self.CreateStatusBar()
         self.status_bar.SetName("Stan aplikacji")
 
+        self._configure_main_buttons()
         self._bind_events()
         self._install_accelerators()
         self._render_month(select_date=today)
@@ -118,9 +125,146 @@ class MainFrame(wx.Frame):
         wx.CallAfter(self.days_list.SetFocus)
         wx.CallAfter(self._initialize)
 
+
+    def _configure_button(
+        self,
+        control: wx.Button,
+        *,
+        name: str,
+        access_key: str,
+        action_description: str,
+        application_shortcut: str = "",
+    ) -> None:
+        description = action_description
+        if application_shortcut:
+            description += f" Skrót aplikacji: {application_shortcut}."
+        accessible = apply_accessible_name(
+            control,
+            name,
+            description,
+            f"Alt+{access_key}",
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+            self._button_accessibility[control] = accessible
+
+    def _configure_main_buttons(self) -> None:
+        definitions = (
+            (
+                self.login_button,
+                "Zaloguj do Google",
+                "L",
+                "Łączy konto Google albo wylogowuje bieżące konto.",
+                "Ctrl+L",
+            ),
+            (
+                self.calendar_button,
+                "Wybierz kalendarze",
+                "K",
+                "Wybiera kalendarze widoczne w aplikacji.",
+                "Ctrl+K",
+            ),
+            (
+                self.help_button,
+                "Pomoc i skróty",
+                "H",
+                "Otwiera opis aplikacji i pełną listę skrótów.",
+                "F1",
+            ),
+            (
+                self.previous_button,
+                "Poprzedni miesiąc",
+                "P",
+                "Przechodzi do poprzedniego miesiąca.",
+                "Alt+Strzałka w lewo",
+            ),
+            (
+                self.today_button,
+                "Dzisiaj",
+                "D",
+                "Przechodzi do dzisiejszej daty.",
+                "Ctrl+D",
+            ),
+            (
+                self.next_button,
+                "Następny miesiąc",
+                "M",
+                "Przechodzi do następnego miesiąca.",
+                "Alt+Strzałka w prawo",
+            ),
+            (
+                self.goto_button,
+                "Przejdź do daty",
+                "G",
+                "Otwiera pole do podania konkretnej daty.",
+                "Ctrl+G",
+            ),
+            (
+                self.search_button,
+                "Wyszukaj",
+                "S",
+                "Otwiera wyszukiwanie wydarzeń w zakresie dat.",
+                "Ctrl+F",
+            ),
+            (
+                self.add_button,
+                "Dodaj wydarzenie",
+                "N",
+                "Otwiera formularz dodawania wydarzenia.",
+                "Ctrl+N",
+            ),
+            (
+                self.refresh_button,
+                "Odśwież",
+                "O",
+                "Pobiera ponownie wydarzenia z Google.",
+                "F5",
+            ),
+            (
+                self.details_button,
+                "Pokaż szczegóły",
+                "Z",
+                "Pokazuje wszystkie dane zaznaczonego wydarzenia.",
+                "Enter na liście wydarzeń",
+            ),
+            (
+                self.edit_button,
+                "Edytuj",
+                "E",
+                "Otwiera formularz edycji zaznaczonego wydarzenia.",
+                "Ctrl+E",
+            ),
+            (
+                self.delete_button,
+                "Usuń",
+                "U",
+                "Usuwa zaznaczone wydarzenie po potwierdzeniu.",
+                "Delete",
+            ),
+        )
+        for control, name, access_key, description, shortcut in definitions:
+            self._configure_button(
+                control,
+                name=name,
+                access_key=access_key,
+                action_description=description,
+                application_shortcut=shortcut,
+            )
+
+    def _update_button_accessible_name(
+        self,
+        control: wx.Button,
+        name: str,
+    ) -> None:
+        control.SetName(name)
+        accessible = self._button_accessibility.get(control)
+        if accessible is not None:
+            accessible.update(name=name)
+
     def _bind_events(self) -> None:
         self.login_button.Bind(wx.EVT_BUTTON, self._on_login)
         self.calendar_button.Bind(wx.EVT_BUTTON, self._on_calendars)
+        self.help_button.Bind(wx.EVT_BUTTON, self._on_help)
         self.previous_button.Bind(wx.EVT_BUTTON, lambda event: self._change_month(-1))
         self.next_button.Bind(wx.EVT_BUTTON, lambda event: self._change_month(1))
         self.today_button.Bind(wx.EVT_BUTTON, self._on_today)
@@ -139,7 +283,7 @@ class MainFrame(wx.Frame):
     def _install_accelerators(self) -> None:
         ids = {name: wx.NewIdRef() for name in (
             "login", "calendars", "add", "edit", "delete", "search", "goto",
-            "today", "refresh", "previous", "next",
+            "today", "refresh", "previous", "next", "help",
         )}
         entries = [
             (wx.ACCEL_CTRL, ord("L"), ids["login"]),
@@ -151,6 +295,7 @@ class MainFrame(wx.Frame):
             (wx.ACCEL_CTRL, ord("G"), ids["goto"]),
             (wx.ACCEL_CTRL, ord("D"), ids["today"]),
             (wx.ACCEL_NORMAL, wx.WXK_F5, ids["refresh"]),
+            (wx.ACCEL_NORMAL, wx.WXK_F1, ids["help"]),
             (wx.ACCEL_ALT, wx.WXK_LEFT, ids["previous"]),
             (wx.ACCEL_ALT, wx.WXK_RIGHT, ids["next"]),
         ]
@@ -164,8 +309,80 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self._on_goto, id=ids["goto"])
         self.Bind(wx.EVT_MENU, self._on_today, id=ids["today"])
         self.Bind(wx.EVT_MENU, lambda event: self._refresh_google(), id=ids["refresh"])
+        self.Bind(wx.EVT_MENU, self._on_help, id=ids["help"])
         self.Bind(wx.EVT_MENU, lambda event: self._change_month(-1), id=ids["previous"])
         self.Bind(wx.EVT_MENU, lambda event: self._change_month(1), id=ids["next"])
+
+
+    @staticmethod
+    def _help_text() -> str:
+        return (
+            "GCM by Piotrek — pomoc i skróty klawiaturowe\n"
+            "\n"
+            "UKŁAD GŁÓWNEGO OKNA\n"
+            "Po lewej znajduje się lista dni bieżącego miesiąca. "
+            "Po prawej znajduje się lista wydarzeń zaznaczonego dnia. "
+            "Enter na liście dni przenosi fokus na listę wydarzeń. "
+            "Enter na liście wydarzeń otwiera szczegóły.\n"
+            "\n"
+            "KLAWISZE DOSTĘPU WINDOWS\n"
+            "Każdy główny przycisk ma literę dostępu uruchamianą z klawiszem Alt. "
+            "Czytnik ekranu powinien odczytać ją razem z nazwą przycisku. "
+            "Na przykład Alt+N aktywuje przycisk Dodaj wydarzenie.\n"
+            "\n"
+            "SKRÓTY APLIKACJI\n"
+            "Ctrl+L — zaloguj do Google albo wyloguj.\n"
+            "Ctrl+K — wybierz kalendarze.\n"
+            "F1 — otwórz tę pomoc.\n"
+            "Alt+Strzałka w lewo — poprzedni miesiąc.\n"
+            "Ctrl+D — przejdź do dzisiaj.\n"
+            "Alt+Strzałka w prawo — następny miesiąc.\n"
+            "Ctrl+G — przejdź do podanej daty.\n"
+            "Ctrl+F — wyszukaj wydarzenia w zakresie dat.\n"
+            "Ctrl+N — dodaj wydarzenie.\n"
+            "F5 — odśwież dane z Google.\n"
+            "Enter na liście wydarzeń — pokaż szczegóły.\n"
+            "Ctrl+E — edytuj zaznaczone wydarzenie.\n"
+            "Delete — usuń zaznaczone wydarzenie.\n"
+            "\n"
+            "LITERY DOSTĘPU PRZYCISKÓW\n"
+            "Alt+L — Zaloguj lub Wyloguj z Google.\n"
+            "Alt+K — Wybierz kalendarze.\n"
+            "Alt+H — Pomoc i skróty.\n"
+            "Alt+P — Poprzedni miesiąc.\n"
+            "Alt+D — Dzisiaj.\n"
+            "Alt+M — Następny miesiąc.\n"
+            "Alt+G — Przejdź do daty.\n"
+            "Alt+S — Wyszukaj.\n"
+            "Alt+N — Dodaj wydarzenie.\n"
+            "Alt+O — Odśwież.\n"
+            "Alt+Z — Pokaż szczegóły.\n"
+            "Alt+E — Edytuj.\n"
+            "Alt+U — Usuń.\n"
+            "\n"
+            "RÓŻNICA MIĘDZY KLAWISZEM DOSTĘPU A SKRÓTEM\n"
+            "Alt+litera jest standardowym klawiszem dostępu Windows przypisanym "
+            "do przycisku. Skróty takie jak Ctrl+N, F5 albo Delete wykonują "
+            "od razu odpowiednie polecenie niezależnie od aktualnego fokusu.\n"
+            "\n"
+            "WYDARZENIA CYKLICZNE\n"
+            "Podczas usuwania wystąpienia cyklu można wybrać usunięcie tylko "
+            "tego terminu, tego i kolejnych albo całego cyklu. "
+            "Każda operacja wymaga osobnego potwierdzenia.\n"
+            "\n"
+            "WYSZUKIWANIE\n"
+            "Wyszukiwanie obejmuje wybrane kalendarze, podany tekst oraz daty "
+            "początkową i końcową włącznie. Po wybraniu wyniku aplikacja "
+            "przechodzi do jego miesiąca i dnia."
+        )
+
+    def _on_help(self, event: wx.Event) -> None:
+        dialog = HelpDialog(self, self._help_text())
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+        self.days_list.SetFocus()
 
     def _initialize(self) -> None:
         migrated = migrate_from_nvda()
@@ -232,7 +449,9 @@ class MainFrame(wx.Frame):
 
     def _update_account_state(self) -> None:
         logged_in = oauth.is_logged_in()
-        self.login_button.SetLabel("Wyloguj z Google" if logged_in else "Zaloguj do Google")
+        login_name = "Wyloguj z Google" if logged_in else "Zaloguj do Google"
+        self.login_button.SetLabel("Wy&loguj z Google" if logged_in else "Za&loguj do Google")
+        self._update_button_accessible_name(self.login_button, login_name)
         self.account_label.SetLabel("Konto Google: połączone" if logged_in else "Konto Google: niepołączone")
         self.calendar_button.Enable(logged_in and not self._busy)
 
@@ -1018,7 +1237,13 @@ class MainFrame(wx.Frame):
         text.SetName("Szczegóły wydarzenia")
         text.SetMinSize((620, 300))
         sizer.Add(text, 1, wx.ALL | wx.EXPAND, 12)
-        close = wx.Button(dialog, wx.ID_OK, "Zamknij")
+        close = wx.Button(dialog, wx.ID_OK, "&Zamknij")
+        close_accessible = apply_accessible_name(
+            close,
+            "Zamknij",
+            "Zamyka szczegóły wydarzenia.",
+            "Alt+Z",
+        )
         close.SetDefault()
         sizer.Add(close, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
         dialog.SetSizerAndFit(sizer)
