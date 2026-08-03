@@ -25,9 +25,14 @@ from gcm_core.models import (
 )
 from gcm_core.paths import copy_client_secret, find_client_secret, migrate_from_nvda
 from gcm_core.settings import AppSettings, load_settings, save_settings
-from .dialogs import CalendarSelectionDialog, EventCreateDialog, SearchResultsDialog
+from .dialogs import (
+    CalendarSelectionDialog,
+    EventCreateDialog,
+    EventEditDialog,
+    SearchResultsDialog,
+)
 
-APP_TITLE = "GCM by Piotrek 0.3.1 — odczyt i dodawanie wydarzeń"
+APP_TITLE = "GCM by Piotrek 0.4.0 — odczyt, dodawanie i edycja wydarzeń"
 T = TypeVar("T")
 
 
@@ -125,7 +130,7 @@ class MainFrame(wx.Frame):
         self.events_list.Bind(wx.EVT_KEY_DOWN, self._on_events_key)
         self.events_list.Bind(wx.EVT_LISTBOX_DCLICK, self._on_details)
         self.details_button.Bind(wx.EVT_BUTTON, self._on_details)
-        self.edit_button.Bind(wx.EVT_BUTTON, self._on_write_not_ready)
+        self.edit_button.Bind(wx.EVT_BUTTON, self._on_edit)
         self.delete_button.Bind(wx.EVT_BUTTON, self._on_write_not_ready)
 
     def _install_accelerators(self) -> None:
@@ -150,7 +155,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self._on_login, id=ids["login"])
         self.Bind(wx.EVT_MENU, self._on_calendars, id=ids["calendars"])
         self.Bind(wx.EVT_MENU, self._on_add, id=ids["add"])
-        self.Bind(wx.EVT_MENU, self._on_write_not_ready, id=ids["edit"])
+        self.Bind(wx.EVT_MENU, self._on_edit, id=ids["edit"])
         self.Bind(wx.EVT_MENU, self._on_write_not_ready, id=ids["delete"])
         self.Bind(wx.EVT_MENU, self._on_search, id=ids["search"])
         self.Bind(wx.EVT_MENU, self._on_goto, id=ids["goto"])
@@ -180,6 +185,7 @@ class MainFrame(wx.Frame):
             self.login_button, self.calendar_button, self.previous_button,
             self.today_button, self.next_button, self.goto_button,
             self.search_button, self.add_button, self.refresh_button,
+            self.edit_button, self.delete_button,
         ):
             control.Enable(not busy)
         if message:
@@ -236,6 +242,26 @@ class MainFrame(wx.Frame):
         if selected:
             return selected
         return [calendar for calendar in self.calendars if calendar.can_write]
+
+    def _calendar_for_event(self, event: CalendarEvent) -> CalendarInfo | None:
+        return next(
+            (calendar for calendar in self.calendars if calendar.calendar_id == event.calendar_id),
+            None,
+        )
+
+    @staticmethod
+    def _draft_when_text(draft: EventDraft) -> str:
+        if draft.all_day:
+            if draft.start_date == draft.end_date_inclusive:
+                return format_short_date(draft.start_date) + ", cały dzień"
+            return (
+                f"od {format_short_date(draft.start_date)} do "
+                f"{format_short_date(draft.end_date_inclusive)} włącznie, cały dzień"
+            )
+        return (
+            f"{format_short_date(draft.start_date)}, {draft.start_time:%H:%M} — "
+            f"{format_short_date(draft.end_date_inclusive)}, {draft.end_time:%H:%M}"
+        )
 
     def _load_gateway_and_calendars(self) -> tuple[list[CalendarInfo], list[CalendarEvent]]:
         credentials = oauth.ensure_valid_credentials()
@@ -400,7 +426,7 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_search(self, event: wx.Event) -> None:
-        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. Wersja 0.3.1 szuka w bieżącym miesiącu.", "Wyszukaj wydarzenia", "")
+        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. Wersja 0.4.0 szuka w bieżącym miesiącu.", "Wyszukaj wydarzenia", "")
         try:
             result = dialog.ShowModal()
             query = dialog.GetValue().strip()
@@ -552,18 +578,7 @@ class MainFrame(wx.Frame):
             )
             return
 
-        if draft.all_day:
-            when = (
-                format_short_date(draft.start_date)
-                if draft.start_date == draft.end_date_inclusive
-                else f"od {format_short_date(draft.start_date)} do "
-                     f"{format_short_date(draft.end_date_inclusive)} włącznie"
-            )
-        else:
-            when = (
-                f"{format_short_date(draft.start_date)}, {draft.start_time:%H:%M} — "
-                f"{format_short_date(draft.end_date_inclusive)}, {draft.end_time:%H:%M}"
-            )
+        when = self._draft_when_text(draft)
         confirm = wx.MessageDialog(
             self,
             f"Czy utworzyć wydarzenie?\n\n"
@@ -604,6 +619,130 @@ class MainFrame(wx.Frame):
         )
         self._refresh_google()
 
+    def _on_edit(self, event: wx.Event) -> None:
+        if not oauth.is_logged_in():
+            self._show_message(
+                "Najpierw zaloguj się do Google.",
+                "Logowanie wymagane",
+                error=True,
+            )
+            return
+        selected = self._selected_event()
+        if selected is None:
+            self._show_message(
+                "Dla tego dnia nie ma zaznaczonego wydarzenia.",
+                "Nie można edytować wydarzenia",
+                error=True,
+            )
+            return
+        calendar = self._calendar_for_event(selected)
+        if calendar is None:
+            self._show_message(
+                "Nie znaleziono kalendarza tego wydarzenia. Odśwież dane i spróbuj ponownie.",
+                "Nie można edytować wydarzenia",
+                error=True,
+            )
+            return
+        if not calendar.can_write:
+            self._show_message(
+                f"Kalendarz {calendar.name} jest dostępny tylko do odczytu.",
+                "Brak uprawnień do edycji",
+                error=True,
+            )
+            return
+        if not selected.supports_basic_edit:
+            if selected.locked:
+                reason = (
+                    "Google oznaczył to wydarzenie jako zablokowane i nie pozwala "
+                    "na zwykłą edycję jego pól."
+                )
+            else:
+                event_type_labels = {
+                    "birthday": "urodziny",
+                    "focusTime": "czas skupienia",
+                    "fromGmail": "wydarzenie utworzone z Gmaila",
+                    "outOfOffice": "poza biurem",
+                    "workingLocation": "miejsce pracy",
+                }
+                kind = event_type_labels.get(selected.event_type, selected.event_type)
+                reason = (
+                    f"To jest specjalny typ wydarzenia: {kind}. "
+                    "Wersja 0.4.0 edytuje na razie zwykłe wydarzenia kalendarza."
+                )
+            self._show_message(
+                reason,
+                "Tego wydarzenia nie można jeszcze edytować",
+                error=True,
+            )
+            return
+
+        original_draft = selected.to_draft()
+        dialog = EventEditDialog(self, calendar, selected)
+        try:
+            result = dialog.ShowModal()
+            draft = dialog.get_draft()
+        finally:
+            dialog.Destroy()
+        if result != wx.ID_OK or draft is None:
+            return
+        if draft == original_draft:
+            self._show_message(
+                "Nie wprowadzono żadnych zmian.",
+                "Edycja wydarzenia",
+            )
+            return
+
+        notices: list[str] = []
+        if selected.is_recurring_instance:
+            notices.append(
+                "To jest pojedyncze wystąpienie wydarzenia cyklicznego. "
+                "Zmiana obejmie tylko wybrany termin, a nie całą serię."
+            )
+        if selected.has_attendees:
+            notices.append(
+                "Wydarzenie ma uczestników. Google wyśle im aktualizację po zapisaniu zmian."
+            )
+        notice_text = "\n\n" + "\n\n".join(notices) if notices else ""
+        confirm = wx.MessageDialog(
+            self,
+            f"Czy zapisać zmiany w wydarzeniu?\n\n"
+            f"Tytuł: {draft.title}\n"
+            f"Kalendarz: {calendar.name}\n"
+            f"Nowy termin: {self._draft_when_text(draft)}"
+            f"{notice_text}",
+            "Potwierdź edycję wydarzenia",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+        )
+        try:
+            confirmed = confirm.ShowModal()
+        finally:
+            confirm.Destroy()
+        if confirmed != wx.ID_YES:
+            return
+
+        def update() -> CalendarEvent:
+            credentials = oauth.ensure_valid_credentials()
+            if credentials is None:
+                raise RuntimeError("Brak ważnego logowania Google.")
+            return CalendarGateway(credentials).update_event(calendar, selected, draft)
+
+        self._run_task(
+            busy_message=f"Zapisywanie zmian w wydarzeniu: {draft.title}...",
+            target=update,
+            on_success=self._after_update,
+        )
+
+    def _after_update(self, updated: CalendarEvent) -> None:
+        self.current_year = updated.start_date.year
+        self.current_month = updated.start_date.month
+        self.selected_date = updated.start_date
+        self._focus_event_after_refresh = updated.event_id
+        self._show_message(
+            f"Zmiany w wydarzeniu „{updated.title}” zostały zapisane.",
+            "Wydarzenie zaktualizowane",
+        )
+        self._refresh_google()
+
     def _on_details(self, event: wx.Event) -> None:
         selected = self._selected_event()
         if selected is None:
@@ -629,8 +768,9 @@ class MainFrame(wx.Frame):
 
     def _on_write_not_ready(self, event: wx.Event) -> None:
         self._show_message(
-            "Dodawanie wydarzeń jest już aktywne. Edycja i usuwanie zostaną podłączone w następnym, osobno testowanym etapie.",
-            "Funkcja jeszcze niedostępna",
+            "Odczyt, dodawanie i edycja wydarzeń są aktywne. "
+            "Usuwanie zostanie podłączone w następnym, osobno testowanym etapie.",
+            "Usuwanie jeszcze niedostępne",
         )
 
     def _show_message(self, message: str, title: str, *, error: bool = False) -> None:

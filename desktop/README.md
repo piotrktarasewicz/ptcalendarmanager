@@ -1,42 +1,53 @@
-# GCM by Piotrek 0.3.1 — poprawione etykiety formularza
+# GCM by Piotrek 0.4.0 — edycja wydarzeń Google
 
-GCM by Piotrek to dostępny klient Kalendarza Google dla Windows.
-Interfejs jest rozwijany i testowany z NVDA, JAWS-em i Narratorem.
+GCM by Piotrek to dostępny klient Kalendarza Google dla Windows. Interfejs
+wxPython jest testowany z NVDA, JAWS-em i Narratorem.
 
-## Poprawka w wersji 0.3.1
+## Nowości w wersji 0.4.0
 
-W formularzu dodawania wydarzenia widoczne napisy nie były programowo
-powiązane z polami. Czytniki odczytywały więc jedynie „pole edycyjne”.
+Wersja umożliwia edytowanie zwykłych wydarzeń znajdujących się w kalendarzach,
+do których konto ma prawo zapisu.
 
-Wersja 0.3.1 nadaje każdej kontrolce jednoznaczną nazwę przez
-`wx.Accessible`, a `SetName()` pozostawia jako drugą warstwę
-zabezpieczenia.
+Można zmienić:
 
-Poprawka obejmuje:
+- tytuł;
+- typ: całodniowe albo godzinowe;
+- datę i godzinę rozpoczęcia;
+- datę i godzinę zakończenia;
+- lokalizację;
+- opis.
 
-- Tytuł wydarzenia;
-- Kalendarz docelowy;
-- Datę rozpoczęcia;
-- Wydarzenie całodniowe;
-- Godzinę rozpoczęcia;
-- Datę zakończenia włącznie;
-- Godzinę zakończenia;
-- Lokalizację;
-- Opis wydarzenia.
+Kalendarz wydarzenia jest zachowywany. Przenoszenie wydarzeń między
+kalendarzami nie jest jeszcze dostępne.
 
-Funkcje odczytu i dodawania wydarzeń pozostają bez zmian.
+Aktualizacja używa częściowej operacji Google Calendar API. Pola, których GCM
+jeszcze nie obsługuje — na przykład przypomnienia i dane konferencji — nie są
+nadpisywane.
+
+Jeżeli wydarzenie ma uczestników, przed zapisem pojawia się informacja, że
+Google wyśle im aktualizację. Jeżeli zaznaczone wydarzenie jest pojedynczym
+wystąpieniem cyklu, aplikacja ostrzega, że zmiana dotyczy tylko tej instancji.
+
+Specjalne wydarzenia, takie jak urodziny, miejsce pracy, czas skupienia i
+wydarzenia utworzone automatycznie z Gmaila, są na razie chronione przed
+edycją.
 
 ## Uruchomienie
 
-Rozpakuj wersję 0.3.1 do nowego katalogu i uruchom `uruchom_gcm.bat`.
+Rozpakuj wersję 0.4.0 do nowego katalogu i uruchom `uruchom_gcm.bat`.
 
-Token i ustawienia pozostają w:
+Token i ustawienia są przechowywane w `%APPDATA%\GCM by Piotrek`, dlatego
+logowanie oraz wybór kalendarzy powinny zostać zachowane.
 
-`%APPDATA%\GCM by Piotrek`
+## Skróty
 
-Dlatego aplikacja powinna zachować logowanie i wybór kalendarzy.
-
-## Najważniejszy test
-
-Naciśnij `Ctrl+N` i przejdź Tabulatorem po wszystkich kontrolkach.
-Czytnik powinien podawać nazwę, rolę i aktualną wartość każdego pola.
+- `Ctrl+N` — dodaj wydarzenie;
+- `Ctrl+E` — edytuj zaznaczone wydarzenie;
+- `Delete` — usuwanie, jeszcze niedostępne;
+- `Ctrl+L` — zaloguj lub wyloguj;
+- `Ctrl+K` — wybierz kalendarze;
+- `Ctrl+F` — wyszukaj w bieżącym miesiącu;
+- `Ctrl+G` — przejdź do daty;
+- `Ctrl+D` — dzisiaj;
+- `F5` — odśwież;
+- `Alt+Strzałka w lewo` i `Alt+Strzałka w prawo` — zmiana miesiąca.

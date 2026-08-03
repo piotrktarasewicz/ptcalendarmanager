@@ -39,3 +39,16 @@ zapisu nie są uzależnione od wxPython.
 Aplikacja przechowuje własne pliki w `%APPDATA%\GCM by Piotrek` i nie zmienia
 plików dodatku NVDA. Przy pierwszym uruchomieniu może jedynie skopiować zgodne
 pliki z dodatku, pozostawiając oryginały bez zmian.
+
+
+## Etap 0.4.0 — edycja
+
+- Formularz dodawania i edycji korzysta ze wspólnej implementacji.
+- `CalendarEvent.to_draft()` przekształca dane Google na wartości formularza.
+- `build_event_patch_body()` zawiera tylko pola obsługiwane przez GCM i pozwala
+  wyczyścić lokalizację lub opis.
+- `CalendarGateway.update_event()` używa `events.patch`, zachowując pozostałe
+  właściwości wydarzenia.
+- Wydarzenie pozostaje w swoim kalendarzu.
+- Instancja wydarzenia cyklicznego jest edytowana osobno.
+- Specjalne typy wydarzeń są na razie blokowane.

@@ -1,7 +1,7 @@
 import datetime as dt
 import unittest
 
-from gcm_core.calendar_api import build_event_body
+from gcm_core.calendar_api import CalendarGateway, build_event_body, build_event_patch_body
 from gcm_core.models import (
     CalendarInfo,
     EventCollection,
@@ -120,6 +120,168 @@ class CreateEventTests(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             draft.validate()
+
+
+class EditEventTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.calendar = CalendarInfo(
+            "cal-1",
+            "Główny",
+            primary=True,
+            access_role="owner",
+            time_zone="Europe/Warsaw",
+        )
+
+    def test_all_day_event_converts_to_edit_draft(self) -> None:
+        event = event_from_google(
+            {
+                "id": "e1",
+                "summary": "Urlop",
+                "start": {"date": "2026-08-10"},
+                "end": {"date": "2026-08-13"},
+                "location": "Dom",
+            },
+            self.calendar,
+        )
+        draft = event.to_draft()
+        self.assertTrue(draft.all_day)
+        self.assertEqual(draft.start_date, dt.date(2026, 8, 10))
+        self.assertEqual(draft.end_date_inclusive, dt.date(2026, 8, 12))
+        self.assertEqual(draft.location, "Dom")
+
+    def test_timed_event_converts_to_edit_draft(self) -> None:
+        event = event_from_google(
+            {
+                "id": "e2",
+                "summary": "Spotkanie",
+                "start": {"dateTime": "2026-08-10T23:30:00+02:00"},
+                "end": {"dateTime": "2026-08-11T00:30:00+02:00"},
+            },
+            self.calendar,
+        )
+        draft = event.to_draft()
+        self.assertFalse(draft.all_day)
+        self.assertEqual(draft.start_time, event.start_dt.time().replace(tzinfo=None, microsecond=0))
+        self.assertEqual(draft.end_date_inclusive, event.end_dt.date())
+        self.assertEqual(draft.end_time, event.end_dt.time().replace(tzinfo=None, microsecond=0))
+
+    def test_google_metadata_marks_recurring_and_attendees(self) -> None:
+        event = event_from_google(
+            {
+                "id": "instance-1",
+                "recurringEventId": "series-1",
+                "summary": "Cykl",
+                "attendees": [{"email": "a@example.com"}],
+                "start": {"date": "2026-08-10"},
+                "end": {"date": "2026-08-11"},
+            },
+            self.calendar,
+        )
+        self.assertTrue(event.is_recurring_instance)
+        self.assertTrue(event.has_attendees)
+        self.assertTrue(event.supports_basic_edit)
+
+
+    def test_self_only_attendee_does_not_trigger_notifications(self) -> None:
+        event = event_from_google(
+            {
+                "id": "self-1",
+                "summary": "Własne wydarzenie",
+                "attendees": [{"email": "me@example.com", "self": True}],
+                "start": {"date": "2026-08-10"},
+                "end": {"date": "2026-08-11"},
+            },
+            self.calendar,
+        )
+        self.assertFalse(event.has_attendees)
+
+    def test_special_event_type_is_not_basic_editable(self) -> None:
+        event = event_from_google(
+            {
+                "id": "birthday-1",
+                "eventType": "birthday",
+                "summary": "Urodziny",
+                "start": {"date": "2026-08-10"},
+                "end": {"date": "2026-08-11"},
+            },
+            self.calendar,
+        )
+        self.assertFalse(event.supports_basic_edit)
+
+    def test_patch_body_can_clear_optional_fields(self) -> None:
+        draft = EventDraft(
+            calendar_id="cal-1",
+            title="Nowy tytuł",
+            all_day=True,
+            start_date=dt.date(2026, 8, 10),
+            end_date_inclusive=dt.date(2026, 8, 10),
+            location="",
+            description="",
+        )
+        body = build_event_patch_body(draft, "Europe/Warsaw")
+        self.assertIn("location", body)
+        self.assertIn("description", body)
+        self.assertEqual(body["location"], "")
+        self.assertEqual(body["description"], "")
+
+    def test_gateway_patch_preserves_event_and_notifies_attendees(self) -> None:
+        class FakeRequest:
+            def __init__(self, response):
+                self.response = response
+
+            def execute(self):
+                return self.response
+
+        class FakeEvents:
+            def __init__(self, response):
+                self.response = response
+                self.kwargs = None
+
+            def patch(self, **kwargs):
+                self.kwargs = kwargs
+                return FakeRequest(self.response)
+
+        class FakeService:
+            def __init__(self, response):
+                self.events_resource = FakeEvents(response)
+
+            def events(self):
+                return self.events_resource
+
+        original = event_from_google(
+            {
+                "id": "e3",
+                "summary": "Przed",
+                "attendees": [{"email": "a@example.com"}],
+                "start": {"date": "2026-08-10"},
+                "end": {"date": "2026-08-11"},
+            },
+            self.calendar,
+        )
+        response = {
+            "id": "e3",
+            "summary": "Po",
+            "attendees": [{"email": "a@example.com"}],
+            "start": {"date": "2026-08-11"},
+            "end": {"date": "2026-08-12"},
+        }
+        gateway = CalendarGateway.__new__(CalendarGateway)
+        gateway._service = FakeService(response)
+        draft = EventDraft(
+            calendar_id="cal-1",
+            title="Po",
+            all_day=True,
+            start_date=dt.date(2026, 8, 11),
+            end_date_inclusive=dt.date(2026, 8, 11),
+        )
+        updated = gateway.update_event(self.calendar, original, draft)
+        self.assertEqual(updated.title, "Po")
+        self.assertEqual(
+            gateway._service.events_resource.kwargs["sendUpdates"],
+            "all",
+        )
+        self.assertEqual(gateway._service.events_resource.kwargs["eventId"], "e3")
+        self.assertNotIn("attendees", gateway._service.events_resource.kwargs["body"])
 
 
 if __name__ == "__main__":

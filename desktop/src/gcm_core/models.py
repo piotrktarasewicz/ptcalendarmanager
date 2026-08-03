@@ -76,6 +76,43 @@ class CalendarEvent:
     location: str = ""
     description: str = ""
     html_link: str = ""
+    recurring_event_id: str = ""
+    has_attendees: bool = False
+    event_type: str = "default"
+    locked: bool = False
+
+    @property
+    def is_recurring_instance(self) -> bool:
+        return bool(self.recurring_event_id)
+
+    @property
+    def supports_basic_edit(self) -> bool:
+        return not self.locked and self.event_type == "default"
+
+    def to_draft(self) -> EventDraft:
+        if self.all_day:
+            return EventDraft(
+                calendar_id=self.calendar_id,
+                title=self.title,
+                all_day=True,
+                start_date=self.start_date,
+                end_date_inclusive=self.end_date_exclusive - dt.timedelta(days=1),
+                location=self.location,
+                description=self.description,
+            )
+        if self.start_dt is None or self.end_dt is None:
+            raise ValueError("Wydarzenie godzinowe nie ma pełnych danych czasu.")
+        return EventDraft(
+            calendar_id=self.calendar_id,
+            title=self.title,
+            all_day=False,
+            start_date=self.start_dt.date(),
+            end_date_inclusive=self.end_dt.date(),
+            start_time=self.start_dt.time().replace(tzinfo=None, microsecond=0),
+            end_time=self.end_dt.time().replace(tzinfo=None, microsecond=0),
+            location=self.location,
+            description=self.description,
+        )
 
     def occurs_on(self, value: dt.date) -> bool:
         return self.start_date <= value < self.end_date_exclusive
@@ -203,6 +240,14 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
             location=str(item.get("location") or ""),
             description=str(item.get("description") or ""),
             html_link=str(item.get("htmlLink") or ""),
+            recurring_event_id=str(item.get("recurringEventId") or ""),
+            has_attendees=any(
+                not bool(attendee.get("self", False))
+                for attendee in (item.get("attendees") or [])
+                if isinstance(attendee, dict)
+            ),
+            event_type=str(item.get("eventType") or "default"),
+            locked=bool(item.get("locked", False)),
         )
 
     start_dt = parse_google_datetime(str(start.get("dateTime")))
@@ -221,6 +266,14 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
         location=str(item.get("location") or ""),
         description=str(item.get("description") or ""),
         html_link=str(item.get("htmlLink") or ""),
+        recurring_event_id=str(item.get("recurringEventId") or ""),
+        has_attendees=any(
+            not bool(attendee.get("self", False))
+            for attendee in (item.get("attendees") or [])
+            if isinstance(attendee, dict)
+        ),
+        event_type=str(item.get("eventType") or "default"),
+        locked=bool(item.get("locked", False)),
     )
 
 

@@ -5,6 +5,21 @@ import datetime as dt
 from .models import CalendarEvent, CalendarInfo, EventDraft, event_from_google
 
 
+def _build_event_time(draft: EventDraft, time_zone: str) -> tuple[dict, dict]:
+    if draft.all_day:
+        return (
+            {"date": draft.start_date.isoformat()},
+            {"date": (draft.end_date_inclusive + dt.timedelta(days=1)).isoformat()},
+        )
+    start_dt = dt.datetime.combine(draft.start_date, draft.start_time)
+    end_dt = dt.datetime.combine(draft.end_date_inclusive, draft.end_time)
+    zone = time_zone or "Europe/Warsaw"
+    return (
+        {"dateTime": start_dt.isoformat(), "timeZone": zone},
+        {"dateTime": end_dt.isoformat(), "timeZone": zone},
+    )
+
+
 def build_event_body(draft: EventDraft, time_zone: str) -> dict:
     draft.validate()
     body: dict = {"summary": draft.title.strip()}
@@ -12,24 +27,21 @@ def build_event_body(draft: EventDraft, time_zone: str) -> dict:
         body["location"] = draft.location.strip()
     if draft.description.strip():
         body["description"] = draft.description.strip()
-
-    if draft.all_day:
-        body["start"] = {"date": draft.start_date.isoformat()}
-        body["end"] = {
-            "date": (draft.end_date_inclusive + dt.timedelta(days=1)).isoformat()
-        }
-    else:
-        start_dt = dt.datetime.combine(draft.start_date, draft.start_time)
-        end_dt = dt.datetime.combine(draft.end_date_inclusive, draft.end_time)
-        body["start"] = {
-            "dateTime": start_dt.isoformat(),
-            "timeZone": time_zone or "Europe/Warsaw",
-        }
-        body["end"] = {
-            "dateTime": end_dt.isoformat(),
-            "timeZone": time_zone or "Europe/Warsaw",
-        }
+    body["start"], body["end"] = _build_event_time(draft, time_zone)
     return body
+
+
+def build_event_patch_body(draft: EventDraft, time_zone: str) -> dict:
+    """Build a partial update that can also clear location and description."""
+    draft.validate()
+    start, end = _build_event_time(draft, time_zone)
+    return {
+        "summary": draft.title.strip(),
+        "location": draft.location.strip(),
+        "description": draft.description.strip(),
+        "start": start,
+        "end": end,
+    }
 
 
 class CalendarGateway:
@@ -88,6 +100,35 @@ class CalendarGateway:
                 if not page_token:
                     break
         return events
+
+    def update_event(
+        self,
+        calendar: CalendarInfo,
+        existing: CalendarEvent,
+        draft: EventDraft,
+    ) -> CalendarEvent:
+        if not calendar.can_write:
+            raise PermissionError(
+                f"Kalendarz {calendar.name} nie pozwala temu kontu edytować wydarzeń."
+            )
+        if not existing.event_id:
+            raise ValueError("Wydarzenie nie ma identyfikatora Google.")
+        if existing.calendar_id != calendar.calendar_id:
+            raise ValueError("Wydarzenie nie należy do wskazanego kalendarza.")
+        if draft.calendar_id != calendar.calendar_id:
+            raise ValueError("Edycja nie może przenieść wydarzenia do innego kalendarza.")
+        if not existing.supports_basic_edit:
+            raise ValueError(
+                "Ten rodzaj wydarzenia nie jest jeszcze obsługiwany przez edycję GCM."
+            )
+        body = build_event_patch_body(draft, calendar.time_zone)
+        item = self._service.events().patch(
+            calendarId=calendar.calendar_id,
+            eventId=existing.event_id,
+            body=body,
+            sendUpdates="all" if existing.has_attendees else "none",
+        ).execute()
+        return event_from_google(item, calendar)
 
     def create_event(self, calendar: CalendarInfo, draft: EventDraft) -> CalendarEvent:
         if not calendar.can_write:
