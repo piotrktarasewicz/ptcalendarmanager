@@ -10,6 +10,7 @@ from gcm_core.models import (
     CalendarEvent,
     CalendarInfo,
     EventDraft,
+    SearchCriteria,
     count_text,
     format_full_date,
     parse_polish_date,
@@ -360,13 +361,147 @@ class CalendarSelectionDialog(wx.Dialog):
         ]
 
 
+class SearchDialog(wx.Dialog):
+    def __init__(
+        self,
+        parent: wx.Window,
+        default_start: dt.date,
+        default_end: dt.date,
+    ) -> None:
+        super().__init__(
+            parent,
+            title="Wyszukaj wydarzenia",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._criteria: SearchCriteria | None = None
+        self._accessible_objects: list[wx.Accessible] = []
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        intro = wx.StaticText(
+            self,
+            label=(
+                "Wyszukiwanie obejmuje wybrane kalendarze Google. "
+                "Data początkowa i końcowa należą do zakresu."
+            ),
+        )
+        intro.Wrap(620)
+        sizer.Add(intro, 0, wx.ALL | wx.EXPAND, 12)
+
+        form = wx.FlexGridSizer(cols=2, vgap=10, hgap=12)
+        form.AddGrowableCol(1, 1)
+
+        self.query_ctrl = wx.TextCtrl(self)
+        self.start_date_ctrl = wx.TextCtrl(
+            self,
+            value=default_start.strftime("%d.%m.%Y"),
+        )
+        self.end_date_ctrl = wx.TextCtrl(
+            self,
+            value=default_end.strftime("%d.%m.%Y"),
+        )
+
+        self._add_accessible_name(
+            self.query_ctrl,
+            "Szukany tekst",
+            "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza.",
+        )
+        self._add_accessible_name(
+            self.start_date_ctrl,
+            "Data początkowa wyszukiwania, DD.MM.RRRR",
+            "Pierwszy dzień zakresu wyszukiwania, podawany włącznie.",
+        )
+        self._add_accessible_name(
+            self.end_date_ctrl,
+            "Data końcowa wyszukiwania, DD.MM.RRRR",
+            "Ostatni dzień zakresu wyszukiwania, podawany włącznie.",
+        )
+
+        form.Add(wx.StaticText(self, label="Szukany tekst:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(self.query_ctrl, 1, wx.EXPAND)
+        form.Add(wx.StaticText(self, label="Data początkowa, DD.MM.RRRR:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(self.start_date_ctrl, 1, wx.EXPAND)
+        form.Add(wx.StaticText(self, label="Data końcowa, DD.MM.RRRR:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(self.end_date_ctrl, 1, wx.EXPAND)
+        sizer.Add(form, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
+
+        note = wx.StaticText(
+            self,
+            label="Duży zakres może zawierać wiele wydarzeń, ale wyszukiwanie nie blokuje głównego okna.",
+        )
+        note.Wrap(620)
+        sizer.Add(note, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
+
+        buttons = wx.StdDialogButtonSizer()
+        self.search_button = wx.Button(self, wx.ID_OK, "Wyszukaj")
+        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "Anuluj")
+        self.search_button.SetDefault()
+        buttons.AddButton(self.search_button)
+        buttons.AddButton(self.cancel_button)
+        buttons.Realize()
+        sizer.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
+
+        self.SetSizerAndFit(sizer)
+        self.SetMinSize((680, 330))
+        self.SetSize((720, 370))
+        self.CentreOnParent()
+
+        self.search_button.Bind(wx.EVT_BUTTON, self._on_search)
+        wx.CallAfter(self.query_ctrl.SetFocus)
+
+    def _add_accessible_name(
+        self,
+        control: wx.Window,
+        name: str,
+        description: str,
+    ) -> None:
+        accessible = apply_accessible_name(control, name, description)
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+
+    def _on_search(self, event: wx.Event) -> None:
+        try:
+            criteria = SearchCriteria(
+                query=self.query_ctrl.GetValue().strip(),
+                start_date=parse_polish_date(self.start_date_ctrl.GetValue()),
+                end_date_inclusive=parse_polish_date(self.end_date_ctrl.GetValue()),
+            )
+            criteria.validate()
+        except ValueError as error:
+            wx.MessageBox(
+                str(error),
+                "Nieprawidłowe dane wyszukiwania",
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            return
+        self._criteria = criteria
+        self.EndModal(wx.ID_OK)
+
+    def get_criteria(self) -> SearchCriteria | None:
+        return self._criteria
+
+
 class SearchResultsDialog(wx.Dialog):
-    def __init__(self, parent: wx.Window, events: list[CalendarEvent]) -> None:
+    def __init__(
+        self,
+        parent: wx.Window,
+        events: list[CalendarEvent],
+        criteria: SearchCriteria,
+    ) -> None:
         super().__init__(parent, title="Wyniki wyszukiwania", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self._events = events
         self.selected_event: CalendarEvent | None = None
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(wx.StaticText(self, label=f"Znaleziono: {count_text(len(events))}."), 0, wx.ALL, 12)
+        summary = wx.StaticText(
+            self,
+            label=(
+                f"Znaleziono: {count_text(len(events))}. "
+                f"Zakres od {criteria.start_date:%d.%m.%Y} "
+                f"do {criteria.end_date_inclusive:%d.%m.%Y} włącznie."
+            ),
+        )
+        summary.Wrap(700)
+        sizer.Add(summary, 0, wx.ALL | wx.EXPAND, 12)
         choices = [f"{format_full_date(event.start_date)}, {event.display_text(event.start_date)}" for event in events]
         self.results = wx.ListBox(self, choices=choices, style=wx.LB_SINGLE)
         self.results.SetName(f"Wyniki wyszukiwania, {len(events)} elementów")

@@ -15,6 +15,7 @@ from gcm_core.models import (
     CalendarInfo,
     EventCollection,
     EventDraft,
+    SearchCriteria,
     count_text,
     format_full_date,
     format_month,
@@ -29,10 +30,11 @@ from .dialogs import (
     CalendarSelectionDialog,
     EventCreateDialog,
     EventEditDialog,
+    SearchDialog,
     SearchResultsDialog,
 )
 
-APP_TITLE = "GCM by Piotrek 0.6.0 — pełna obsługa cykli"
+APP_TITLE = "GCM by Piotrek 0.7.0 — wyszukiwanie w zakresie dat"
 T = TypeVar("T")
 
 
@@ -431,29 +433,83 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_search(self, event: wx.Event) -> None:
-        dialog = wx.TextEntryDialog(self, "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza. GCM szuka w wydarzeniach pobranych dla bieżącego miesiąca.", "Wyszukaj wydarzenia", "")
+        if not oauth.is_logged_in():
+            self._show_message(
+                "Najpierw zaloguj się do Google.",
+                "Logowanie wymagane",
+                error=True,
+            )
+            return
+
+        today = dt.date.today()
+        dialog = SearchDialog(
+            self,
+            default_start=today,
+            default_end=today + dt.timedelta(days=365),
+        )
         try:
             result = dialog.ShowModal()
-            query = dialog.GetValue().strip()
+            criteria = dialog.get_criteria()
         finally:
             dialog.Destroy()
-        if result != wx.ID_OK:
+        if result != wx.ID_OK or criteria is None:
             return
-        if not query:
-            self._show_message("Wpisz tekst do wyszukania.", "Wyszukiwanie", error=True)
-            return
-        results = self.events.search(query)
-        result_dialog = SearchResultsDialog(self, results)
+
+        def search() -> tuple[list[CalendarInfo], SearchCriteria, list[CalendarEvent]]:
+            credentials = oauth.ensure_valid_credentials()
+            if credentials is None:
+                raise RuntimeError("Brak ważnego logowania Google.")
+            gateway = CalendarGateway(credentials)
+            calendars = self.calendars or gateway.list_calendars()
+            selected_ids = set(self.settings.selected_calendar_ids)
+            chosen = [
+                calendar
+                for calendar in calendars
+                if calendar.calendar_id in selected_ids
+            ]
+            if not chosen:
+                chosen = [calendar for calendar in calendars if calendar.primary] or calendars
+            results = gateway.search_events(chosen, criteria)
+            return calendars, criteria, results
+
+        self._run_task(
+            busy_message=(
+                f"Wyszukiwanie od {criteria.start_date:%d.%m.%Y} "
+                f"do {criteria.end_date_inclusive:%d.%m.%Y}..."
+            ),
+            target=search,
+            on_success=self._after_search,
+        )
+
+    def _after_search(
+        self,
+        result: tuple[list[CalendarInfo], SearchCriteria, list[CalendarEvent]],
+    ) -> None:
+        calendars, criteria, events = result
+        self.calendars = calendars
+        self._update_account_state()
+        self._set_status(
+            f"Wyszukiwanie zakończone: {count_text(len(events))}."
+        )
+
+        result_dialog = SearchResultsDialog(self, events, criteria)
         try:
-            result = result_dialog.ShowModal()
+            dialog_result = result_dialog.ShowModal()
             selected = result_dialog.selected_event
         finally:
             result_dialog.Destroy()
-        if result == wx.ID_OK and selected:
-            self.selected_date = selected.start_date
-            self._render_month(select_date=selected.start_date)
-            self._render_events(selected.event_id)
-            self.events_list.SetFocus()
+
+        if dialog_result != wx.ID_OK or selected is None:
+            self.search_button.SetFocus()
+            return
+
+        self.current_year = selected.start_date.year
+        self.current_month = selected.start_date.month
+        self.selected_date = selected.start_date
+        self._focus_event_after_refresh = selected.event_id
+        self.events.replace([])
+        self._render_month(select_date=selected.start_date)
+        self._refresh_google()
 
     def _on_login(self, event: wx.Event) -> None:
         if oauth.is_logged_in():

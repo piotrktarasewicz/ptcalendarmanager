@@ -18,6 +18,23 @@ POLISH_WEEKDAYS = (
 
 
 @dataclass(frozen=True, slots=True)
+class SearchCriteria:
+    query: str
+    start_date: dt.date
+    end_date_inclusive: dt.date
+
+    def validate(self) -> None:
+        if not self.query.strip():
+            raise ValueError("Wpisz tekst do wyszukania.")
+        if self.end_date_inclusive < self.start_date:
+            raise ValueError("Data końcowa wyszukiwania nie może być wcześniejsza niż początkowa.")
+
+    @property
+    def end_date_exclusive(self) -> dt.date:
+        return self.end_date_inclusive + dt.timedelta(days=1)
+
+
+@dataclass(frozen=True, slots=True)
 class CalendarInfo:
     calendar_id: str
     name: str

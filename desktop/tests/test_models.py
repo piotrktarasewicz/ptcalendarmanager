@@ -12,6 +12,7 @@ from gcm_core.models import (
     CalendarInfo,
     EventCollection,
     EventDraft,
+    SearchCriteria,
     count_text,
     event_from_google,
     month_days,
@@ -618,6 +619,102 @@ class RecurringDeleteScopeTests(unittest.TestCase):
         gateway = self._gateway({})
         with self.assertRaises(ValueError):
             gateway.delete_recurring_series(self.calendar, event)
+
+
+
+
+class SearchRangeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.calendar = CalendarInfo(
+            "cal-1",
+            "Rodzinne",
+            access_role="owner",
+        )
+
+    def test_search_range_end_is_inclusive(self) -> None:
+        criteria = SearchCriteria(
+            query="lekarz",
+            start_date=dt.date(2026, 8, 3),
+            end_date_inclusive=dt.date(2026, 8, 10),
+        )
+        self.assertEqual(criteria.end_date_exclusive, dt.date(2026, 8, 11))
+
+    def test_search_rejects_reversed_range(self) -> None:
+        criteria = SearchCriteria(
+            query="spotkanie",
+            start_date=dt.date(2026, 8, 10),
+            end_date_inclusive=dt.date(2026, 8, 3),
+        )
+        with self.assertRaises(ValueError):
+            criteria.validate()
+
+    def test_search_rejects_empty_query(self) -> None:
+        criteria = SearchCriteria(
+            query="   ",
+            start_date=dt.date(2026, 8, 3),
+            end_date_inclusive=dt.date(2026, 8, 10),
+        )
+        with self.assertRaises(ValueError):
+            criteria.validate()
+
+    def test_gateway_fetches_full_range_and_filters_locally(self) -> None:
+        doctor = event_from_google(
+            {
+                "id": "doctor",
+                "summary": "Lekarz kontrola",
+                "start": {"date": "2026-08-10"},
+                "end": {"date": "2026-08-11"},
+            },
+            self.calendar,
+        )
+        work = event_from_google(
+            {
+                "id": "work",
+                "summary": "Praca",
+                "start": {"date": "2026-08-09"},
+                "end": {"date": "2026-08-10"},
+            },
+            self.calendar,
+        )
+        captured = {}
+        gateway = CalendarGateway.__new__(CalendarGateway)
+
+        def fake_list_events(calendars, start_date, end_date):
+            captured["calendars"] = calendars
+            captured["start"] = start_date
+            captured["end"] = end_date
+            return [work, doctor]
+
+        gateway.list_events = fake_list_events
+        criteria = SearchCriteria(
+            query="lekarz",
+            start_date=dt.date(2026, 8, 1),
+            end_date_inclusive=dt.date(2026, 8, 10),
+        )
+        results = gateway.search_events([self.calendar], criteria)
+        self.assertEqual(captured["start"], dt.date(2026, 8, 1))
+        self.assertEqual(captured["end"], dt.date(2026, 8, 11))
+        self.assertEqual([event.event_id for event in results], ["doctor"])
+
+    def test_search_matches_calendar_name(self) -> None:
+        event = event_from_google(
+            {
+                "id": "family",
+                "summary": "Obiad",
+                "start": {"date": "2026-08-10"},
+                "end": {"date": "2026-08-11"},
+            },
+            self.calendar,
+        )
+        gateway = CalendarGateway.__new__(CalendarGateway)
+        gateway.list_events = lambda calendars, start, end: [event]
+        criteria = SearchCriteria(
+            query="rodzinne",
+            start_date=dt.date(2026, 8, 1),
+            end_date_inclusive=dt.date(2026, 8, 31),
+        )
+        results = gateway.search_events([self.calendar], criteria)
+        self.assertEqual(results[0].event_id, "family")
 
 
 if __name__ == "__main__":

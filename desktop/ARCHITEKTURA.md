@@ -84,3 +84,19 @@ wybranym wystąpieniem. Elementy takie jak `EXDATE` są zachowywane.
 
 Dla pierwszego wystąpienia skrócenie RRULE przed DTSTART byłoby
 nieprawidłowe, dlatego metoda usuwa wtedy całe wydarzenie nadrzędne.
+
+
+## Etap 0.7.0 — wyszukiwanie zakresowe
+
+`SearchCriteria` przechowuje tekst, datę początkową i datę końcową podawaną
+włącznie. Warstwa rdzenia przelicza koniec na datę wyłączną wymaganą przez
+`events.list`.
+
+`CalendarGateway.search_events()` pobiera wydarzenia dla całego przedziału,
+a następnie filtruje je przez `EventCollection.search()`. Dzięki temu zachowane
+jest jednakowe wyszukiwanie po tytule, opisie, lokalizacji i nazwie kalendarza.
+
+Interfejs wykonuje operację w istniejącym wątku roboczym. Wynik wybrany poza
+aktualnym miesiącem nie jest wstawiany sztucznie do bieżącej kolekcji: aplikacja
+przechodzi do jego miesiąca, pobiera dane ponownie z Google i dopiero wtedy
+ustawia fokus według identyfikatora wydarzenia.

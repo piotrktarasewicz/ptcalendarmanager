@@ -1,15 +1,5 @@
-GCM by Piotrek 0.6.0 — wyniki testów automatycznych
+GCM by Piotrek 0.7.0 — wyniki testów automatycznych
 
-Spreadsheet runtime warmup failed during python startup
-Traceback (most recent call last):
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
-artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
 test_all_day_body_uses_exclusive_google_end_date (test_models.CreateEventTests.test_all_day_body_uses_exclusive_google_end_date) ... ok
 test_calendar_write_permission (test_models.CreateEventTests.test_calendar_write_permission) ... ok
 test_timed_body_preserves_dates_times_and_timezone (test_models.CreateEventTests.test_timed_body_preserves_dates_times_and_timezone) ... ok
@@ -43,14 +33,18 @@ test_non_recurring_event_is_rejected_for_series_delete (test_models.RecurringDel
 test_original_start_time_is_retained (test_models.RecurringDeleteScopeTests.test_original_start_time_is_retained) ... ok
 test_timed_until_is_utc_second_before (test_models.RecurringDeleteScopeTests.test_timed_until_is_utc_second_before) ... ok
 test_trim_replaces_count_and_preserves_exdate (test_models.RecurringDeleteScopeTests.test_trim_replaces_count_and_preserves_exdate) ... ok
+test_gateway_fetches_full_range_and_filters_locally (test_models.SearchRangeTests.test_gateway_fetches_full_range_and_filters_locally) ... ok
+test_search_matches_calendar_name (test_models.SearchRangeTests.test_search_matches_calendar_name) ... ok
+test_search_range_end_is_inclusive (test_models.SearchRangeTests.test_search_range_end_is_inclusive) ... ok
+test_search_rejects_empty_query (test_models.SearchRangeTests.test_search_rejects_empty_query) ... ok
+test_search_rejects_reversed_range (test_models.SearchRangeTests.test_search_rejects_reversed_range) ... ok
 
 ----------------------------------------------------------------------
-Ran 33 tests in 0.001s
+Ran 38 tests in 0.004s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Usuwanie pojedynczego wystąpienia: OK
-Skracanie RRULE dla tego i kolejnych: OK
-Usuwanie całej serii przez recurringEventId: OK
-Obsługa originalStartTime: OK
+Walidacja zakresu dat: OK
+Data końcowa podawana włącznie: OK
+Filtrowanie tytułu, opisu, lokalizacji i nazwy kalendarza: OK

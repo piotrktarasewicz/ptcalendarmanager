@@ -5,7 +5,9 @@ import datetime as dt
 from .models import (
     CalendarEvent,
     CalendarInfo,
+    EventCollection,
     EventDraft,
+    SearchCriteria,
     event_from_google,
     parse_google_start_marker,
 )
@@ -164,6 +166,19 @@ class CalendarGateway:
                 if not page_token:
                     break
         return events
+
+    def search_events(
+        self,
+        calendars: list[CalendarInfo],
+        criteria: SearchCriteria,
+    ) -> list[CalendarEvent]:
+        criteria.validate()
+        events = self.list_events(
+            calendars,
+            criteria.start_date,
+            criteria.end_date_exclusive,
+        )
+        return EventCollection(events).search(criteria.query)
 
     def update_event(
         self,
