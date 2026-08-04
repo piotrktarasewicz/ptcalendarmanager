@@ -142,3 +142,23 @@ Edycja wystąpienia używa jego własnego identyfikatora i nie przesyła pola
 `recurrence`. Edycja całej prostej serii pobiera wydarzenie nadrzędne przez
 `recurringEventId`, zachowuje nieobsługiwane pola zasobu i zastępuje start, end
 oraz RRULE. Zwykłe wydarzenie może zostać zamienione w prosty cykl.
+
+
+## Etap 0.10.0 — przekazanie zaawansowanej obsługi do Google
+
+`CalendarEvent` przechowuje bezpieczny `html_link` do internetowego interfejsu
+wydarzenia oraz opcjonalny `meeting_url` i nazwę rozwiązania konferencyjnego.
+
+Link spotkania jest wybierany w kolejności:
+
+1. bezpośredni `hangoutLink`;
+2. punkt wejścia `conferenceData.entryPoints` typu `video`;
+3. internetowy punkt typu `more` jako strona zapasowa.
+
+Punkty `phone` i `sip` nie są otwierane w przeglądarce. Wszystkie adresy są
+akceptowane tylko wtedy, gdy są bezwzględnymi adresami HTTP albo HTTPS.
+
+Aplikacja wyłącznie odczytuje istniejące dane konferencji. Nie generuje Meet,
+nie modyfikuje `conferenceData` i nie rozszerza zakresów OAuth. Otwieranie
+wydarzenia w Google stanowi świadomą granicę między prostą obsługą w GCM a
+zaawansowaną edycją w oficjalnym interfejsie.

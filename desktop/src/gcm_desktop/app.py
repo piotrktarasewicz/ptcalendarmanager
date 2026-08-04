@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import threading
+import webbrowser
 from pathlib import Path
 from typing import Callable, TypeVar
 
@@ -32,11 +33,12 @@ from .dialogs import (
     EventCreateDialog,
     EventEditDialog,
     HelpDialog,
+    MeetingLinkDialog,
     SearchDialog,
     SearchResultsDialog,
 )
 
-APP_TITLE = "GCM by Piotrek 0.9.0 — podstawowe wydarzenia cykliczne"
+APP_TITLE = "GCM by Piotrek 0.10.0 — otwieranie wydarzeń i spotkań"
 T = TypeVar("T")
 
 
@@ -102,13 +104,22 @@ class MainFrame(wx.Frame):
         self.events_list.SetName("Wydarzenia wybranego dnia")
         self.events_list.SetMinSize((540, 380))
         events_box.Add(self.events_list, 1, wx.ALL | wx.EXPAND, 8)
-        event_buttons = wx.BoxSizer(wx.HORIZONTAL)
+        event_buttons = wx.BoxSizer(wx.VERTICAL)
+        primary_event_buttons = wx.BoxSizer(wx.HORIZONTAL)
         self.details_button = wx.Button(panel, label="Pokaż s&zczegóły")
         self.edit_button = wx.Button(panel, label="&Edytuj")
         self.delete_button = wx.Button(panel, label="&Usuń")
-        event_buttons.Add(self.details_button, 0, wx.RIGHT, 8)
-        event_buttons.Add(self.edit_button, 0, wx.RIGHT, 8)
-        event_buttons.Add(self.delete_button, 0)
+        primary_event_buttons.Add(self.details_button, 0, wx.RIGHT, 8)
+        primary_event_buttons.Add(self.edit_button, 0, wx.RIGHT, 8)
+        primary_event_buttons.Add(self.delete_button, 0)
+        event_buttons.Add(primary_event_buttons, 0, wx.BOTTOM, 6)
+
+        link_event_buttons = wx.BoxSizer(wx.HORIZONTAL)
+        self.open_google_button = wx.Button(panel, label="Otwórz &w Google")
+        self.meeting_button = wx.Button(panel, label="Link spotkan&ia")
+        link_event_buttons.Add(self.open_google_button, 0, wx.RIGHT, 8)
+        link_event_buttons.Add(self.meeting_button, 0)
+        event_buttons.Add(link_event_buttons, 0)
         events_box.Add(event_buttons, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         content.Add(events_box, 1, wx.LEFT | wx.EXPAND, 8)
         main_sizer.Add(content, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
@@ -241,6 +252,20 @@ class MainFrame(wx.Frame):
                 "Usuwa zaznaczone wydarzenie po potwierdzeniu.",
                 "Delete",
             ),
+            (
+                self.open_google_button,
+                "Otwórz w Google",
+                "W",
+                "Otwiera zaznaczone wydarzenie w internetowym Kalendarzu Google.",
+                "Ctrl+Shift+G",
+            ),
+            (
+                self.meeting_button,
+                "Link spotkania",
+                "I",
+                "Pozwala otworzyć albo skopiować istniejący link spotkania.",
+                "Ctrl+J",
+            ),
         )
         for control, name, access_key, description, shortcut in definitions:
             self._configure_button(
@@ -279,11 +304,14 @@ class MainFrame(wx.Frame):
         self.details_button.Bind(wx.EVT_BUTTON, self._on_details)
         self.edit_button.Bind(wx.EVT_BUTTON, self._on_edit)
         self.delete_button.Bind(wx.EVT_BUTTON, self._on_delete)
+        self.open_google_button.Bind(wx.EVT_BUTTON, self._on_open_google)
+        self.meeting_button.Bind(wx.EVT_BUTTON, self._on_meeting_link)
+        self.events_list.Bind(wx.EVT_LISTBOX, self._on_event_selected)
 
     def _install_accelerators(self) -> None:
         ids = {name: wx.NewIdRef() for name in (
             "login", "calendars", "add", "edit", "delete", "search", "goto",
-            "today", "refresh", "previous", "next", "help",
+            "today", "refresh", "previous", "next", "help", "open_google", "meeting",
         )}
         entries = [
             (wx.ACCEL_CTRL, ord("L"), ids["login"]),
@@ -296,6 +324,8 @@ class MainFrame(wx.Frame):
             (wx.ACCEL_CTRL, ord("D"), ids["today"]),
             (wx.ACCEL_NORMAL, wx.WXK_F5, ids["refresh"]),
             (wx.ACCEL_NORMAL, wx.WXK_F1, ids["help"]),
+            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord("G"), ids["open_google"]),
+            (wx.ACCEL_CTRL, ord("J"), ids["meeting"]),
             (wx.ACCEL_ALT, wx.WXK_LEFT, ids["previous"]),
             (wx.ACCEL_ALT, wx.WXK_RIGHT, ids["next"]),
         ]
@@ -310,6 +340,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self._on_today, id=ids["today"])
         self.Bind(wx.EVT_MENU, lambda event: self._refresh_google(), id=ids["refresh"])
         self.Bind(wx.EVT_MENU, self._on_help, id=ids["help"])
+        self.Bind(wx.EVT_MENU, self._on_open_google, id=ids["open_google"])
+        self.Bind(wx.EVT_MENU, self._on_meeting_link, id=ids["meeting"])
         self.Bind(wx.EVT_MENU, lambda event: self._change_month(-1), id=ids["previous"])
         self.Bind(wx.EVT_MENU, lambda event: self._change_month(1), id=ids["next"])
 
@@ -344,6 +376,8 @@ class MainFrame(wx.Frame):
             "Enter na liście wydarzeń — pokaż szczegóły.\n"
             "Ctrl+E — edytuj zaznaczone wydarzenie.\n"
             "Delete — usuń zaznaczone wydarzenie.\n"
+            "Ctrl+Shift+G — otwórz wydarzenie w Kalendarzu Google.\n"
+            "Ctrl+J — otwórz okno linku spotkania.\n"
             "\n"
             "LITERY DOSTĘPU PRZYCISKÓW\n"
             "Alt+L — Zaloguj lub Wyloguj z Google.\n"
@@ -359,6 +393,8 @@ class MainFrame(wx.Frame):
             "Alt+Z — Pokaż szczegóły.\n"
             "Alt+E — Edytuj.\n"
             "Alt+U — Usuń.\n"
+            "Alt+W — Otwórz w Google.\n"
+            "Alt+I — Link spotkania.\n"
             "\n"
             "RÓŻNICA MIĘDZY KLAWISZEM DOSTĘPU A SKRÓTEM\n"
             "Alt+litera jest standardowym klawiszem dostępu Windows przypisanym "
@@ -373,7 +409,13 @@ class MainFrame(wx.Frame):
             "WYSZUKIWANIE\n"
             "Wyszukiwanie obejmuje wybrane kalendarze, podany tekst oraz daty "
             "początkową i końcową włącznie. Po wybraniu wyniku aplikacja "
-            "przechodzi do jego miesiąca i dnia."
+            "przechodzi do jego miesiąca i dnia.\n"
+            "\n"
+            "OTWIERANIE W GOOGLE I LINK SPOTKANIA\n"
+            "Otwórz w Google przechodzi bezpośrednio do wybranego wydarzenia "
+            "w internetowym Kalendarzu Google. Link spotkania jest dostępny "
+            "tylko wtedy, gdy został wcześniej dodany do wydarzenia poza GCM. "
+            "GCM pozwala go otworzyć albo skopiować, ale nie tworzy nowych spotkań."
         )
 
     def _on_help(self, event: wx.Event) -> None:
@@ -573,14 +615,29 @@ class MainFrame(wx.Frame):
             index = 0
         if index != wx.NOT_FOUND:
             self.events_list.SetSelection(index)
-        self.details_button.Enable(bool(self._event_values))
-        self.edit_button.Enable(bool(self._event_values) and not self._busy)
-        self.delete_button.Enable(bool(self._event_values) and not self._busy)
+        self._update_event_action_buttons()
         self._set_status(f"{format_full_date(self.selected_date)}: {count_text(len(self._event_values))}.")
 
     def _selected_event(self) -> CalendarEvent | None:
         index = self.events_list.GetSelection()
         return self._event_values[index] if 0 <= index < len(self._event_values) else None
+
+    def _update_event_action_buttons(self) -> None:
+        selected = self._selected_event()
+        has_selection = selected is not None
+        self.details_button.Enable(has_selection)
+        self.edit_button.Enable(has_selection and not self._busy)
+        self.delete_button.Enable(has_selection and not self._busy)
+        self.open_google_button.Enable(
+            bool(selected and selected.can_open_in_google)
+        )
+        self.meeting_button.Enable(
+            bool(selected and selected.has_meeting_link)
+        )
+
+    def _on_event_selected(self, event: wx.CommandEvent) -> None:
+        self._update_event_action_buttons()
+        event.Skip()
 
     def _on_day_selected(self, event: wx.CommandEvent) -> None:
         index = self.days_list.GetSelection()
@@ -1353,6 +1410,93 @@ class MainFrame(wx.Frame):
 
         self._show_message(message, "Usuwanie zakończone")
         self._refresh_google()
+
+    @staticmethod
+    def _copy_to_clipboard(text: str) -> bool:
+        if not text:
+            return False
+        try:
+            if not wx.TheClipboard.Open():
+                return False
+            try:
+                copied = bool(wx.TheClipboard.SetData(wx.TextDataObject(text)))
+                if copied:
+                    wx.TheClipboard.Flush()
+                return copied
+            finally:
+                wx.TheClipboard.Close()
+        except Exception:
+            return False
+
+    def _open_web_link(self, url: str, description: str) -> None:
+        try:
+            opened = webbrowser.open_new_tab(url)
+        except Exception as error:
+            self._show_message(
+                f"Nie udało się otworzyć {description}.\n\n{error}",
+                "Otwieranie linku",
+                error=True,
+            )
+            return
+        if not opened:
+            self._show_message(
+                f"System nie potwierdził otwarcia {description}.",
+                "Otwieranie linku",
+                error=True,
+            )
+            return
+        self._set_status(f"Otwarto {description} w domyślnej przeglądarce.")
+
+    def _on_open_google(self, event: wx.Event) -> None:
+        selected = self._selected_event()
+        if selected is None or not selected.can_open_in_google:
+            self._show_message(
+                "Dla zaznaczonego wydarzenia nie ma dostępnego odnośnika do Kalendarza Google.",
+                "Otwórz w Google",
+                error=True,
+            )
+            return
+        self._open_web_link(selected.html_link, "wydarzenie w Kalendarzu Google")
+
+    def _on_meeting_link(self, event: wx.Event) -> None:
+        selected = self._selected_event()
+        if selected is None or not selected.has_meeting_link:
+            self._show_message(
+                "Zaznaczone wydarzenie nie zawiera obsługiwanego linku spotkania.",
+                "Link spotkania",
+                error=True,
+            )
+            return
+
+        dialog = MeetingLinkDialog(
+            self,
+            selected.meeting_label,
+            selected.meeting_url,
+        )
+        try:
+            result = dialog.ShowModal()
+            action = dialog.action
+        finally:
+            dialog.Destroy()
+
+        if result != wx.ID_OK:
+            self.events_list.SetFocus()
+            return
+        if action == "open":
+            self._open_web_link(selected.meeting_url, "link spotkania")
+        elif action == "copy":
+            if self._copy_to_clipboard(selected.meeting_url):
+                self._show_message(
+                    "Link spotkania został skopiowany do schowka.",
+                    "Link spotkania",
+                )
+            else:
+                self._show_message(
+                    "Nie udało się skopiować linku spotkania do schowka.",
+                    "Link spotkania",
+                    error=True,
+                )
+        self.events_list.SetFocus()
 
     def _on_details(self, event: wx.Event) -> None:
         selected = self._selected_event()

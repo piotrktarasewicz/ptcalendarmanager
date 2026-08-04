@@ -705,6 +705,80 @@ class SearchResultsDialog(wx.Dialog):
             self.selected_event = self._events[index]
             self.EndModal(wx.ID_OK)
 
+class MeetingLinkDialog(wx.Dialog):
+    def __init__(
+        self,
+        parent: wx.Window,
+        meeting_label: str,
+        meeting_url: str,
+    ) -> None:
+        super().__init__(
+            parent,
+            title="Link spotkania",
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.action = ""
+        self._accessible_objects: list[wx.Accessible] = []
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        provider = wx.StaticText(
+            self,
+            label=f"Rodzaj spotkania: {meeting_label or 'spotkanie online'}",
+        )
+        sizer.Add(provider, 0, wx.ALL | wx.EXPAND, 12)
+
+        url_ctrl = wx.TextCtrl(
+            self,
+            value=meeting_url,
+            style=wx.TE_READONLY,
+        )
+        url_ctrl.SetMinSize((620, -1))
+        accessible = apply_accessible_name(
+            url_ctrl,
+            "Adres spotkania",
+            "Adres można zaznaczyć i skopiować ręcznie.",
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(url_ctrl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        self.open_button = wx.Button(self, label="&Otwórz link")
+        self.copy_button = wx.Button(self, label="&Kopiuj link")
+        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        self.open_button.SetDefault()
+
+        for control, name, shortcut, description in (
+            (self.open_button, "Otwórz link", "Alt+O", "Otwiera spotkanie w domyślnej przeglądarce."),
+            (self.copy_button, "Kopiuj link", "Alt+K", "Kopiuje adres spotkania do schowka."),
+            (self.cancel_button, "Anuluj", "Alt+A", "Zamyka okno bez wykonywania działania."),
+        ):
+            accessible = apply_accessible_name(control, name, description, shortcut)
+            if accessible is not None:
+                self._accessible_objects.append(accessible)
+
+        buttons.Add(self.open_button, 0, wx.RIGHT, 8)
+        buttons.Add(self.copy_button, 0, wx.RIGHT, 8)
+        buttons.Add(self.cancel_button, 0)
+        sizer.Add(buttons, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 12)
+
+        self.SetSizerAndFit(sizer)
+        self.SetMinSize((680, 220))
+        self.CentreOnParent()
+
+        self.open_button.Bind(wx.EVT_BUTTON, self._on_open)
+        self.copy_button.Bind(wx.EVT_BUTTON, self._on_copy)
+        wx.CallAfter(self.open_button.SetFocus)
+
+    def _on_open(self, event: wx.Event) -> None:
+        self.action = "open"
+        self.EndModal(wx.ID_OK)
+
+    def _on_copy(self, event: wx.Event) -> None:
+        self.action = "copy"
+        self.EndModal(wx.ID_OK)
+
+
 class HelpDialog(wx.Dialog):
     def __init__(self, parent: wx.Window, help_text: str) -> None:
         super().__init__(

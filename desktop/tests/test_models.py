@@ -71,6 +71,109 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(event.start_date, dt.date(2026, 8, 2))
         self.assertIn(event.start_dt.strftime("%H:%M"), event.display_text(event.start_date))
 
+    def test_event_exposes_google_and_meet_links(self) -> None:
+        event = event_from_google(
+            {
+                "id": "meet-1",
+                "summary": "Rozmowa",
+                "htmlLink": "https://calendar.google.com/calendar/event?eid=test",
+                "hangoutLink": "https://meet.google.com/abc-defg-hij",
+                "conferenceData": {
+                    "conferenceSolution": {"name": "Google Meet"},
+                    "entryPoints": [
+                        {
+                            "entryPointType": "video",
+                            "uri": "https://meet.google.com/abc-defg-hij",
+                        }
+                    ],
+                },
+                "start": {"date": "2026-08-02"},
+                "end": {"date": "2026-08-03"},
+            },
+            self.calendar,
+        )
+        self.assertTrue(event.can_open_in_google)
+        self.assertTrue(event.has_meeting_link)
+        self.assertEqual(event.meeting_label, "Google Meet")
+        self.assertEqual(event.meeting_url, "https://meet.google.com/abc-defg-hij")
+        self.assertIn("Link spotkania:", event.details_text())
+
+    def test_video_entry_point_is_used_without_hangout_link(self) -> None:
+        event = event_from_google(
+            {
+                "id": "teams-1",
+                "summary": "Spotkanie zewnętrzne",
+                "conferenceData": {
+                    "conferenceSolution": {"name": "Zewnętrzne spotkanie"},
+                    "entryPoints": [
+                        {"entryPointType": "phone", "uri": "tel:+48123456789"},
+                        {"entryPointType": "video", "uri": "https://example.com/join/123"},
+                    ],
+                },
+                "start": {"date": "2026-08-02"},
+                "end": {"date": "2026-08-03"},
+            },
+            self.calendar,
+        )
+        self.assertEqual(event.meeting_url, "https://example.com/join/123")
+        self.assertEqual(event.meeting_label, "Zewnętrzne spotkanie")
+
+    def test_more_entry_point_is_used_as_web_fallback(self) -> None:
+        event = event_from_google(
+            {
+                "id": "more-1",
+                "summary": "Strona konferencji",
+                "conferenceData": {
+                    "entryPoints": [
+                        {"entryPointType": "more", "uri": "https://example.com/conference/123"},
+                    ],
+                },
+                "start": {"date": "2026-08-02"},
+                "end": {"date": "2026-08-03"},
+            },
+            self.calendar,
+        )
+        self.assertEqual(event.meeting_url, "https://example.com/conference/123")
+        self.assertEqual(event.meeting_label, "Spotkanie online")
+
+    def test_phone_only_conference_is_not_a_web_meeting_link(self) -> None:
+        event = event_from_google(
+            {
+                "id": "phone-1",
+                "summary": "Telekonferencja",
+                "conferenceData": {
+                    "entryPoints": [
+                        {"entryPointType": "phone", "uri": "tel:+48123456789"},
+                        {"entryPointType": "sip", "uri": "sip:test@example.com"},
+                    ],
+                },
+                "start": {"date": "2026-08-02"},
+                "end": {"date": "2026-08-03"},
+            },
+            self.calendar,
+        )
+        self.assertFalse(event.has_meeting_link)
+
+    def test_unsafe_links_are_ignored(self) -> None:
+        event = event_from_google(
+            {
+                "id": "unsafe-1",
+                "summary": "Niebezpieczny link",
+                "htmlLink": "javascript:alert(1)",
+                "hangoutLink": "file:///C:/sekret.txt",
+                "conferenceData": {
+                    "entryPoints": [
+                        {"entryPointType": "video", "uri": "javascript:alert(2)"},
+                    ],
+                },
+                "start": {"date": "2026-08-02"},
+                "end": {"date": "2026-08-03"},
+            },
+            self.calendar,
+        )
+        self.assertFalse(event.can_open_in_google)
+        self.assertFalse(event.has_meeting_link)
+
     def test_collection(self) -> None:
         first = event_from_google(
             {"id": "a", "summary": "Lekarz", "start": {"date": "2026-08-03"}, "end": {"date": "2026-08-04"}},

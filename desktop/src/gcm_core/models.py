@@ -4,6 +4,7 @@ import calendar
 import datetime as dt
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 POLISH_MONTHS = (
     "", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
@@ -30,6 +31,55 @@ RECURRENCE_CHOICES = (
 )
 RECURRENCE_LABELS = dict(RECURRENCE_CHOICES)
 RRULE_WEEKDAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+
+
+def normalize_web_url(value: object) -> str:
+    """Return a safe absolute HTTP(S) URL or an empty string."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        parsed = urlparse(text)
+    except ValueError:
+        return ""
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        return ""
+    return text
+
+
+def meeting_info_from_google(item: dict) -> tuple[str, str]:
+    """Extract the primary web meeting entry point from a Google event."""
+    conference_data = item.get("conferenceData")
+    if not isinstance(conference_data, dict):
+        conference_data = {}
+
+    solution = conference_data.get("conferenceSolution")
+    if not isinstance(solution, dict):
+        solution = {}
+    solution_name = str(solution.get("name") or "").strip()
+
+    hangout_link = normalize_web_url(item.get("hangoutLink"))
+    if hangout_link:
+        return hangout_link, solution_name or "Google Meet"
+
+    entry_points = conference_data.get("entryPoints")
+    if not isinstance(entry_points, list):
+        entry_points = []
+
+    # A video endpoint is the actual join link. A "more" endpoint is a useful
+    # web fallback for providers that expose a landing page instead. Phone and
+    # SIP endpoints are deliberately not opened in a browser.
+    for preferred_type in ("video", "more"):
+        for entry in entry_points:
+            if not isinstance(entry, dict):
+                continue
+            if str(entry.get("entryPointType") or "").strip().lower() != preferred_type:
+                continue
+            uri = normalize_web_url(entry.get("uri"))
+            if uri:
+                return uri, solution_name or "Spotkanie online"
+
+    return "", ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -282,6 +332,8 @@ class CalendarEvent:
     location: str = ""
     description: str = ""
     html_link: str = ""
+    meeting_url: str = ""
+    meeting_label: str = ""
     recurring_event_id: str = ""
     original_start: dt.date | dt.datetime | None = None
     has_attendees: bool = False
@@ -292,6 +344,14 @@ class CalendarEvent:
     @property
     def is_recurring_instance(self) -> bool:
         return bool(self.recurring_event_id)
+
+    @property
+    def can_open_in_google(self) -> bool:
+        return bool(normalize_web_url(self.html_link))
+
+    @property
+    def has_meeting_link(self) -> bool:
+        return bool(normalize_web_url(self.meeting_url))
 
     @property
     def supports_basic_edit(self) -> bool:
@@ -376,6 +436,16 @@ class CalendarEvent:
             lines.append(f"Powtarzanie: {self.recurrence.display_text()}")
         lines.append(f"Lokalizacja: {self.location or 'brak'}")
         lines.append(f"Opis: {self.description or 'brak'}")
+        if self.has_meeting_link:
+            lines.append(f"Spotkanie online: {self.meeting_label or 'dostępne'}")
+            lines.append(f"Link spotkania: {self.meeting_url}")
+        else:
+            lines.append("Spotkanie online: brak linku")
+        lines.append(
+            "Strona wydarzenia w Kalendarzu Google: dostępna"
+            if self.can_open_in_google
+            else "Strona wydarzenia w Kalendarzu Google: niedostępna"
+        )
         return "\n".join(lines)
 
 
@@ -452,6 +522,7 @@ def parse_google_start_marker(value: dict | None) -> dt.date | dt.datetime | Non
 def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
     start = item.get("start") or {}
     end = item.get("end") or {}
+    meeting_url, meeting_label = meeting_info_from_google(item)
     if start.get("date"):
         start_date = dt.date.fromisoformat(start["date"])
         end_date = dt.date.fromisoformat(end.get("date") or start["date"])
@@ -467,7 +538,9 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
             end_date_exclusive=end_date,
             location=str(item.get("location") or ""),
             description=str(item.get("description") or ""),
-            html_link=str(item.get("htmlLink") or ""),
+            html_link=normalize_web_url(item.get("htmlLink")),
+            meeting_url=meeting_url,
+            meeting_label=meeting_label,
             recurring_event_id=str(item.get("recurringEventId") or ""),
             original_start=parse_google_start_marker(item.get("originalStartTime")),
             has_attendees=any(
@@ -500,7 +573,9 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
         end_dt=end_dt,
         location=str(item.get("location") or ""),
         description=str(item.get("description") or ""),
-        html_link=str(item.get("htmlLink") or ""),
+        html_link=normalize_web_url(item.get("htmlLink")),
+        meeting_url=meeting_url,
+        meeting_label=meeting_label,
         recurring_event_id=str(item.get("recurringEventId") or ""),
         original_start=parse_google_start_marker(item.get("originalStartTime")),
         has_attendees=any(

@@ -1,4 +1,4 @@
-GCM by Piotrek 0.9.0 — wyniki testów automatycznych
+GCM by Piotrek 0.10.0 — wyniki testów automatycznych
 
 Spreadsheet runtime warmup failed during python startup
 Traceback (most recent call last):
@@ -42,9 +42,14 @@ test_timed_event_converts_to_edit_draft (test_models.EditEventTests.test_timed_e
 test_all_day_multi_day_event (test_models.ModelTests.test_all_day_multi_day_event) ... ok
 test_collection (test_models.ModelTests.test_collection) ... ok
 test_count_text (test_models.ModelTests.test_count_text) ... ok
+test_event_exposes_google_and_meet_links (test_models.ModelTests.test_event_exposes_google_and_meet_links) ... ok
 test_month_range (test_models.ModelTests.test_month_range) ... ok
+test_more_entry_point_is_used_as_web_fallback (test_models.ModelTests.test_more_entry_point_is_used_as_web_fallback) ... ok
 test_parse_date (test_models.ModelTests.test_parse_date) ... ok
+test_phone_only_conference_is_not_a_web_meeting_link (test_models.ModelTests.test_phone_only_conference_is_not_a_web_meeting_link) ... ok
 test_timed_event (test_models.ModelTests.test_timed_event) ... ok
+test_unsafe_links_are_ignored (test_models.ModelTests.test_unsafe_links_are_ignored) ... ok
+test_video_entry_point_is_used_without_hangout_link (test_models.ModelTests.test_video_entry_point_is_used_without_hangout_link) ... ok
 test_all_day_until_is_previous_date (test_models.RecurringDeleteScopeTests.test_all_day_until_is_previous_date) ... ok
 test_delete_following_from_first_deletes_parent (test_models.RecurringDeleteScopeTests.test_delete_following_from_first_deletes_parent) ... ok
 test_delete_following_updates_parent_rrule (test_models.RecurringDeleteScopeTests.test_delete_following_updates_parent_rrule) ... ok
@@ -61,16 +66,17 @@ test_search_rejects_empty_query (test_models.SearchRangeTests.test_search_reject
 test_search_rejects_reversed_range (test_models.SearchRangeTests.test_search_rejects_reversed_range) ... ok
 
 ----------------------------------------------------------------------
-Ran 49 tests in 0.003s
+Ran 54 tests in 0.003s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
 Kontrola struktury AST i powielonych metod: OK
-Kontrola metadanych projektu i zależności tzdata: OK
-Tworzenie podstawowych cykli: OK
-Reguły kwartalne i półroczne: OK
-Data zakończenia cyklu i strefy czasowe: OK
-Edycja pojedynczego wystąpienia: zachowanie dotychczasowe
-Edycja całego prostego cyklu: OK
-Blokada uproszczenia złożonej reguły: OK
+Odczyt htmlLink wydarzenia: OK
+Odczyt hangoutLink i conferenceData.entryPoints: OK
+Pierwszeństwo punktu wejścia wideo: OK
+Internetowy punkt zapasowy typu more: OK
+Ignorowanie punktów phone i sip: OK
+Blokada adresów innych niż HTTP i HTTPS: OK
+Przycisk i skrót otwierania wydarzenia w Google: obecne
+Okno otwierania i kopiowania linku spotkania: obecne
