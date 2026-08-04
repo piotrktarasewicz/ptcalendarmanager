@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .i18n import tr
 from .models import (
     CalendarEvent,
     CalendarInfo,
@@ -58,7 +59,7 @@ def build_recurrence_lines(
     elif mode == "yearly":
         parts = ["FREQ=YEARLY"]
     else:
-        raise ValueError("Wybrany rodzaj powtarzania nie jest obsługiwany.")
+        raise ValueError(tr("Wybrany rodzaj powtarzania nie jest obsługiwany."))
 
     if draft.recurrence.end_date_inclusive is not None:
         if draft.all_day:
@@ -179,7 +180,7 @@ def trim_recurrence_before(
         result.append("RRULE:" + ";".join(kept))
 
     if not found_rrule:
-        raise ValueError("Wydarzenie nadrzędne nie zawiera reguły RRULE.")
+        raise ValueError(tr("Wydarzenie nadrzędne nie zawiera reguły RRULE."))
     return result
 
 
@@ -204,7 +205,7 @@ class CalendarGateway:
                 result.append(
                     CalendarInfo(
                         calendar_id=str(item.get("id") or ""),
-                        name=str(item.get("summaryOverride") or item.get("summary") or "Bez nazwy"),
+                        name=str(item.get("summaryOverride") or item.get("summary") or tr("Bez nazwy")),
                         primary=bool(item.get("primary", False)),
                         selected=bool(item.get("selected", False)),
                         access_role=str(item.get("accessRole") or "reader"),
@@ -268,17 +269,17 @@ class CalendarGateway:
     ) -> CalendarEvent:
         if not calendar.can_write:
             raise PermissionError(
-                f"Kalendarz {calendar.name} nie pozwala temu kontu edytować wydarzeń."
+                tr("Kalendarz {calendar} nie pozwala temu kontu edytować wydarzeń.", calendar=calendar.name)
             )
         if not existing.event_id:
-            raise ValueError("Wydarzenie nie ma identyfikatora Google.")
+            raise ValueError(tr("Wydarzenie nie ma identyfikatora Google."))
         if existing.calendar_id != calendar.calendar_id:
-            raise ValueError("Wydarzenie nie należy do wskazanego kalendarza.")
+            raise ValueError(tr("Wydarzenie nie należy do wskazanego kalendarza."))
         if draft.calendar_id != calendar.calendar_id:
-            raise ValueError("Edycja nie może przenieść wydarzenia do innego kalendarza.")
+            raise ValueError(tr("Edycja nie może przenieść wydarzenia do innego kalendarza."))
         if not existing.supports_basic_edit:
             raise ValueError(
-                "Ten rodzaj wydarzenia nie jest jeszcze obsługiwany przez edycję GCM."
+                tr("Ten rodzaj wydarzenia nie jest jeszcze obsługiwany przez edycję GCM.")
             )
         body = build_event_patch_body(draft, calendar.time_zone)
         if not existing.is_recurring_instance and draft.recurrence.is_recurring:
@@ -297,7 +298,7 @@ class CalendarGateway:
         instance: CalendarEvent,
     ) -> CalendarEvent:
         if not instance.is_recurring_instance:
-            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+            raise ValueError(tr("To wydarzenie nie jest wystąpieniem cyklu."))
         item = self._service.events().get(
             calendarId=calendar.calendar_id,
             eventId=instance.recurring_event_id,
@@ -305,9 +306,9 @@ class CalendarGateway:
         parent = event_from_google(item, calendar)
         if not parent.recurrence.supported:
             raise ValueError(
-                "Ten cykl ma zaawansowaną regułę powtarzania. "
-                "GCM może edytować pojedyncze wystąpienie, ale cały cykl trzeba "
-                "zmienić w oficjalnym Kalendarzu Google."
+                tr(
+                    "Ten cykl ma zaawansowaną regułę powtarzania. GCM może edytować pojedyncze wystąpienie, ale cały cykl trzeba zmienić w oficjalnym Kalendarzu Google."
+                )
             )
         return parent
 
@@ -319,14 +320,14 @@ class CalendarGateway:
     ) -> CalendarEvent:
         if not calendar.can_write:
             raise PermissionError(
-                f"Kalendarz {calendar.name} nie pozwala temu kontu edytować wydarzeń."
+                tr("Kalendarz {calendar} nie pozwala temu kontu edytować wydarzeń.", calendar=calendar.name)
             )
         if not instance.is_recurring_instance:
-            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+            raise ValueError(tr("To wydarzenie nie jest wystąpieniem cyklu."))
         if instance.calendar_id != calendar.calendar_id:
-            raise ValueError("Wydarzenie nie należy do wskazanego kalendarza.")
+            raise ValueError(tr("Wydarzenie nie należy do wskazanego kalendarza."))
         if draft.calendar_id != calendar.calendar_id:
-            raise ValueError("Edycja nie może przenieść wydarzenia do innego kalendarza.")
+            raise ValueError(tr("Edycja nie może przenieść wydarzenia do innego kalendarza."))
 
         resource = self._service.events().get(
             calendarId=calendar.calendar_id,
@@ -335,8 +336,9 @@ class CalendarGateway:
         parent = event_from_google(resource, calendar)
         if not parent.recurrence.supported:
             raise ValueError(
-                "Ten cykl ma zaawansowaną regułę powtarzania i nie może być "
-                "bezpiecznie uproszczony przez GCM."
+                tr(
+                    "Ten cykl ma zaawansowaną regułę powtarzania i nie może być bezpiecznie uproszczony przez GCM."
+                )
             )
         body = apply_draft_to_event_resource(
             resource,
@@ -364,13 +366,13 @@ class CalendarGateway:
     ) -> None:
         if not calendar.can_write:
             raise PermissionError(
-                f"Kalendarz {calendar.name} nie pozwala temu kontu usuwać wydarzeń."
+                tr("Kalendarz {calendar} nie pozwala temu kontu usuwać wydarzeń.", calendar=calendar.name)
             )
         if existing.calendar_id != calendar.calendar_id:
-            raise ValueError("Wydarzenie nie należy do wskazanego kalendarza.")
+            raise ValueError(tr("Wydarzenie nie należy do wskazanego kalendarza."))
         if not existing.supports_delete:
             raise ValueError(
-                "Google oznaczył to wydarzenie jako zablokowane i nie pozwala go usunąć."
+                tr("Google oznaczył to wydarzenie jako zablokowane i nie pozwala go usunąć.")
             )
 
     @staticmethod
@@ -384,7 +386,7 @@ class CalendarGateway:
     ) -> None:
         self._validate_delete_target(calendar, existing)
         if not existing.event_id:
-            raise ValueError("Wydarzenie nie ma identyfikatora Google.")
+            raise ValueError(tr("Wydarzenie nie ma identyfikatora Google."))
         self._service.events().delete(
             calendarId=calendar.calendar_id,
             eventId=existing.event_id,
@@ -398,7 +400,7 @@ class CalendarGateway:
     ) -> None:
         self._validate_delete_target(calendar, instance)
         if not instance.is_recurring_instance:
-            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+            raise ValueError(tr("To wydarzenie nie jest wystąpieniem cyklu."))
         self._service.events().delete(
             calendarId=calendar.calendar_id,
             eventId=instance.recurring_event_id,
@@ -418,13 +420,13 @@ class CalendarGateway:
         """
         self._validate_delete_target(calendar, instance)
         if not instance.is_recurring_instance:
-            raise ValueError("To wydarzenie nie jest wystąpieniem cyklu.")
+            raise ValueError(tr("To wydarzenie nie jest wystąpieniem cyklu."))
 
         target = instance.original_start
         if target is None:
             target = instance.start_dt if not instance.all_day else instance.start_date
         if target is None:
-            raise ValueError("Brak pierwotnego czasu rozpoczęcia wystąpienia cyklu.")
+            raise ValueError(tr("Brak pierwotnego czasu rozpoczęcia wystąpienia cyklu."))
 
         parent = self._service.events().get(
             calendarId=calendar.calendar_id,
@@ -433,9 +435,9 @@ class CalendarGateway:
 
         first = parse_google_start_marker(parent.get("start"))
         if first is None:
-            raise ValueError("Wydarzenie nadrzędne nie ma daty rozpoczęcia.")
+            raise ValueError(tr("Wydarzenie nadrzędne nie ma daty rozpoczęcia."))
         if not _markers_are_compatible(first, target):
-            raise ValueError("Typ daty wystąpienia nie odpowiada typowi całego cyklu.")
+            raise ValueError(tr("Typ daty wystąpienia nie odpowiada typowi całego cyklu."))
 
         if target <= first:
             self._service.events().delete(
@@ -447,7 +449,7 @@ class CalendarGateway:
 
         recurrence = [str(value) for value in (parent.get("recurrence") or [])]
         if not recurrence:
-            raise ValueError("Wydarzenie nadrzędne nie zawiera reguły powtarzania.")
+            raise ValueError(tr("Wydarzenie nadrzędne nie zawiera reguły powtarzania."))
 
         parent["recurrence"] = trim_recurrence_before(recurrence, target)
         self._service.events().update(
@@ -461,10 +463,10 @@ class CalendarGateway:
     def create_event(self, calendar: CalendarInfo, draft: EventDraft) -> CalendarEvent:
         if not calendar.can_write:
             raise PermissionError(
-                f"Kalendarz {calendar.name} nie pozwala temu kontu dodawać wydarzeń."
+                tr("Kalendarz {calendar} nie pozwala temu kontu dodawać wydarzeń.", calendar=calendar.name)
             )
         if draft.calendar_id != calendar.calendar_id:
-            raise ValueError("Wybrany kalendarz nie odpowiada danym wydarzenia.")
+            raise ValueError(tr("Wybrany kalendarz nie odpowiada danym wydarzenia."))
         body = build_event_body(draft, calendar.time_zone)
         item = self._service.events().insert(
             calendarId=calendar.calendar_id,

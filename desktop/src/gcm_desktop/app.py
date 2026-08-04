@@ -10,6 +10,13 @@ import wx
 
 from gcm_core import oauth
 from gcm_core.calendar_api import CalendarGateway
+from gcm_core.i18n import (
+    get_language,
+    language_label,
+    localized,
+    set_language,
+    tr,
+)
 from gcm_core.errors import get_error_text, save_error
 from gcm_core.models import (
     CalendarEvent,
@@ -23,13 +30,13 @@ from gcm_core.models import (
     format_short_date,
     month_days,
     month_range,
-    parse_polish_date,
+    parse_date_input,
 )
 from gcm_core.paths import copy_client_secret, find_client_secret, migrate_from_nvda
 from gcm_core.settings import AppSettings, load_settings, save_settings
 from .accessibility import ExplicitNameAccessible, apply_accessible_name
 from .dialogs import (
-    CalendarSelectionDialog,
+    SettingsDialog,
     EventCreateDialog,
     EventEditDialog,
     HelpDialog,
@@ -38,14 +45,18 @@ from .dialogs import (
     SearchResultsDialog,
 )
 
-APP_TITLE = "GCM by Piotrek 0.10.0 — otwieranie wydarzeń i spotkań"
 T = TypeVar("T")
 
 
 class MainFrame(wx.Frame):
     def __init__(self) -> None:
-        super().__init__(None, title=APP_TITLE, size=(1120, 700))
         self.settings: AppSettings = load_settings()
+        set_language(self.settings.language)
+        super().__init__(
+            None,
+            title=tr("GCM by Piotrek 0.11.0 — język polski i angielski"),
+            size=(1120, 700),
+        )
         self.calendars: list[CalendarInfo] = []
         self.events = EventCollection()
         today = dt.date.today()
@@ -61,29 +72,32 @@ class MainFrame(wx.Frame):
         self._button_accessibility: dict[wx.Button, ExplicitNameAccessible] = {}
 
         panel = wx.Panel(self)
-        panel.SetName("Główne okno GCM by Piotrek")
+        panel.SetName(tr("Główne okno GCM by Piotrek"))
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
         account_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.login_button = wx.Button(panel, label="Za&loguj do Google")
-        self.calendar_button = wx.Button(panel, label="Wybierz &kalendarze")
-        self.help_button = wx.Button(panel, label="Pomoc i skróty (&H)")
-        self.account_label = wx.StaticText(panel, label="Konto Google: sprawdzanie stanu")
+        self.login_button = wx.Button(panel, label=tr("Za&loguj do Google"))
+        self.settings_button = wx.Button(panel, label=tr("Us&tawienia"))
+        self.help_button = wx.Button(panel, label=tr("Pomoc i skróty (&H)"))
+        self.account_label = wx.StaticText(
+            panel,
+            label=tr("Konto Google: sprawdzanie stanu"),
+        )
         account_row.Add(self.login_button, 0, wx.RIGHT, 8)
-        account_row.Add(self.calendar_button, 0, wx.RIGHT, 8)
+        account_row.Add(self.settings_button, 0, wx.RIGHT, 8)
         account_row.Add(self.help_button, 0, wx.RIGHT, 12)
         account_row.Add(self.account_label, 1, wx.ALIGN_CENTER_VERTICAL)
         main_sizer.Add(account_row, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
 
         nav_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.previous_button = wx.Button(panel, label="&Poprzedni miesiąc")
-        self.today_button = wx.Button(panel, label="&Dzisiaj")
-        self.next_button = wx.Button(panel, label="Następny &miesiąc")
+        self.previous_button = wx.Button(panel, label=tr("&Poprzedni miesiąc"))
+        self.today_button = wx.Button(panel, label=tr("&Dzisiaj"))
+        self.next_button = wx.Button(panel, label=tr("Następny &miesiąc"))
         self.month_label = wx.StaticText(panel, label="")
-        self.goto_button = wx.Button(panel, label="Przejdź do daty (&G)")
-        self.search_button = wx.Button(panel, label="Wy&szukaj")
-        self.add_button = wx.Button(panel, label="Dodaj wydarze&nie")
-        self.refresh_button = wx.Button(panel, label="&Odśwież")
+        self.goto_button = wx.Button(panel, label=tr("Przejdź do daty (&G)"))
+        self.search_button = wx.Button(panel, label=tr("Wy&szukaj"))
+        self.add_button = wx.Button(panel, label=tr("Dodaj wydarze&nie"))
+        self.refresh_button = wx.Button(panel, label=tr("&Odśwież"))
         for button in (self.previous_button, self.today_button, self.next_button):
             nav_row.Add(button, 0, wx.RIGHT, 6)
         nav_row.Add(self.month_label, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 12)
@@ -92,31 +106,31 @@ class MainFrame(wx.Frame):
         main_sizer.Add(nav_row, 0, wx.ALL | wx.EXPAND, 12)
 
         content = wx.BoxSizer(wx.HORIZONTAL)
-        days_box = wx.StaticBoxSizer(wx.VERTICAL, panel, "Dni miesiąca")
+        days_box = wx.StaticBoxSizer(wx.VERTICAL, panel, tr("Dni miesiąca"))
         self.days_list = wx.ListBox(panel, style=wx.LB_SINGLE)
-        self.days_list.SetName("Dni miesiąca")
+        self.days_list.SetName(tr("Dni miesiąca"))
         self.days_list.SetMinSize((440, 440))
         days_box.Add(self.days_list, 1, wx.ALL | wx.EXPAND, 8)
         content.Add(days_box, 1, wx.RIGHT | wx.EXPAND, 8)
 
-        events_box = wx.StaticBoxSizer(wx.VERTICAL, panel, "Wydarzenia wybranego dnia")
+        events_box = wx.StaticBoxSizer(wx.VERTICAL, panel, tr("Wydarzenia wybranego dnia"))
         self.events_list = wx.ListBox(panel, style=wx.LB_SINGLE)
-        self.events_list.SetName("Wydarzenia wybranego dnia")
+        self.events_list.SetName(tr("Wydarzenia wybranego dnia"))
         self.events_list.SetMinSize((540, 380))
         events_box.Add(self.events_list, 1, wx.ALL | wx.EXPAND, 8)
         event_buttons = wx.BoxSizer(wx.VERTICAL)
         primary_event_buttons = wx.BoxSizer(wx.HORIZONTAL)
-        self.details_button = wx.Button(panel, label="Pokaż s&zczegóły")
-        self.edit_button = wx.Button(panel, label="&Edytuj")
-        self.delete_button = wx.Button(panel, label="&Usuń")
+        self.details_button = wx.Button(panel, label=tr("Pokaż s&zczegóły"))
+        self.edit_button = wx.Button(panel, label=tr("&Edytuj"))
+        self.delete_button = wx.Button(panel, label=tr("&Usuń"))
         primary_event_buttons.Add(self.details_button, 0, wx.RIGHT, 8)
         primary_event_buttons.Add(self.edit_button, 0, wx.RIGHT, 8)
         primary_event_buttons.Add(self.delete_button, 0)
         event_buttons.Add(primary_event_buttons, 0, wx.BOTTOM, 6)
 
         link_event_buttons = wx.BoxSizer(wx.HORIZONTAL)
-        self.open_google_button = wx.Button(panel, label="Otwórz &w Google")
-        self.meeting_button = wx.Button(panel, label="Link spotkan&ia")
+        self.open_google_button = wx.Button(panel, label=tr("Otwórz &w Google"))
+        self.meeting_button = wx.Button(panel, label=tr("Link spotkan&ia"))
         link_event_buttons.Add(self.open_google_button, 0, wx.RIGHT, 8)
         link_event_buttons.Add(self.meeting_button, 0)
         event_buttons.Add(link_event_buttons, 0)
@@ -126,7 +140,7 @@ class MainFrame(wx.Frame):
 
         panel.SetSizer(main_sizer)
         self.status_bar = self.CreateStatusBar()
-        self.status_bar.SetName("Stan aplikacji")
+        self.status_bar.SetName(tr("Stan aplikacji"))
 
         self._configure_main_buttons()
         self._bind_events()
@@ -136,6 +150,10 @@ class MainFrame(wx.Frame):
         wx.CallAfter(self.days_list.SetFocus)
         wx.CallAfter(self._initialize)
 
+
+    @staticmethod
+    def _access_key(polish: str, english: str) -> str:
+        return polish if get_language() == "pl" else english
 
     def _configure_button(
         self,
@@ -148,7 +166,10 @@ class MainFrame(wx.Frame):
     ) -> None:
         description = action_description
         if application_shortcut:
-            description += f" Skrót aplikacji: {application_shortcut}."
+            description += " " + tr(
+                "Skrót aplikacji: {shortcut}.",
+                shortcut=application_shortcut,
+            )
         accessible = apply_accessible_name(
             control,
             name,
@@ -163,107 +184,107 @@ class MainFrame(wx.Frame):
         definitions = (
             (
                 self.login_button,
-                "Zaloguj do Google",
-                "L",
-                "Łączy konto Google albo wylogowuje bieżące konto.",
+                tr("Zaloguj do Google"),
+                self._access_key("L", "L"),
+                tr("Łączy konto Google albo wylogowuje bieżące konto."),
                 "Ctrl+L",
             ),
             (
-                self.calendar_button,
-                "Wybierz kalendarze",
-                "K",
-                "Wybiera kalendarze widoczne w aplikacji.",
-                "Ctrl+K",
+                self.settings_button,
+                tr("Ustawienia aplikacji i wybór kalendarzy"),
+                self._access_key("T", "T"),
+                tr("Otwiera ustawienia języka i kalendarzy."),
+                "Ctrl+,",
             ),
             (
                 self.help_button,
-                "Pomoc i skróty",
-                "H",
-                "Otwiera opis aplikacji i pełną listę skrótów.",
+                tr("Pomoc i skróty"),
+                self._access_key("H", "H"),
+                tr("Otwiera opis aplikacji i pełną listę skrótów."),
                 "F1",
             ),
             (
                 self.previous_button,
-                "Poprzedni miesiąc",
-                "P",
-                "Przechodzi do poprzedniego miesiąca.",
-                "Alt+Strzałka w lewo",
+                tr("Poprzedni miesiąc"),
+                self._access_key("P", "P"),
+                tr("Przechodzi do poprzedniego miesiąca."),
+                tr("Alt+Strzałka w lewo"),
             ),
             (
                 self.today_button,
-                "Dzisiaj",
-                "D",
-                "Przechodzi do dzisiejszej daty.",
+                tr("Dzisiaj"),
+                self._access_key("D", "Y"),
+                tr("Przechodzi do dzisiejszej daty."),
                 "Ctrl+D",
             ),
             (
                 self.next_button,
-                "Następny miesiąc",
-                "M",
-                "Przechodzi do następnego miesiąca.",
-                "Alt+Strzałka w prawo",
+                tr("Następny miesiąc"),
+                self._access_key("M", "N"),
+                tr("Przechodzi do następnego miesiąca."),
+                tr("Alt+Strzałka w prawo"),
             ),
             (
                 self.goto_button,
-                "Przejdź do daty",
-                "G",
-                "Otwiera pole do podania konkretnej daty.",
+                tr("Przejdź do daty"),
+                self._access_key("G", "G"),
+                tr("Otwiera pole do podania konkretnej daty."),
                 "Ctrl+G",
             ),
             (
                 self.search_button,
-                "Wyszukaj",
-                "S",
-                "Otwiera wyszukiwanie wydarzeń w zakresie dat.",
+                tr("Wyszukaj"),
+                self._access_key("S", "S"),
+                tr("Otwiera wyszukiwanie wydarzeń w zakresie dat."),
                 "Ctrl+F",
             ),
             (
                 self.add_button,
-                "Dodaj wydarzenie",
-                "N",
-                "Otwiera formularz dodawania wydarzenia.",
+                tr("Dodaj wydarzenie"),
+                self._access_key("N", "A"),
+                tr("Otwiera formularz dodawania wydarzenia."),
                 "Ctrl+N",
             ),
             (
                 self.refresh_button,
-                "Odśwież",
-                "O",
-                "Pobiera ponownie wydarzenia z Google.",
+                tr("Odśwież"),
+                self._access_key("O", "R"),
+                tr("Pobiera ponownie wydarzenia z Google."),
                 "F5",
             ),
             (
                 self.details_button,
-                "Pokaż szczegóły",
-                "Z",
-                "Pokazuje wszystkie dane zaznaczonego wydarzenia.",
-                "Enter na liście wydarzeń",
+                tr("Pokaż szczegóły"),
+                self._access_key("Z", "V"),
+                tr("Pokazuje wszystkie dane zaznaczonego wydarzenia."),
+                tr("Enter na liście wydarzeń"),
             ),
             (
                 self.edit_button,
-                "Edytuj",
-                "E",
-                "Otwiera formularz edycji zaznaczonego wydarzenia.",
+                tr("Edytuj"),
+                self._access_key("E", "E"),
+                tr("Otwiera formularz edycji zaznaczonego wydarzenia."),
                 "Ctrl+E",
             ),
             (
                 self.delete_button,
-                "Usuń",
-                "U",
-                "Usuwa zaznaczone wydarzenie po potwierdzeniu.",
+                tr("Usuń"),
+                self._access_key("U", "D"),
+                tr("Usuwa zaznaczone wydarzenie po potwierdzeniu."),
                 "Delete",
             ),
             (
                 self.open_google_button,
-                "Otwórz w Google",
-                "W",
-                "Otwiera zaznaczone wydarzenie w internetowym Kalendarzu Google.",
+                tr("Otwórz w Google"),
+                self._access_key("W", "O"),
+                tr("Otwiera zaznaczone wydarzenie w internetowym Kalendarzu Google."),
                 "Ctrl+Shift+G",
             ),
             (
                 self.meeting_button,
-                "Link spotkania",
-                "I",
-                "Pozwala otworzyć albo skopiować istniejący link spotkania.",
+                tr("Link spotkania"),
+                self._access_key("I", "M"),
+                tr("Pozwala otworzyć albo skopiować istniejący link spotkania."),
                 "Ctrl+J",
             ),
         )
@@ -288,7 +309,7 @@ class MainFrame(wx.Frame):
 
     def _bind_events(self) -> None:
         self.login_button.Bind(wx.EVT_BUTTON, self._on_login)
-        self.calendar_button.Bind(wx.EVT_BUTTON, self._on_calendars)
+        self.settings_button.Bind(wx.EVT_BUTTON, self._on_settings)
         self.help_button.Bind(wx.EVT_BUTTON, self._on_help)
         self.previous_button.Bind(wx.EVT_BUTTON, lambda event: self._change_month(-1))
         self.next_button.Bind(wx.EVT_BUTTON, lambda event: self._change_month(1))
@@ -310,12 +331,13 @@ class MainFrame(wx.Frame):
 
     def _install_accelerators(self) -> None:
         ids = {name: wx.NewIdRef() for name in (
-            "login", "calendars", "add", "edit", "delete", "search", "goto",
+            "login", "settings", "add", "edit", "delete", "search", "goto",
             "today", "refresh", "previous", "next", "help", "open_google", "meeting",
         )}
         entries = [
             (wx.ACCEL_CTRL, ord("L"), ids["login"]),
-            (wx.ACCEL_CTRL, ord("K"), ids["calendars"]),
+            (wx.ACCEL_CTRL, ord(","), ids["settings"]),
+            (wx.ACCEL_CTRL, ord("K"), ids["settings"]),
             (wx.ACCEL_CTRL, ord("N"), ids["add"]),
             (wx.ACCEL_CTRL, ord("E"), ids["edit"]),
             (wx.ACCEL_NORMAL, wx.WXK_DELETE, ids["delete"]),
@@ -331,7 +353,7 @@ class MainFrame(wx.Frame):
         ]
         self.SetAcceleratorTable(wx.AcceleratorTable(entries))
         self.Bind(wx.EVT_MENU, self._on_login, id=ids["login"])
-        self.Bind(wx.EVT_MENU, self._on_calendars, id=ids["calendars"])
+        self.Bind(wx.EVT_MENU, self._on_settings, id=ids["settings"])
         self.Bind(wx.EVT_MENU, self._on_add, id=ids["add"])
         self.Bind(wx.EVT_MENU, self._on_edit, id=ids["edit"])
         self.Bind(wx.EVT_MENU, self._on_delete, id=ids["delete"])
@@ -348,74 +370,86 @@ class MainFrame(wx.Frame):
 
     @staticmethod
     def _help_text() -> str:
+        if get_language() == "pl":
+            return (
+                "GCM by Piotrek — pomoc i skróty klawiaturowe\n\n"
+                "PRZEZNACZENIE APLIKACJI\n"
+                "GCM służy do szybkiego, dostępnego zarządzania Kalendarzem Google. "
+                "Bardziej zaawansowane funkcje pozostają w oficjalnym interfejsie Google.\n\n"
+                "UKŁAD GŁÓWNEGO OKNA\n"
+                "W górnej części znajdują się logowanie, ustawienia i pomoc. "
+                "W ustawieniach wybiera się język aplikacji oraz kalendarze. "
+                "Po lewej znajduje się lista dni bieżącego miesiąca, a po prawej "
+                "lista wydarzeń zaznaczonego dnia. Enter na liście dni przenosi "
+                "fokus na wydarzenia. Enter na wydarzeniu otwiera szczegóły.\n\n"
+                "SKRÓTY APLIKACJI\n"
+                "Ctrl+L — zaloguj do Google albo wyloguj.\n"
+                "Ctrl+, — otwórz ustawienia.\n"
+                "Ctrl+K — otwórz ustawienia, zachowany skrót wyboru kalendarzy.\n"
+                "F1 — otwórz pomoc.\n"
+                "Alt+Strzałka w lewo — poprzedni miesiąc.\n"
+                "Ctrl+D — dzisiaj.\n"
+                "Alt+Strzałka w prawo — następny miesiąc.\n"
+                "Ctrl+G — przejdź do daty.\n"
+                "Ctrl+F — wyszukaj wydarzenia.\n"
+                "Ctrl+N — dodaj wydarzenie.\n"
+                "F5 — odśwież dane.\n"
+                "Ctrl+E — edytuj wydarzenie.\n"
+                "Delete — usuń wydarzenie.\n"
+                "Ctrl+Shift+G — otwórz wydarzenie w Kalendarzu Google.\n"
+                "Ctrl+J — otwórz lub skopiuj link spotkania.\n\n"
+                "JĘZYK APLIKACJI\n"
+                "Dostępne są ustawienia Automatycznie, Polski i English. "
+                "Tryb automatyczny używa języka Windows: polskiego dla polskiego "
+                "systemu, a angielskiego dla pozostałych. Ręczna zmiana języka "
+                "zaczyna działać po ponownym uruchomieniu GCM.\n\n"
+                "WYDARZENIA CYKLICZNE\n"
+                "GCM tworzy i edytuje podstawowe cykle: codzienne, tygodniowe, "
+                "miesięczne, kwartalne, półroczne i roczne. Zaawansowane reguły "
+                "utworzone poza GCM można edytować tylko jako pojedyncze wystąpienia.\n\n"
+                "OTWIERANIE W GOOGLE I LINK SPOTKANIA\n"
+                "Otwórz w Google przechodzi do wybranego wydarzenia w przeglądarce. "
+                "Link spotkania można otworzyć albo skopiować, jeżeli został dodany "
+                "do wydarzenia poza GCM."
+            )
         return (
-            "GCM by Piotrek — pomoc i skróty klawiaturowe\n"
-            "\n"
-            "UKŁAD GŁÓWNEGO OKNA\n"
-            "Po lewej znajduje się lista dni bieżącego miesiąca. "
-            "Po prawej znajduje się lista wydarzeń zaznaczonego dnia. "
-            "Enter na liście dni przenosi fokus na listę wydarzeń. "
-            "Enter na liście wydarzeń otwiera szczegóły.\n"
-            "\n"
-            "KLAWISZE DOSTĘPU WINDOWS\n"
-            "Każdy główny przycisk ma literę dostępu uruchamianą z klawiszem Alt. "
-            "Czytnik ekranu powinien odczytać ją razem z nazwą przycisku. "
-            "Na przykład Alt+N aktywuje przycisk Dodaj wydarzenie.\n"
-            "\n"
-            "SKRÓTY APLIKACJI\n"
-            "Ctrl+L — zaloguj do Google albo wyloguj.\n"
-            "Ctrl+K — wybierz kalendarze.\n"
-            "F1 — otwórz tę pomoc.\n"
-            "Alt+Strzałka w lewo — poprzedni miesiąc.\n"
-            "Ctrl+D — przejdź do dzisiaj.\n"
-            "Alt+Strzałka w prawo — następny miesiąc.\n"
-            "Ctrl+G — przejdź do podanej daty.\n"
-            "Ctrl+F — wyszukaj wydarzenia w zakresie dat.\n"
-            "Ctrl+N — dodaj wydarzenie.\n"
-            "F5 — odśwież dane z Google.\n"
-            "Enter na liście wydarzeń — pokaż szczegóły.\n"
-            "Ctrl+E — edytuj zaznaczone wydarzenie.\n"
-            "Delete — usuń zaznaczone wydarzenie.\n"
-            "Ctrl+Shift+G — otwórz wydarzenie w Kalendarzu Google.\n"
-            "Ctrl+J — otwórz okno linku spotkania.\n"
-            "\n"
-            "LITERY DOSTĘPU PRZYCISKÓW\n"
-            "Alt+L — Zaloguj lub Wyloguj z Google.\n"
-            "Alt+K — Wybierz kalendarze.\n"
-            "Alt+H — Pomoc i skróty.\n"
-            "Alt+P — Poprzedni miesiąc.\n"
-            "Alt+D — Dzisiaj.\n"
-            "Alt+M — Następny miesiąc.\n"
-            "Alt+G — Przejdź do daty.\n"
-            "Alt+S — Wyszukaj.\n"
-            "Alt+N — Dodaj wydarzenie.\n"
-            "Alt+O — Odśwież.\n"
-            "Alt+Z — Pokaż szczegóły.\n"
-            "Alt+E — Edytuj.\n"
-            "Alt+U — Usuń.\n"
-            "Alt+W — Otwórz w Google.\n"
-            "Alt+I — Link spotkania.\n"
-            "\n"
-            "RÓŻNICA MIĘDZY KLAWISZEM DOSTĘPU A SKRÓTEM\n"
-            "Alt+litera jest standardowym klawiszem dostępu Windows przypisanym "
-            "do przycisku. Skróty takie jak Ctrl+N, F5 albo Delete wykonują "
-            "od razu odpowiednie polecenie niezależnie od aktualnego fokusu.\n"
-            "\n"
-            "WYDARZENIA CYKLICZNE\n"
-            "Podczas usuwania wystąpienia cyklu można wybrać usunięcie tylko "
-            "tego terminu, tego i kolejnych albo całego cyklu. "
-            "Każda operacja wymaga osobnego potwierdzenia.\n"
-            "\n"
-            "WYSZUKIWANIE\n"
-            "Wyszukiwanie obejmuje wybrane kalendarze, podany tekst oraz daty "
-            "początkową i końcową włącznie. Po wybraniu wyniku aplikacja "
-            "przechodzi do jego miesiąca i dnia.\n"
-            "\n"
-            "OTWIERANIE W GOOGLE I LINK SPOTKANIA\n"
-            "Otwórz w Google przechodzi bezpośrednio do wybranego wydarzenia "
-            "w internetowym Kalendarzu Google. Link spotkania jest dostępny "
-            "tylko wtedy, gdy został wcześniej dodany do wydarzenia poza GCM. "
-            "GCM pozwala go otworzyć albo skopiować, ale nie tworzy nowych spotkań."
+            "GCM by Piotrek — help and keyboard shortcuts\n\n"
+            "PURPOSE\n"
+            "GCM provides quick, accessible management of Google Calendar. "
+            "More advanced features remain available in Google's official interface.\n\n"
+            "MAIN WINDOW\n"
+            "Sign-in, Settings and Help are at the top. Settings contains the "
+            "application language and calendar selection. The days of the current "
+            "month are listed on the left and events for the selected day are on "
+            "the right. Enter on the day list moves focus to events. Enter on an "
+            "event opens its details.\n\n"
+            "APPLICATION SHORTCUTS\n"
+            "Ctrl+L — sign in to or sign out of Google.\n"
+            "Ctrl+, — open Settings.\n"
+            "Ctrl+K — open Settings; retained as the former calendar shortcut.\n"
+            "F1 — open Help.\n"
+            "Alt+Left Arrow — previous month.\n"
+            "Ctrl+D — today.\n"
+            "Alt+Right Arrow — next month.\n"
+            "Ctrl+G — go to date.\n"
+            "Ctrl+F — search events.\n"
+            "Ctrl+N — add an event.\n"
+            "F5 — refresh data.\n"
+            "Ctrl+E — edit an event.\n"
+            "Delete — delete an event.\n"
+            "Ctrl+Shift+G — open the event in Google Calendar.\n"
+            "Ctrl+J — open or copy a meeting link.\n\n"
+            "APPLICATION LANGUAGE\n"
+            "The available choices are Automatic, Polish and English. Automatic "
+            "uses the Windows language: Polish on a Polish system and English for "
+            "other systems. A manual language change takes effect after GCM is restarted.\n\n"
+            "RECURRING EVENTS\n"
+            "GCM creates and edits basic daily, weekly, monthly, quarterly, "
+            "semiannual and yearly recurrences. Advanced rules created outside "
+            "GCM can only be edited as individual occurrences.\n\n"
+            "OPENING IN GOOGLE AND MEETING LINKS\n"
+            "Open in Google opens the selected event in a browser. A meeting link "
+            "can be opened or copied when it was added to the event outside GCM."
         )
 
     def _on_help(self, event: wx.Event) -> None:
@@ -431,12 +465,12 @@ class MainFrame(wx.Frame):
         self.settings = load_settings()
         if any(migrated.values()):
             copied = ", ".join(key for key, value in migrated.items() if value)
-            self._set_status(f"Skopiowano z dodatku NVDA: {copied}.")
+            self._set_status(tr("Skopiowano z dodatku NVDA: {items}", items=copied))
         self._update_account_state()
         if oauth.is_logged_in():
             self._refresh_google()
         else:
-            self._set_status("Brak aktywnego logowania Google. Użyj przycisku Zaloguj do Google.")
+            self._set_status(tr("Brak aktywnego logowania Google. Użyj przycisku Zaloguj do Google."))
 
     def _set_status(self, text: str) -> None:
         self.status_bar.SetStatusText(text)
@@ -444,7 +478,7 @@ class MainFrame(wx.Frame):
     def _set_busy(self, busy: bool, message: str = "") -> None:
         self._busy = busy
         for control in (
-            self.login_button, self.calendar_button, self.previous_button,
+            self.login_button, self.settings_button, self.previous_button,
             self.today_button, self.next_button, self.goto_button,
             self.search_button, self.add_button, self.refresh_button,
             self.edit_button, self.delete_button,
@@ -461,7 +495,7 @@ class MainFrame(wx.Frame):
         on_success: Callable[[T], None],
     ) -> None:
         if self._busy:
-            self._set_status("Inna operacja jest już wykonywana.")
+            self._set_status(tr("Inna operacja jest już wykonywana."))
             return
         self._set_busy(True, busy_message)
 
@@ -483,19 +517,27 @@ class MainFrame(wx.Frame):
     def _task_failed(self, error: BaseException) -> None:
         self._set_busy(False)
         details = get_error_text()
-        message = f"Operacja nie powiodła się.\n\n{error}"
+        message = tr("Operacja nie powiodła się.\n\n{error}", error=error)
         if details:
-            message += "\n\nSzczegóły zapisano w pliku last_error.txt w katalogu danych aplikacji."
-        self._show_message(message, "Błąd GCM by Piotrek", error=True)
-        self._set_status(f"Błąd: {error}")
+            message += "\n\n" + tr("Szczegóły zapisano w pliku last_error.txt w katalogu danych aplikacji.")
+        self._show_message(message, tr("Błąd GCM by Piotrek"), error=True)
+        self._set_status(tr("Błąd: {error}", error=error))
 
     def _update_account_state(self) -> None:
         logged_in = oauth.is_logged_in()
-        login_name = "Wyloguj z Google" if logged_in else "Zaloguj do Google"
-        self.login_button.SetLabel("Wy&loguj z Google" if logged_in else "Za&loguj do Google")
+        login_name = (
+            tr("Wyloguj z Google") if logged_in else tr("Zaloguj do Google")
+        )
+        self.login_button.SetLabel(
+            tr("Wy&loguj z Google") if logged_in else tr("Za&loguj do Google")
+        )
         self._update_button_accessible_name(self.login_button, login_name)
-        self.account_label.SetLabel("Konto Google: połączone" if logged_in else "Konto Google: niepołączone")
-        self.calendar_button.Enable(logged_in and not self._busy)
+        self.account_label.SetLabel(
+            tr("Konto Google: połączone")
+            if logged_in
+            else tr("Konto Google: niepołączone")
+        )
+        self.settings_button.Enable(not self._busy)
 
     def _selected_calendars(self) -> list[CalendarInfo]:
         selected = set(self.settings.selected_calendar_ids)
@@ -517,33 +559,59 @@ class MainFrame(wx.Frame):
     def _draft_when_text(draft: EventDraft) -> str:
         if draft.all_day:
             if draft.start_date == draft.end_date_inclusive:
-                return format_short_date(draft.start_date) + ", cały dzień"
-            return (
-                f"od {format_short_date(draft.start_date)} do "
-                f"{format_short_date(draft.end_date_inclusive)} włącznie, cały dzień"
+                return tr(
+                    "{date}, cały dzień",
+                    date=format_short_date(draft.start_date),
+                )
+            return tr(
+                "od {start} do {end} włącznie, cały dzień",
+                start=format_short_date(draft.start_date),
+                end=format_short_date(draft.end_date_inclusive),
             )
         return (
             f"{format_short_date(draft.start_date)}, {draft.start_time:%H:%M} — "
             f"{format_short_date(draft.end_date_inclusive)}, {draft.end_time:%H:%M}"
         )
 
-    def _load_gateway_and_calendars(self) -> tuple[list[CalendarInfo], list[CalendarEvent]]:
+    def _load_gateway_and_calendars(
+        self,
+    ) -> tuple[list[CalendarInfo], list[CalendarEvent]]:
         credentials = oauth.ensure_valid_credentials()
         if credentials is None:
-            raise RuntimeError("Logowanie Google wygasło albo nie zostało wykonane.")
+            raise RuntimeError(
+                tr("Logowanie Google wygasło albo nie zostało wykonane.")
+            )
         gateway = CalendarGateway(credentials)
         calendars = gateway.list_calendars()
         selected_ids = set(self.settings.selected_calendar_ids)
         if not selected_ids:
-            defaults = [calendar for calendar in calendars if calendar.selected or calendar.primary]
+            defaults = [
+                calendar
+                for calendar in calendars
+                if calendar.selected or calendar.primary
+            ]
             if not defaults:
                 defaults = calendars
-            self.settings = AppSettings(selected_calendar_ids=[calendar.calendar_id for calendar in defaults])
+            self.settings = AppSettings(
+                selected_calendar_ids=[
+                    calendar.calendar_id for calendar in defaults
+                ],
+                language=self.settings.language,
+            )
             save_settings(self.settings)
-        chosen = [calendar for calendar in calendars if calendar.calendar_id in set(self.settings.selected_calendar_ids)]
+        chosen = [
+            calendar
+            for calendar in calendars
+            if calendar.calendar_id in set(self.settings.selected_calendar_ids)
+        ]
         if not chosen:
             chosen = [calendar for calendar in calendars if calendar.primary] or calendars
-            self.settings = AppSettings(selected_calendar_ids=[calendar.calendar_id for calendar in chosen])
+            self.settings = AppSettings(
+                selected_calendar_ids=[
+                    calendar.calendar_id for calendar in chosen
+                ],
+                language=self.settings.language,
+            )
             save_settings(self.settings)
         start, end = month_range(self.current_year, self.current_month)
         events = gateway.list_events(chosen, start, end)
@@ -551,16 +619,26 @@ class MainFrame(wx.Frame):
 
     def _refresh_google(self) -> None:
         if not oauth.is_logged_in():
-            self._show_message("Najpierw zaloguj się do Google.", "Logowanie wymagane", error=True)
+            self._show_message(
+                tr("Najpierw zaloguj się do Google."),
+                tr("Logowanie wymagane"),
+                error=True,
+            )
             return
         month_name = format_month(self.current_year, self.current_month)
         self._run_task(
-            busy_message=f"Pobieranie wydarzeń: {month_name}...",
+            busy_message=tr(
+                "Pobieranie wydarzeń: {month}...",
+                month=month_name,
+            ),
             target=self._load_gateway_and_calendars,
             on_success=self._after_refresh,
         )
 
-    def _after_refresh(self, result: tuple[list[CalendarInfo], list[CalendarEvent]]) -> None:
+    def _after_refresh(
+        self,
+        result: tuple[list[CalendarInfo], list[CalendarEvent]],
+    ) -> None:
         self.calendars, events = result
         self.events.replace(events)
         selected = self.selected_date
@@ -577,20 +655,32 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
         self._update_account_state()
         self._set_status(
-            f"Pobrano {count_text(len(events))} z {len(self._selected_calendars())} kalendarzy."
+            tr(
+                "Pobrano {events} z {calendars} kalendarzy.",
+                events=count_text(len(events)),
+                calendars=len(self._selected_calendars()),
+            )
         )
 
     def _render_month(self, select_date: dt.date | None = None) -> None:
-        self.month_label.SetLabel(format_month(self.current_year, self.current_month))
-        self.month_label.SetName(f"Wybrany miesiąc: {format_month(self.current_year, self.current_month)}")
+        month_text = format_month(self.current_year, self.current_month)
+        self.month_label.SetLabel(month_text)
+        self.month_label.SetName(
+            tr("Wybrany miesiąc: {month}", month=month_text)
+        )
         self._day_values = month_days(self.current_year, self.current_month)
         labels = [
-            f"{format_full_date(day)}, {count_text(len(self.events.for_date(day)))}"
+            f"{format_full_date(day)}, "
+            f"{count_text(len(self.events.for_date(day)))}"
             for day in self._day_values
         ]
         self.days_list.Set(labels)
         index = 0
-        if select_date and select_date.year == self.current_year and select_date.month == self.current_month:
+        if (
+            select_date
+            and select_date.year == self.current_year
+            and select_date.month == self.current_month
+        ):
             index = select_date.day - 1
         if self._day_values:
             index = max(0, min(index, len(self._day_values) - 1))
@@ -600,10 +690,15 @@ class MainFrame(wx.Frame):
 
     def _render_events(self, selected_event_id: str | None = None) -> None:
         self._event_values = self.events.for_date(self.selected_date)
-        self.events_list.Set([event.display_text(self.selected_date) for event in self._event_values])
+        self.events_list.Set(
+            [event.display_text(self.selected_date) for event in self._event_values]
+        )
         self.events_list.SetName(
-            f"Wydarzenia dla {format_full_date(self.selected_date)}, "
-            f"{count_text(len(self._event_values))}"
+            tr(
+                "Wydarzenia dla {date}, {count}",
+                date=format_full_date(self.selected_date),
+                count=count_text(len(self._event_values)),
+            )
         )
         index = wx.NOT_FOUND
         if selected_event_id:
@@ -616,7 +711,10 @@ class MainFrame(wx.Frame):
         if index != wx.NOT_FOUND:
             self.events_list.SetSelection(index)
         self._update_event_action_buttons()
-        self._set_status(f"{format_full_date(self.selected_date)}: {count_text(len(self._event_values))}.")
+        self._set_status(
+            f"{format_full_date(self.selected_date)}: "
+            f"{count_text(len(self._event_values))}."
+        )
 
     def _selected_event(self) -> CalendarEvent | None:
         index = self.events_list.GetSelection()
@@ -684,7 +782,12 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_goto(self, event: wx.Event) -> None:
-        dialog = wx.TextEntryDialog(self, "Wpisz datę w formacie DD.MM.RRRR.", "Przejdź do daty", self.selected_date.strftime("%d.%m.%Y"))
+        dialog = wx.TextEntryDialog(
+            self,
+            tr("Wpisz datę w formacie DD.MM.RRRR lub RRRR-MM-DD."),
+            tr("Przejdź do daty"),
+            format_short_date(self.selected_date),
+        )
         try:
             result = dialog.ShowModal()
             value = dialog.GetValue()
@@ -693,11 +796,14 @@ class MainFrame(wx.Frame):
         if result != wx.ID_OK:
             return
         try:
-            target = parse_polish_date(value)
+            target = parse_date_input(value)
         except ValueError as error:
-            self._show_message(str(error), "Nieprawidłowa data", error=True)
+            self._show_message(str(error), tr("Nieprawidłowa data"), error=True)
             return
-        changed_month = (target.year, target.month) != (self.current_year, self.current_month)
+        changed_month = (target.year, target.month) != (
+            self.current_year,
+            self.current_month,
+        )
         self.current_year, self.current_month = target.year, target.month
         self.selected_date = target
         if changed_month:
@@ -711,8 +817,8 @@ class MainFrame(wx.Frame):
     def _on_search(self, event: wx.Event) -> None:
         if not oauth.is_logged_in():
             self._show_message(
-                "Najpierw zaloguj się do Google.",
-                "Logowanie wymagane",
+                tr("Najpierw zaloguj się do Google."),
+                tr("Logowanie wymagane"),
                 error=True,
             )
             return
@@ -734,7 +840,7 @@ class MainFrame(wx.Frame):
         def search() -> tuple[list[CalendarInfo], SearchCriteria, list[CalendarEvent]]:
             credentials = oauth.ensure_valid_credentials()
             if credentials is None:
-                raise RuntimeError("Brak ważnego logowania Google.")
+                raise RuntimeError(tr("Brak ważnego logowania Google."))
             gateway = CalendarGateway(credentials)
             calendars = self.calendars or gateway.list_calendars()
             selected_ids = set(self.settings.selected_calendar_ids)
@@ -749,9 +855,10 @@ class MainFrame(wx.Frame):
             return calendars, criteria, results
 
         self._run_task(
-            busy_message=(
-                f"Wyszukiwanie od {criteria.start_date:%d.%m.%Y} "
-                f"do {criteria.end_date_inclusive:%d.%m.%Y}..."
+            busy_message=tr(
+                "Wyszukiwanie od {start} do {end}...",
+                start=format_short_date(criteria.start_date),
+                end=format_short_date(criteria.end_date_inclusive),
             ),
             target=search,
             on_success=self._after_search,
@@ -765,7 +872,7 @@ class MainFrame(wx.Frame):
         self.calendars = calendars
         self._update_account_state()
         self._set_status(
-            f"Wyszukiwanie zakończone: {count_text(len(events))}."
+            tr("Wyszukiwanie zakończone: {count}.", count=count_text(len(events)))
         )
 
         result_dialog = SearchResultsDialog(self, events, criteria)
@@ -791,8 +898,10 @@ class MainFrame(wx.Frame):
         if oauth.is_logged_in():
             dialog = wx.MessageDialog(
                 self,
-                "Czy wylogować aplikację GCM by Piotrek? Token dodatku NVDA nie zostanie zmieniony.",
-                "Wyloguj z Google",
+                tr(
+                    "Czy wylogować aplikację GCM by Piotrek? Token dodatku NVDA nie zostanie zmieniony."
+                ),
+                tr("Wyloguj z Google"),
                 wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
             )
             try:
@@ -805,14 +914,18 @@ class MainFrame(wx.Frame):
                 self.events.replace([])
                 self._render_month(select_date=self.selected_date)
                 self._update_account_state()
-                self._set_status("Aplikacja została wylogowana. Dodatek NVDA pozostał bez zmian.")
+                self._set_status(
+                    tr(
+                        "Aplikacja została wylogowana. Dodatek NVDA pozostał bez zmian."
+                    )
+                )
             return
 
         if find_client_secret() is None:
             picker = wx.FileDialog(
                 self,
-                "Wskaż plik client_secret.json",
-                wildcard="Pliki JSON (*.json)|*.json|Wszystkie pliki|*.*",
+                tr("Wskaż plik client_secret.json"),
+                wildcard=tr("Pliki JSON (*.json)|*.json|Wszystkie pliki|*.*"),
                 style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
             )
             try:
@@ -825,71 +938,110 @@ class MainFrame(wx.Frame):
             try:
                 copy_client_secret(Path(chosen))
             except Exception as error:
-                self._show_message(str(error), "Nie można skopiować konfiguracji OAuth", error=True)
+                self._show_message(
+                    str(error),
+                    tr("Nie można skopiować konfiguracji OAuth"),
+                    error=True,
+                )
                 return
 
         self._run_task(
-            busy_message="Logowanie do Google. Dokończ operację w przeglądarce...",
+            busy_message=tr(
+                "Logowanie do Google. Dokończ operację w przeglądarce..."
+            ),
             target=oauth.login,
             on_success=lambda credentials: self._after_login(),
         )
 
     def _after_login(self) -> None:
         self._update_account_state()
-        self._set_status("Logowanie zakończone. Pobieranie kalendarzy...")
+        self._set_status(
+            tr("Logowanie zakończone. Pobieranie kalendarzy...")
+        )
         self._refresh_google()
 
-    def _on_calendars(self, event: wx.Event) -> None:
-        if not oauth.is_logged_in():
-            self._show_message("Najpierw zaloguj się do Google.", "Logowanie wymagane", error=True)
+    def _on_settings(self, event: wx.Event) -> None:
+        if oauth.is_logged_in() and not self.calendars:
+            def load() -> list[CalendarInfo]:
+                credentials = oauth.ensure_valid_credentials()
+                if credentials is None:
+                    raise RuntimeError(tr("Brak ważnego logowania Google."))
+                return CalendarGateway(credentials).list_calendars()
+
+            self._run_task(
+                busy_message=tr("Pobieranie ustawień i kalendarzy..."),
+                target=load,
+                on_success=self._show_settings_dialog,
+            )
             return
+        self._show_settings_dialog(self.calendars if oauth.is_logged_in() else [])
 
-        def load() -> list[CalendarInfo]:
-            credentials = oauth.ensure_valid_credentials()
-            if credentials is None:
-                raise RuntimeError("Brak ważnego logowania Google.")
-            return CalendarGateway(credentials).list_calendars()
-
-        self._run_task(
-            busy_message="Pobieranie listy kalendarzy...",
-            target=load,
-            on_success=self._show_calendar_dialog,
-        )
-
-    def _show_calendar_dialog(self, calendars: list[CalendarInfo]) -> None:
-        self.calendars = calendars
+    def _show_settings_dialog(self, calendars: list[CalendarInfo]) -> None:
+        if calendars:
+            self.calendars = calendars
         selected = set(self.settings.selected_calendar_ids)
-        if not selected:
-            selected = {calendar.calendar_id for calendar in calendars if calendar.selected or calendar.primary}
-        dialog = CalendarSelectionDialog(self, calendars, selected)
+        if calendars and not selected:
+            selected = {
+                calendar.calendar_id
+                for calendar in calendars
+                if calendar.selected or calendar.primary
+            }
+        old_ids = list(self.settings.selected_calendar_ids)
+        old_language = self.settings.language
+        dialog = SettingsDialog(
+            self,
+            calendars,
+            selected,
+            old_language,
+        )
         try:
             result = dialog.ShowModal()
             ids = dialog.selected_ids()
+            language = dialog.language_preference()
         finally:
             dialog.Destroy()
         if result != wx.ID_OK:
             return
-        if not ids:
-            self._show_message("Zaznacz co najmniej jeden kalendarz.", "Wybór kalendarzy", error=True)
-            return
-        self.settings = AppSettings(selected_calendar_ids=ids)
+
+        self.settings = AppSettings(
+            selected_calendar_ids=ids,
+            language=language,
+        )
         save_settings(self.settings)
-        self._refresh_google()
+        language_changed = language != old_language
+        calendar_changed = set(ids) != set(old_ids)
+
+        if language_changed:
+            self._show_message(
+                tr(
+                    "Język aplikacji zostanie zmieniony na {language} po ponownym uruchomieniu.",
+                    language=language_label(language),
+                ),
+                tr("Ustawienia"),
+            )
+        else:
+            self._set_status(tr("Ustawienia zostały zapisane."))
+
+        if calendar_changed and oauth.is_logged_in():
+            self._refresh_google()
+        else:
+            self.settings_button.SetFocus()
 
     def _on_add(self, event: wx.Event) -> None:
         if not oauth.is_logged_in():
             self._show_message(
-                "Najpierw zaloguj się do Google.",
-                "Logowanie wymagane",
+                tr("Najpierw zaloguj się do Google."),
+                tr("Logowanie wymagane"),
                 error=True,
             )
             return
         writable = self._writable_selected_calendars()
         if not writable:
             self._show_message(
-                "Nie znaleziono kalendarza, do którego to konto może dodawać wydarzenia. "
-                "Sprawdź wybór kalendarzy i uprawnienia konta.",
-                "Brak kalendarza do zapisu",
+                tr(
+                    "Nie znaleziono kalendarza, do którego to konto może dodawać wydarzenia. Sprawdź wybór kalendarzy i uprawnienia konta."
+                ),
+                tr("Brak kalendarza do zapisu"),
                 error=True,
             )
             return
@@ -909,21 +1061,22 @@ class MainFrame(wx.Frame):
         )
         if calendar is None:
             self._show_message(
-                "Wybrany kalendarz nie jest już dostępny do zapisu.",
-                "Nie można dodać wydarzenia",
+                tr("Wybrany kalendarz nie jest już dostępny do zapisu."),
+                tr("Nie można dodać wydarzenia"),
                 error=True,
             )
             return
 
-        when = self._draft_when_text(draft)
         confirm = wx.MessageDialog(
             self,
-            f"Czy utworzyć wydarzenie?\n\n"
-            f"Tytuł: {draft.title}\n"
-            f"Kalendarz: {calendar.name}\n"
-            f"Termin: {when}\n"
-            f"Powtarzanie: {draft.recurrence.display_text()}",
-            "Potwierdź utworzenie wydarzenia",
+            tr(
+                "Czy utworzyć wydarzenie?\n\nTytuł: {title}\nKalendarz: {calendar}\nTermin: {when}\nPowtarzanie: {recurrence}",
+                title=draft.title,
+                calendar=calendar.name,
+                when=self._draft_when_text(draft),
+                recurrence=draft.recurrence.display_text(),
+            ),
+            tr("Potwierdź utworzenie wydarzenia"),
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
         )
         try:
@@ -936,11 +1089,11 @@ class MainFrame(wx.Frame):
         def create() -> CalendarEvent:
             credentials = oauth.ensure_valid_credentials()
             if credentials is None:
-                raise RuntimeError("Brak ważnego logowania Google.")
+                raise RuntimeError(tr("Brak ważnego logowania Google."))
             return CalendarGateway(credentials).create_event(calendar, draft)
 
         self._run_task(
-            busy_message=f"Tworzenie wydarzenia: {draft.title}...",
+            busy_message=tr("Tworzenie wydarzenia: {title}...", title=draft.title),
             target=create,
             on_success=self._after_create,
         )
@@ -951,25 +1104,29 @@ class MainFrame(wx.Frame):
         self.selected_date = created.start_date
         self._focus_event_after_refresh = created.event_id
         self._show_message(
-            f"Wydarzenie „{created.title}” zostało utworzone w kalendarzu "
-            f"{created.calendar_name}.",
-            "Wydarzenie utworzone",
+            tr(
+                "Wydarzenie „{title}” zostało utworzone w kalendarzu {calendar}.",
+                title=created.title,
+                calendar=created.calendar_name,
+            ),
+            tr("Wydarzenie utworzone"),
         )
         self._refresh_google()
 
     def _choose_recurring_edit_scope(self) -> str | None:
         choices = [
-            "Edytuj tylko to wystąpienie",
-            "Edytuj cały cykl",
+            tr("Edytuj tylko to wystąpienie"),
+            tr("Edytuj cały cykl"),
         ]
         dialog = wx.SingleChoiceDialog(
             self,
-            "Wybierz zakres edycji wydarzenia cyklicznego. "
-            "Domyślnie zaznaczone jest najbezpieczniejsze zmienienie jednego terminu.",
-            "Zakres edycji cyklu",
+            tr(
+                "Wybierz zakres edycji wydarzenia cyklicznego. Domyślnie zaznaczone jest najbezpieczniejsze zmienienie jednego terminu."
+            ),
+            tr("Zakres edycji cyklu"),
             choices,
         )
-        dialog.SetName("Zakres edycji wydarzenia cyklicznego")
+        dialog.SetName(tr("Zakres edycji wydarzenia cyklicznego"))
         dialog.SetSelection(0)
         try:
             result = dialog.ShowModal()
@@ -983,56 +1140,60 @@ class MainFrame(wx.Frame):
     def _on_edit(self, event: wx.Event) -> None:
         if not oauth.is_logged_in():
             self._show_message(
-                "Najpierw zaloguj się do Google.",
-                "Logowanie wymagane",
+                tr("Najpierw zaloguj się do Google."),
+                tr("Logowanie wymagane"),
                 error=True,
             )
             return
         selected = self._selected_event()
         if selected is None:
             self._show_message(
-                "Dla tego dnia nie ma zaznaczonego wydarzenia.",
-                "Nie można edytować wydarzenia",
+                tr("Dla tego dnia nie ma zaznaczonego wydarzenia."),
+                tr("Nie można edytować wydarzenia"),
                 error=True,
             )
             return
         calendar = self._calendar_for_event(selected)
         if calendar is None:
             self._show_message(
-                "Nie znaleziono kalendarza tego wydarzenia. Odśwież dane i spróbuj ponownie.",
-                "Nie można edytować wydarzenia",
+                tr(
+                    "Nie znaleziono kalendarza tego wydarzenia. Odśwież dane i spróbuj ponownie."
+                ),
+                tr("Nie można edytować wydarzenia"),
                 error=True,
             )
             return
         if not calendar.can_write:
             self._show_message(
-                f"Kalendarz {calendar.name} jest dostępny tylko do odczytu.",
-                "Brak uprawnień do edycji",
+                tr(
+                    "Kalendarz {calendar} jest dostępny tylko do odczytu.",
+                    calendar=calendar.name,
+                ),
+                tr("Brak uprawnień do edycji"),
                 error=True,
             )
             return
         if not selected.supports_basic_edit:
             if selected.locked:
-                reason = (
-                    "Google oznaczył to wydarzenie jako zablokowane i nie pozwala "
-                    "na zwykłą edycję jego pól."
+                reason = tr(
+                    "Google oznaczył to wydarzenie jako zablokowane i nie pozwala na zwykłą edycję jego pól."
                 )
             else:
                 event_type_labels = {
-                    "birthday": "urodziny",
-                    "focusTime": "czas skupienia",
-                    "fromGmail": "wydarzenie utworzone z Gmaila",
-                    "outOfOffice": "poza biurem",
-                    "workingLocation": "miejsce pracy",
+                    "birthday": tr("urodziny"),
+                    "focusTime": tr("czas skupienia"),
+                    "fromGmail": tr("wydarzenie utworzone z Gmaila"),
+                    "outOfOffice": tr("poza biurem"),
+                    "workingLocation": tr("miejsce pracy"),
                 }
                 kind = event_type_labels.get(selected.event_type, selected.event_type)
-                reason = (
-                    f"To jest specjalny typ wydarzenia: {kind}. "
-                    "GCM edytuje obecnie zwykłe wydarzenia kalendarza."
+                reason = tr(
+                    "To jest specjalny typ wydarzenia: {kind}. GCM edytuje obecnie zwykłe wydarzenia kalendarza.",
+                    kind=kind,
                 )
             self._show_message(
                 reason,
-                "Tego wydarzenia nie można jeszcze edytować",
+                tr("Tego wydarzenia nie można jeszcze edytować"),
                 error=True,
             )
             return
@@ -1060,11 +1221,14 @@ class MainFrame(wx.Frame):
         def load() -> CalendarEvent:
             credentials = oauth.ensure_valid_credentials()
             if credentials is None:
-                raise RuntimeError("Brak ważnego logowania Google.")
+                raise RuntimeError(tr("Brak ważnego logowania Google."))
             return CalendarGateway(credentials).get_recurring_series(calendar, instance)
 
         self._run_task(
-            busy_message=f"Pobieranie całego cyklu: {instance.title}...",
+            busy_message=tr(
+                "Pobieranie całego cyklu: {title}...",
+                title=instance.title,
+            ),
             target=load,
             on_success=lambda parent: self._show_edit_dialog(
                 calendar,
@@ -1097,51 +1261,58 @@ class MainFrame(wx.Frame):
             return
         if draft == original_draft:
             self._show_message(
-                "Nie wprowadzono żadnych zmian.",
-                "Edycja wydarzenia",
+                tr("Nie wprowadzono żadnych zmian."),
+                tr("Edycja wydarzenia"),
             )
             return
 
         notices: list[str] = []
         if scope == "instance":
             notices.append(
-                "Zmiana obejmie tylko wybrane wystąpienie. Pozostałe terminy cyklu "
-                "i reguła powtarzania pozostaną bez zmian."
+                tr(
+                    "Zmiana obejmie tylko wybrane wystąpienie. Pozostałe terminy cyklu i reguła powtarzania pozostaną bez zmian."
+                )
             )
         elif scope == "single" and draft.recurrence.is_recurring:
             notices.append(
-                "To pojedyncze wydarzenie zostanie zamienione w cykl zgodnie z "
-                "wybraną regułą powtarzania."
+                tr(
+                    "To pojedyncze wydarzenie zostanie zamienione w cykl zgodnie z wybraną regułą powtarzania."
+                )
             )
         elif scope == "series":
             notices.append(
-                "Zmiana obejmie cały cykl, w tym jego tytuł, termin i podstawową "
-                "regułę powtarzania."
+                tr(
+                    "Zmiana obejmie cały cykl, w tym jego tytuł, termin i podstawową regułę powtarzania."
+                )
             )
             if not draft.recurrence.is_recurring:
                 notices.append(
-                    "Wybrano opcję „Nie powtarza się”. Cały cykl zostanie zamieniony "
-                    "w jedno wydarzenie w dacie początku serii."
+                    tr(
+                        "Wybrano opcję „Nie powtarza się”. Cały cykl zostanie zamieniony w jedno wydarzenie w dacie początku serii."
+                    )
                 )
         if selected_instance.has_attendees:
             notices.append(
-                "Wydarzenie ma uczestników. Google wyśle im aktualizację po zapisaniu zmian."
+                tr(
+                    "Wydarzenie ma uczestników. Google wyśle im aktualizację po zapisaniu zmian."
+                )
             )
-        notice_text = "\n\n" + "\n\n".join(notices) if notices else ""
-        recurrence_line = (
-            f"\nPowtarzanie: {draft.recurrence.display_text()}"
+        recurrence = (
+            draft.recurrence.display_text()
             if scope == "series" or (scope == "single" and draft.recurrence.is_recurring)
-            else ""
+            else tr("Nie dotyczy")
         )
         confirm = wx.MessageDialog(
             self,
-            f"Czy zapisać zmiany w wydarzeniu?\n\n"
-            f"Tytuł: {draft.title}\n"
-            f"Kalendarz: {calendar.name}\n"
-            f"Nowy termin: {self._draft_when_text(draft)}"
-            f"{recurrence_line}"
-            f"{notice_text}",
-            "Potwierdź edycję wydarzenia",
+            tr(
+                "Czy zapisać zmiany w wydarzeniu?\n\nTytuł: {title}\nKalendarz: {calendar}\nNowy termin: {when}\nPowtarzanie: {recurrence}\n\n{notice}",
+                title=draft.title,
+                calendar=calendar.name,
+                when=self._draft_when_text(draft),
+                recurrence=recurrence,
+                notice="\n\n".join(notices),
+            ).rstrip(),
+            tr("Potwierdź edycję wydarzenia"),
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
         )
         try:
@@ -1156,7 +1327,7 @@ class MainFrame(wx.Frame):
         def update() -> tuple[CalendarEvent, str, dt.date]:
             credentials = oauth.ensure_valid_credentials()
             if credentials is None:
-                raise RuntimeError("Brak ważnego logowania Google.")
+                raise RuntimeError(tr("Brak ważnego logowania Google."))
             gateway = CalendarGateway(credentials)
             if scope == "series":
                 updated = gateway.update_recurring_series(
@@ -1174,9 +1345,9 @@ class MainFrame(wx.Frame):
             return updated, result_scope, selected_day
 
         busy = (
-            f"Zapisywanie zmian w całym cyklu: {draft.title}..."
+            tr("Zapisywanie zmian w całym cyklu: {title}...", title=draft.title)
             if scope == "series"
-            else f"Zapisywanie zmian w wydarzeniu: {draft.title}..."
+            else tr("Zapisywanie zmian w wydarzeniu: {title}...", title=draft.title)
         )
         self._run_task(
             busy_message=busy,
@@ -1196,32 +1367,42 @@ class MainFrame(wx.Frame):
             self._focus_event_after_refresh = None
             self._focus_events_after_refresh = True
             if scope == "converted":
-                message = f"Wydarzenie „{updated.title}” zostało zamienione w cykl."
+                message = tr(
+                    "Wydarzenie „{title}” zostało zamienione w cykl.",
+                    title=updated.title,
+                )
             else:
-                message = f"Zmiany w całym cyklu „{updated.title}” zostały zapisane."
+                message = tr(
+                    "Zmiany w całym cyklu „{title}” zostały zapisane.",
+                    title=updated.title,
+                )
         else:
             self.current_year = updated.start_date.year
             self.current_month = updated.start_date.month
             self.selected_date = updated.start_date
             self._focus_event_after_refresh = updated.event_id
-            message = f"Zmiany w wydarzeniu „{updated.title}” zostały zapisane."
-        self._show_message(message, "Wydarzenie zaktualizowane")
+            message = tr(
+                "Zmiany w wydarzeniu „{title}” zostały zapisane.",
+                title=updated.title,
+            )
+        self._show_message(message, tr("Edycja zakończona"))
         self._refresh_google()
 
     def _choose_recurring_delete_scope(self) -> str | None:
         choices = [
-            "Usuń tylko to wystąpienie",
-            "Usuń to i wszystkie kolejne wystąpienia",
-            "Usuń cały cykl",
+            tr("Usuń tylko to wystąpienie"),
+            tr("Usuń to i wszystkie kolejne wystąpienia"),
+            tr("Usuń cały cykl"),
         ]
         dialog = wx.SingleChoiceDialog(
             self,
-            "Wybierz zakres usuwania wydarzenia cyklicznego. "
-            "Domyślnie zaznaczone jest najbezpieczniejsze usunięcie jednego terminu.",
-            "Zakres usuwania cyklu",
+            tr(
+                "Wybierz zakres usuwania wydarzenia cyklicznego. Domyślnie zaznaczone jest najbezpieczniejsze usunięcie jednego terminu."
+            ),
+            tr("Zakres usuwania cyklu"),
             choices,
         )
-        dialog.SetName("Zakres usuwania wydarzenia cyklicznego")
+        dialog.SetName(tr("Zakres usuwania wydarzenia cyklicznego"))
         dialog.SetSelection(0)
         try:
             result = dialog.ShowModal()
@@ -1235,8 +1416,8 @@ class MainFrame(wx.Frame):
     def _on_delete(self, event: wx.Event) -> None:
         if not oauth.is_logged_in():
             self._show_message(
-                "Najpierw zaloguj się do Google.",
-                "Logowanie wymagane",
+                tr("Najpierw zaloguj się do Google."),
+                tr("Logowanie wymagane"),
                 error=True,
             )
             return
@@ -1244,8 +1425,8 @@ class MainFrame(wx.Frame):
         selected = self._selected_event()
         if selected is None:
             self._show_message(
-                "Dla tego dnia nie ma zaznaczonego wydarzenia.",
-                "Nie można usunąć wydarzenia",
+                tr("Dla tego dnia nie ma zaznaczonego wydarzenia."),
+                tr("Nie można usunąć wydarzenia"),
                 error=True,
             )
             return
@@ -1253,24 +1434,31 @@ class MainFrame(wx.Frame):
         calendar = self._calendar_for_event(selected)
         if calendar is None:
             self._show_message(
-                "Nie znaleziono kalendarza tego wydarzenia. Odśwież dane i spróbuj ponownie.",
-                "Nie można usunąć wydarzenia",
+                tr(
+                    "Nie znaleziono kalendarza tego wydarzenia. Odśwież dane i spróbuj ponownie."
+                ),
+                tr("Nie można usunąć wydarzenia"),
                 error=True,
             )
             return
 
         if not calendar.can_write:
             self._show_message(
-                f"Kalendarz {calendar.name} jest dostępny tylko do odczytu.",
-                "Brak uprawnień do usuwania",
+                tr(
+                    "Kalendarz {calendar} jest dostępny tylko do odczytu i nie pozwala usuwać wydarzeń.",
+                    calendar=calendar.name,
+                ),
+                tr("Brak uprawnień do usuwania"),
                 error=True,
             )
             return
 
         if not selected.supports_delete:
             self._show_message(
-                "Google oznaczył to wydarzenie jako zablokowane i nie pozwala go usunąć.",
-                "Nie można usunąć wydarzenia",
+                tr(
+                    "Google oznaczył to wydarzenie jako zablokowane i nie pozwala go usunąć."
+                ),
+                tr("Nie można usunąć wydarzenia"),
                 error=True,
             )
             return
@@ -1284,51 +1472,52 @@ class MainFrame(wx.Frame):
 
         scope_text = {
             "single": (
-                "Usunięte zostanie tylko zaznaczone wystąpienie. "
-                "Pozostałe terminy cyklu pozostaną bez zmian."
+                tr(
+                    "Usunięte zostanie tylko zaznaczone wystąpienie. Pozostałe terminy cyklu pozostaną bez zmian."
+                )
                 if selected.is_recurring_instance
-                else "Usunięte zostanie to wydarzenie."
+                else tr("Usunięte zostanie to wydarzenie.")
             ),
-            "following": (
-                "Usunięte zostanie zaznaczone wystąpienie oraz wszystkie późniejsze "
-                "terminy tej serii. Wcześniejsze wystąpienia pozostaną. "
-                "Jeżeli zaznaczony termin jest pierwszym wystąpieniem, skutek będzie "
-                "równy usunięciu całego cyklu."
+            "following": tr(
+                "Usunięte zostanie zaznaczone wystąpienie oraz wszystkie późniejsze terminy tej serii. Wcześniejsze wystąpienia pozostaną. Jeżeli zaznaczony termin jest pierwszym wystąpieniem, skutek będzie równy usunięciu całego cyklu."
             ),
-            "series": (
-                "Usunięty zostanie cały cykl: wcześniejsze, zaznaczone i wszystkie "
-                "późniejsze wystąpienia."
+            "series": tr(
+                "Usunięty zostanie cały cykl: wcześniejsze, zaznaczone i wszystkie późniejsze wystąpienia."
             ),
         }[scope]
 
         notices: list[str] = [scope_text]
         if selected.has_attendees:
             notices.append(
-                "Wydarzenie ma uczestników. Google wyśle im informację o anulowaniu."
+                tr(
+                    "Wydarzenie ma uczestników. Google wyśle im informację o anulowaniu."
+                )
             )
         if selected.event_type != "default":
             event_type_labels = {
-                "birthday": "urodziny",
-                "focusTime": "czas skupienia",
-                "fromGmail": "wydarzenie utworzone z Gmaila",
-                "outOfOffice": "poza biurem",
-                "workingLocation": "miejsce pracy",
+                "birthday": tr("urodziny"),
+                "focusTime": tr("czas skupienia"),
+                "fromGmail": tr("wydarzenie utworzone z Gmaila"),
+                "outOfOffice": tr("poza biurem"),
+                "workingLocation": tr("miejsce pracy"),
             }
             kind = event_type_labels.get(selected.event_type, selected.event_type)
-            notices.append(f"To jest specjalny typ wydarzenia: {kind}.")
+            notices.append(
+                tr("To jest specjalny typ wydarzenia: {kind}.", kind=kind)
+            )
 
         confirm_title = {
-            "single": "Potwierdź usunięcie wydarzenia",
-            "following": "Potwierdź usunięcie tego i kolejnych wystąpień",
-            "series": "Potwierdź usunięcie całego cyklu",
+            "single": tr("Potwierdź usunięcie wydarzenia"),
+            "following": tr("Potwierdź usunięcie tego i kolejnych wystąpień"),
+            "series": tr("Potwierdź usunięcie całego cyklu"),
         }[scope]
-        notices_text = "\n".join(notices)
         confirm = wx.MessageDialog(
             self,
-            f"Czy na pewno wykonać tę operację?\n\n"
-            f"{selected.details_text()}\n\n"
-            f"{notices_text}\n\n"
-            f"Tej operacji nie można cofnąć w aplikacji GCM.",
+            tr(
+                "Czy na pewno wykonać tę operację?\n\n{details}\n\n{notices}\n\nTej operacji nie można cofnąć w aplikacji GCM.",
+                details=selected.details_text(),
+                notices="\n".join(notices),
+            ),
             confirm_title,
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
         )
@@ -1348,7 +1537,7 @@ class MainFrame(wx.Frame):
         def delete() -> tuple[str, str, dt.date, str, bool]:
             credentials = oauth.ensure_valid_credentials()
             if credentials is None:
-                raise RuntimeError("Brak ważnego logowania Google.")
+                raise RuntimeError(tr("Brak ważnego logowania Google."))
             gateway = CalendarGateway(credentials)
             parent_deleted = False
             if scope == "series":
@@ -1366,9 +1555,12 @@ class MainFrame(wx.Frame):
             )
 
         busy_text = {
-            "single": f"Usuwanie wydarzenia: {selected.title}...",
-            "following": f"Usuwanie tego i kolejnych wystąpień: {selected.title}...",
-            "series": f"Usuwanie całego cyklu: {selected.title}...",
+            "single": tr("Usuwanie wydarzenia: {title}...", title=selected.title),
+            "following": tr(
+                "Usuwanie tego i kolejnych wystąpień: {title}...",
+                title=selected.title,
+            ),
+            "series": tr("Usuwanie całego cyklu: {title}...", title=selected.title),
         }[scope]
         self._run_task(
             busy_message=busy_text,
@@ -1388,27 +1580,32 @@ class MainFrame(wx.Frame):
         self._focus_events_after_refresh = True
 
         if scope == "series":
-            message = (
-                f"Cały cykl „{title}” został usunięty z kalendarza {calendar_name}."
+            message = tr(
+                "Cały cykl „{title}” został usunięty z kalendarza {calendar}.",
+                title=title,
+                calendar=calendar_name,
             )
         elif scope == "following":
             if parent_deleted:
-                message = (
-                    f"Zaznaczony termin był pierwszym wystąpieniem. "
-                    f"Cały cykl „{title}” został usunięty z kalendarza {calendar_name}."
+                message = tr(
+                    "Zaznaczony termin był pierwszym wystąpieniem. Cały cykl „{title}” został usunięty z kalendarza {calendar}.",
+                    title=title,
+                    calendar=calendar_name,
                 )
             else:
-                message = (
-                    f"Zaznaczone i wszystkie kolejne wystąpienia „{title}” "
-                    f"zostały usunięte z kalendarza {calendar_name}."
+                message = tr(
+                    "Zaznaczone i wszystkie kolejne wystąpienia „{title}” zostały usunięte z kalendarza {calendar}.",
+                    title=title,
+                    calendar=calendar_name,
                 )
         else:
-            message = (
-                f"Wybrane wydarzenie „{title}” zostało usunięte "
-                f"z kalendarza {calendar_name}."
+            message = tr(
+                "Wybrane wydarzenie „{title}” zostało usunięte z kalendarza {calendar}.",
+                title=title,
+                calendar=calendar_name,
             )
 
-        self._show_message(message, "Usuwanie zakończone")
+        self._show_message(message, tr("Usuwanie zakończone"))
         self._refresh_google()
 
     @staticmethod
@@ -1433,37 +1630,56 @@ class MainFrame(wx.Frame):
             opened = webbrowser.open_new_tab(url)
         except Exception as error:
             self._show_message(
-                f"Nie udało się otworzyć {description}.\n\n{error}",
-                "Otwieranie linku",
+                tr(
+                    "Nie udało się otworzyć {description}.\n\n{error}",
+                    description=description,
+                    error=error,
+                ),
+                tr("Otwieranie linku"),
                 error=True,
             )
             return
         if not opened:
             self._show_message(
-                f"System nie potwierdził otwarcia {description}.",
-                "Otwieranie linku",
+                tr(
+                    "System nie potwierdził otwarcia {description}.",
+                    description=description,
+                ),
+                tr("Otwieranie linku"),
                 error=True,
             )
             return
-        self._set_status(f"Otwarto {description} w domyślnej przeglądarce.")
+        self._set_status(
+            tr(
+                "Otwarto {description} w domyślnej przeglądarce.",
+                description=description,
+            )
+        )
 
     def _on_open_google(self, event: wx.Event) -> None:
         selected = self._selected_event()
         if selected is None or not selected.can_open_in_google:
             self._show_message(
-                "Dla zaznaczonego wydarzenia nie ma dostępnego odnośnika do Kalendarza Google.",
-                "Otwórz w Google",
+                tr(
+                    "Dla zaznaczonego wydarzenia nie ma dostępnego odnośnika do Kalendarza Google."
+                ),
+                tr("Otwórz w Google"),
                 error=True,
             )
             return
-        self._open_web_link(selected.html_link, "wydarzenie w Kalendarzu Google")
+        self._open_web_link(
+            selected.html_link,
+            tr("wydarzenie w Kalendarzu Google"),
+        )
 
     def _on_meeting_link(self, event: wx.Event) -> None:
         selected = self._selected_event()
         if selected is None or not selected.has_meeting_link:
             self._show_message(
-                "Zaznaczone wydarzenie nie zawiera obsługiwanego linku spotkania.",
-                "Link spotkania",
+                tr(
+                    "Zaznaczone wydarzenie nie zawiera obsługiwanego linku spotkania."
+                ),
+                tr("Link spotkania"),
                 error=True,
             )
             return
@@ -1483,17 +1699,17 @@ class MainFrame(wx.Frame):
             self.events_list.SetFocus()
             return
         if action == "open":
-            self._open_web_link(selected.meeting_url, "link spotkania")
+            self._open_web_link(selected.meeting_url, tr("link spotkania"))
         elif action == "copy":
             if self._copy_to_clipboard(selected.meeting_url):
                 self._show_message(
-                    "Link spotkania został skopiowany do schowka.",
-                    "Link spotkania",
+                    tr("Link spotkania został skopiowany do schowka."),
+                    tr("Link spotkania"),
                 )
             else:
                 self._show_message(
-                    "Nie udało się skopiować linku spotkania do schowka.",
-                    "Link spotkania",
+                    tr("Nie udało się skopiować linku spotkania do schowka."),
+                    tr("Link spotkania"),
                     error=True,
                 )
         self.events_list.SetFocus()
@@ -1501,20 +1717,32 @@ class MainFrame(wx.Frame):
     def _on_details(self, event: wx.Event) -> None:
         selected = self._selected_event()
         if selected is None:
-            self._show_message("Dla tego dnia nie ma zaznaczonego wydarzenia.", "Szczegóły", error=True)
+            self._show_message(
+                tr("Dla tego dnia nie ma zaznaczonego wydarzenia."),
+                tr("Szczegóły"),
+                error=True,
+            )
             return
-        dialog = wx.Dialog(self, title="Szczegóły wydarzenia", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        dialog = wx.Dialog(
+            self,
+            title=tr("Szczegóły wydarzenia"),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
         sizer = wx.BoxSizer(wx.VERTICAL)
-        text = wx.TextCtrl(dialog, value=selected.details_text(), style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP)
-        text.SetName("Szczegóły wydarzenia")
+        text = wx.TextCtrl(
+            dialog,
+            value=selected.details_text(),
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
+        )
+        text.SetName(tr("Szczegóły wydarzenia"))
         text.SetMinSize((620, 300))
         sizer.Add(text, 1, wx.ALL | wx.EXPAND, 12)
-        close = wx.Button(dialog, wx.ID_OK, "&Zamknij")
+        close = wx.Button(dialog, wx.ID_OK, localized("&Zamknij", "&Close"))
         close_accessible = apply_accessible_name(
             close,
-            "Zamknij",
-            "Zamyka szczegóły wydarzenia.",
-            "Alt+Z",
+            tr("Zamknij"),
+            tr("Zamyka szczegóły wydarzenia."),
+            self._access_key("Alt+Z", "Alt+C"),
         )
         close.SetDefault()
         sizer.Add(close, 0, wx.ALL | wx.ALIGN_RIGHT, 12)

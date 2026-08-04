@@ -4,6 +4,8 @@ import sys
 
 import wx
 
+from gcm_core.i18n import tr
+
 
 class ExplicitNameAccessible(wx.Accessible):
     """
@@ -78,7 +80,7 @@ def apply_accessible_name(
     if description:
         help_parts.append(str(description))
     if keyboard_shortcut:
-        help_parts.append(f"Klawisz dostępu: {keyboard_shortcut}.")
+        help_parts.append(tr("Klawisz dostępu: {shortcut}.", shortcut=keyboard_shortcut))
     help_text = " ".join(help_parts)
 
     if help_text:

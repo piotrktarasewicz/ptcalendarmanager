@@ -4,22 +4,35 @@ import datetime as dt
 
 import wx
 
-from .accessibility import apply_accessible_name
-
+from gcm_core.i18n import (
+    get_language,
+    language_choice_labels,
+    language_choice_values,
+    localized,
+    normalize_language_preference,
+    tr,
+)
 from gcm_core.models import (
     CalendarEvent,
     CalendarInfo,
     EventDraft,
-    RECURRENCE_CHOICES,
     RecurrenceSettings,
     SearchCriteria,
     count_text,
     format_full_date,
-    parse_polish_date,
-    parse_polish_time,
+    format_short_date,
+    parse_date_input,
+    parse_time_input,
+    recurrence_choices,
     recurrence_mode_from_index,
     recurrence_mode_index,
 )
+
+from .accessibility import apply_accessible_name
+
+
+def _alt(polish_key: str, english_key: str) -> str:
+    return f"Alt+{polish_key if get_language() == 'pl' else english_key}"
 
 
 class EventCreateDialog(wx.Dialog):
@@ -30,13 +43,13 @@ class EventCreateDialog(wx.Dialog):
         default_date: dt.date,
         *,
         initial_event: CalendarEvent | None = None,
-        title: str = "Dodaj wydarzenie",
-        save_label: str = "Utwórz wydarzenie",
+        title: str | None = None,
+        editing: bool = False,
         allow_recurrence_edit: bool = True,
     ) -> None:
         super().__init__(
             parent,
-            title=title,
+            title=title or tr("Dodaj wydarzenie"),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self._calendars = calendars
@@ -44,6 +57,7 @@ class EventCreateDialog(wx.Dialog):
         self._accessible_objects: list[wx.Accessible] = []
         self._initial_event = initial_event
         self._allow_recurrence_edit = bool(allow_recurrence_edit)
+        self._editing = bool(editing)
 
         initial_draft = initial_event.to_draft() if initial_event else None
         form_date = initial_draft.start_date if initial_draft else default_date
@@ -58,11 +72,16 @@ class EventCreateDialog(wx.Dialog):
             value=initial_draft.title if initial_draft else "",
         )
 
-        labels = [
-            calendar.name + (", kalendarz główny" if calendar.primary else "")
+        calendar_labels = [
+            calendar.name
+            + (
+                f", {tr('kalendarz główny')}"
+                if calendar.primary
+                else ""
+            )
             for calendar in calendars
         ]
-        self.calendar_ctrl = wx.Choice(self, choices=labels)
+        self.calendar_ctrl = wx.Choice(self, choices=calendar_labels)
         default_index = 0
         if initial_draft:
             default_index = next(
@@ -83,10 +102,9 @@ class EventCreateDialog(wx.Dialog):
 
         self.start_date_ctrl = wx.TextCtrl(
             self,
-            value=form_date.strftime("%d.%m.%Y"),
+            value=format_short_date(form_date),
         )
-
-        self.all_day_ctrl = wx.CheckBox(self, label="Wydarzenie całodniowe")
+        self.all_day_ctrl = wx.CheckBox(self, label=tr("Wydarzenie całodniowe"))
         self.all_day_ctrl.SetValue(initial_draft.all_day if initial_draft else False)
 
         start_time = (
@@ -95,12 +113,7 @@ class EventCreateDialog(wx.Dialog):
             else "09:00"
         )
         self.start_time_ctrl = wx.TextCtrl(self, value=start_time)
-
-        self.end_date_ctrl = wx.TextCtrl(
-            self,
-            value=end_date.strftime("%d.%m.%Y"),
-        )
-
+        self.end_date_ctrl = wx.TextCtrl(self, value=format_short_date(end_date))
         end_time = (
             initial_draft.end_time.strftime("%H:%M")
             if initial_draft and initial_draft.end_time
@@ -108,19 +121,28 @@ class EventCreateDialog(wx.Dialog):
         )
         self.end_time_ctrl = wx.TextCtrl(self, value=end_time)
 
-        recurrence_labels = [label for _mode, label in RECURRENCE_CHOICES]
-        self.recurrence_ctrl = wx.Choice(self, choices=recurrence_labels)
-        initial_recurrence = initial_draft.recurrence if initial_draft else RecurrenceSettings()
-        self.recurrence_ctrl.SetSelection(recurrence_mode_index(initial_recurrence.mode))
+        self.recurrence_ctrl = wx.Choice(
+            self,
+            choices=[label for _mode, label in recurrence_choices()],
+        )
+        initial_recurrence = (
+            initial_draft.recurrence if initial_draft else RecurrenceSettings()
+        )
+        self.recurrence_ctrl.SetSelection(
+            recurrence_mode_index(initial_recurrence.mode)
+        )
         if not self._allow_recurrence_edit:
             self.recurrence_ctrl.SetSelection(0)
 
         self.recurrence_no_end_ctrl = wx.CheckBox(
             self,
-            label="Bez daty zakończenia cyklu",
+            label=tr("Bez daty zakończenia cyklu"),
         )
         self.recurrence_no_end_ctrl.SetValue(
-            bool(initial_recurrence.is_recurring and initial_recurrence.end_date_inclusive is None)
+            bool(
+                initial_recurrence.is_recurring
+                and initial_recurrence.end_date_inclusive is None
+            )
         )
         default_recurrence_end = initial_recurrence.end_date_inclusive
         if default_recurrence_end is None:
@@ -130,14 +152,13 @@ class EventCreateDialog(wx.Dialog):
                 default_recurrence_end = form_date + dt.timedelta(days=365)
         self.recurrence_end_date_ctrl = wx.TextCtrl(
             self,
-            value=default_recurrence_end.strftime("%d.%m.%Y"),
+            value=format_short_date(default_recurrence_end),
         )
 
         self.location_ctrl = wx.TextCtrl(
             self,
             value=initial_draft.location if initial_draft else "",
         )
-
         self.description_ctrl = wx.TextCtrl(
             self,
             value=initial_draft.description if initial_draft else "",
@@ -146,105 +167,146 @@ class EventCreateDialog(wx.Dialog):
         self.description_ctrl.SetMinSize((460, 110))
 
         calendar_help = (
-            "Kalendarz tego wydarzenia. Przenoszenie między kalendarzami nie jest jeszcze dostępne."
+            tr(
+                "Kalendarz tego wydarzenia. Przenoszenie między kalendarzami nie jest jeszcze dostępne."
+            )
             if initial_event
-            else "Wybierz kalendarz, w którym wydarzenie zostanie zapisane."
+            else tr("Wybierz kalendarz, w którym wydarzenie zostanie zapisane.")
         )
-        self._name_control(self.title_ctrl, "Tytuł wydarzenia", "Wpisz nazwę wydarzenia.")
+        self._name_control(
+            self.title_ctrl,
+            tr("Tytuł wydarzenia"),
+            tr("Wpisz nazwę wydarzenia."),
+        )
         self._name_control(
             self.calendar_ctrl,
-            "Kalendarz wydarzenia" if initial_event else "Kalendarz docelowy",
+            tr("Kalendarz wydarzenia") if initial_event else tr("Kalendarz docelowy"),
             calendar_help,
         )
         self._name_control(
             self.start_date_ctrl,
-            "Data rozpoczęcia, DD.MM.RRRR",
-            "Wpisz datę rozpoczęcia w formacie dzień, miesiąc, rok.",
+            tr("Data rozpoczęcia, DD.MM.RRRR lub RRRR-MM-DD"),
+            tr(
+                "Wpisz datę rozpoczęcia w formacie dzień, miesiąc, rok albo w formacie ISO."
+            ),
         )
         self._name_control(
             self.all_day_ctrl,
-            "Wydarzenie całodniowe",
-            "Zaznacz, aby pominąć godziny rozpoczęcia i zakończenia.",
+            tr("Wydarzenie całodniowe"),
+            tr("Zaznacz, aby pominąć godziny rozpoczęcia i zakończenia."),
         )
         self._name_control(
             self.start_time_ctrl,
-            "Godzina rozpoczęcia, GG:MM",
-            "Wpisz godzinę rozpoczęcia w formacie godzina, dwukropek, minuty.",
+            tr("Godzina rozpoczęcia, GG:MM"),
+            tr(
+                "Wpisz godzinę rozpoczęcia w formacie godzina, dwukropek, minuty."
+            ),
         )
         self._name_control(
             self.end_date_ctrl,
-            "Data zakończenia włącznie, DD.MM.RRRR",
-            "Wpisz ostatni dzień wydarzenia.",
+            tr("Data zakończenia włącznie, DD.MM.RRRR lub RRRR-MM-DD"),
+            tr("Wpisz ostatni dzień wydarzenia."),
         )
         self._name_control(
             self.end_time_ctrl,
-            "Godzina zakończenia, GG:MM",
-            "Wpisz godzinę zakończenia w formacie godzina, dwukropek, minuty.",
+            tr("Godzina zakończenia, GG:MM"),
+            tr(
+                "Wpisz godzinę zakończenia w formacie godzina, dwukropek, minuty."
+            ),
         )
         self._name_control(
             self.recurrence_ctrl,
-            "Powtarzanie wydarzenia",
-            "Wybierz prosty rodzaj cyklu albo wydarzenie jednorazowe.",
+            tr("Powtarzanie wydarzenia"),
+            tr("Wybierz prosty rodzaj cyklu albo wydarzenie jednorazowe."),
         )
         self._name_control(
             self.recurrence_no_end_ctrl,
-            "Bez daty zakończenia cyklu",
-            "Zaznacz, aby cykl nie miał określonej daty końcowej.",
+            tr("Bez daty zakończenia cyklu"),
+            tr("Zaznacz, aby cykl nie miał określonej daty końcowej."),
         )
         self._name_control(
             self.recurrence_end_date_ctrl,
-            "Data zakończenia cyklu włącznie, DD.MM.RRRR",
-            "Wpisz ostatni dzień, w którym cykl może utworzyć wystąpienie.",
+            tr(
+                "Data zakończenia cyklu włącznie, DD.MM.RRRR lub RRRR-MM-DD"
+            ),
+            tr("Wpisz ostatni dzień, w którym cykl może utworzyć wystąpienie."),
         )
         self._name_control(
             self.location_ctrl,
-            "Lokalizacja",
-            "Wpisz miejsce wydarzenia albo pozostaw pole puste.",
+            tr("Lokalizacja"),
+            tr("Wpisz miejsce wydarzenia albo pozostaw pole puste."),
         )
         self._name_control(
             self.description_ctrl,
-            "Opis wydarzenia",
-            "Wpisz dodatkowy opis albo pozostaw pole puste.",
+            tr("Opis wydarzenia"),
+            tr("Wpisz dodatkowy opis albo pozostaw pole puste."),
         )
 
         def add_row(label: str, control: wx.Window) -> None:
             form.Add(wx.StaticText(self, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
             form.Add(control, 1, wx.EXPAND)
 
-        add_row("Tytuł:", self.title_ctrl)
-        add_row("Kalendarz:", self.calendar_ctrl)
-        add_row("Data rozpoczęcia, DD.MM.RRRR:", self.start_date_ctrl)
-        form.Add(wx.StaticText(self, label="Typ wydarzenia:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        add_row(tr("Tytuł:"), self.title_ctrl)
+        add_row(tr("Kalendarz:"), self.calendar_ctrl)
+        add_row(
+            tr("Data rozpoczęcia, DD.MM.RRRR lub RRRR-MM-DD:"),
+            self.start_date_ctrl,
+        )
+        form.Add(
+            wx.StaticText(self, label=tr("Typ wydarzenia:")),
+            0,
+            wx.ALIGN_CENTER_VERTICAL,
+        )
         form.Add(self.all_day_ctrl, 1, wx.EXPAND)
-        add_row("Godzina rozpoczęcia, GG:MM:", self.start_time_ctrl)
-        add_row("Data zakończenia włącznie, DD.MM.RRRR:", self.end_date_ctrl)
-        add_row("Godzina zakończenia, GG:MM:", self.end_time_ctrl)
-        add_row("Powtarzanie:", self.recurrence_ctrl)
-        form.Add(wx.StaticText(self, label="Zakończenie cyklu:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        add_row(tr("Godzina rozpoczęcia, GG:MM:"), self.start_time_ctrl)
+        add_row(
+            tr("Data zakończenia włącznie, DD.MM.RRRR lub RRRR-MM-DD:"),
+            self.end_date_ctrl,
+        )
+        add_row(tr("Godzina zakończenia, GG:MM:"), self.end_time_ctrl)
+        add_row(tr("Powtarzanie:"), self.recurrence_ctrl)
+        form.Add(
+            wx.StaticText(self, label=tr("Zakończenie cyklu:")),
+            0,
+            wx.ALIGN_CENTER_VERTICAL,
+        )
         form.Add(self.recurrence_no_end_ctrl, 1, wx.EXPAND)
-        add_row("Data zakończenia cyklu włącznie, DD.MM.RRRR:", self.recurrence_end_date_ctrl)
-        add_row("Lokalizacja:", self.location_ctrl)
-        add_row("Opis:", self.description_ctrl)
+        add_row(
+            tr(
+                "Data zakończenia cyklu włącznie, DD.MM.RRRR lub RRRR-MM-DD:"
+            ),
+            self.recurrence_end_date_ctrl,
+        )
+        add_row(tr("Lokalizacja:"), self.location_ctrl)
+        add_row(tr("Opis:"), self.description_ctrl)
         sizer.Add(form, 1, wx.ALL | wx.EXPAND, 12)
 
         buttons = wx.StdDialogButtonSizer()
-        save_is_edit = save_label.lower().startswith("zapisz")
-        save_button_label = "&Zapisz zmiany" if save_is_edit else "&Utwórz wydarzenie"
-        save_button_name = "Zapisz zmiany" if save_is_edit else "Utwórz wydarzenie"
-        save_access_key = "Alt+Z" if save_is_edit else "Alt+U"
-        self.save_button = wx.Button(self, wx.ID_OK, save_button_label)
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        if self._editing:
+            button_label = localized("&Zapisz zmiany", "&Save changes")
+            button_name = tr("Zapisz zmiany")
+            button_shortcut = _alt("Z", "S")
+        else:
+            button_label = localized("&Utwórz wydarzenie", "&Create event")
+            button_name = tr("Utwórz wydarzenie")
+            button_shortcut = _alt("U", "C")
+        self.save_button = wx.Button(self, wx.ID_OK, button_label)
+        self.cancel_button = wx.Button(
+            self,
+            wx.ID_CANCEL,
+            localized("&Anuluj", "&Cancel"),
+        )
         self._name_control(
             self.save_button,
-            save_button_name,
-            "Zatwierdza dane w formularzu.",
-            save_access_key,
+            button_name,
+            tr("Zatwierdza dane w formularzu."),
+            button_shortcut,
         )
         self._name_control(
             self.cancel_button,
-            "Anuluj",
-            "Zamyka formularz bez zapisywania zmian.",
-            "Alt+A",
+            tr("Anuluj"),
+            tr("Zamyka formularz bez zapisywania zmian."),
+            _alt("A", "C"),
         )
         self.save_button.SetDefault()
         buttons.AddButton(self.save_button)
@@ -259,7 +321,10 @@ class EventCreateDialog(wx.Dialog):
 
         self.all_day_ctrl.Bind(wx.EVT_CHECKBOX, self._on_all_day)
         self.recurrence_ctrl.Bind(wx.EVT_CHOICE, self._on_recurrence_changed)
-        self.recurrence_no_end_ctrl.Bind(wx.EVT_CHECKBOX, self._on_recurrence_changed)
+        self.recurrence_no_end_ctrl.Bind(
+            wx.EVT_CHECKBOX,
+            self._on_recurrence_changed,
+        )
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
         self._apply_all_day_state()
         self._apply_recurrence_state()
@@ -294,7 +359,8 @@ class EventCreateDialog(wx.Dialog):
         self.recurrence_ctrl.Enable(self._allow_recurrence_edit)
         recurring = (
             self._allow_recurrence_edit
-            and recurrence_mode_from_index(self.recurrence_ctrl.GetSelection()) != "none"
+            and recurrence_mode_from_index(self.recurrence_ctrl.GetSelection())
+            != "none"
         )
         self.recurrence_no_end_ctrl.Enable(recurring)
         self.recurrence_end_date_ctrl.Enable(
@@ -309,7 +375,7 @@ class EventCreateDialog(wx.Dialog):
         dialog = wx.MessageDialog(
             self,
             text,
-            "Nieprawidłowe dane wydarzenia",
+            tr("Nieprawidłowe dane"),
             wx.OK | wx.ICON_ERROR,
         )
         try:
@@ -322,21 +388,21 @@ class EventCreateDialog(wx.Dialog):
     def _on_save(self, event: wx.CommandEvent) -> None:
         title = self.title_ctrl.GetValue().strip()
         if not title:
-            self._show_error("Wpisz tytuł wydarzenia.", self.title_ctrl)
+            self._show_error(tr("Wpisz tytuł wydarzenia."), self.title_ctrl)
             return
 
         calendar_index = self.calendar_ctrl.GetSelection()
         if not 0 <= calendar_index < len(self._calendars):
-            self._show_error("Wybierz kalendarz.", self.calendar_ctrl)
+            self._show_error(tr("Wybierz kalendarz."), self.calendar_ctrl)
             return
 
         try:
-            start_date = parse_polish_date(self.start_date_ctrl.GetValue())
+            start_date = parse_date_input(self.start_date_ctrl.GetValue())
         except ValueError as error:
             self._show_error(str(error), self.start_date_ctrl)
             return
         try:
-            end_date = parse_polish_date(self.end_date_ctrl.GetValue())
+            end_date = parse_date_input(self.end_date_ctrl.GetValue())
         except ValueError as error:
             self._show_error(str(error), self.end_date_ctrl)
             return
@@ -346,12 +412,12 @@ class EventCreateDialog(wx.Dialog):
         end_time = None
         if not all_day:
             try:
-                start_time = parse_polish_time(self.start_time_ctrl.GetValue())
+                start_time = parse_time_input(self.start_time_ctrl.GetValue())
             except ValueError as error:
                 self._show_error(str(error), self.start_time_ctrl)
                 return
             try:
-                end_time = parse_polish_time(self.end_time_ctrl.GetValue())
+                end_time = parse_time_input(self.end_time_ctrl.GetValue())
             except ValueError as error:
                 self._show_error(str(error), self.end_time_ctrl)
                 return
@@ -359,10 +425,12 @@ class EventCreateDialog(wx.Dialog):
         recurrence_mode = "none"
         recurrence_end = None
         if self._allow_recurrence_edit:
-            recurrence_mode = recurrence_mode_from_index(self.recurrence_ctrl.GetSelection())
+            recurrence_mode = recurrence_mode_from_index(
+                self.recurrence_ctrl.GetSelection()
+            )
             if recurrence_mode != "none" and not self.recurrence_no_end_ctrl.GetValue():
                 try:
-                    recurrence_end = parse_polish_date(
+                    recurrence_end = parse_date_input(
                         self.recurrence_end_date_ctrl.GetValue()
                     )
                 except ValueError as error:
@@ -412,58 +480,127 @@ class EventEditDialog(EventCreateDialog):
             [calendar],
             event.start_date,
             initial_event=event,
-            title="Edytuj wydarzenie",
-            save_label="Zapisz zmiany",
+            title=tr("Edytuj wydarzenie"),
+            editing=True,
             allow_recurrence_edit=allow_recurrence_edit,
         )
 
 
-class CalendarSelectionDialog(wx.Dialog):
+class SettingsDialog(wx.Dialog):
     def __init__(
         self,
         parent: wx.Window,
         calendars: list[CalendarInfo],
         selected_ids: set[str],
+        language_preference: str,
     ) -> None:
-        super().__init__(parent, title="Wybierz kalendarze", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super().__init__(
+            parent,
+            title=tr("Ustawienia aplikacji"),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
         self._calendars = calendars
+        self._original_selected_ids = set(selected_ids)
         self._checkboxes: list[wx.CheckBox] = []
         self._accessible_objects: list[wx.Accessible] = []
+        self._language_values = language_choice_values()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        info = wx.StaticText(self, label="Zaznacz kalendarze, których wydarzenia mają być pokazywane.")
-        info.Wrap(560)
-        sizer.Add(info, 0, wx.ALL | wx.EXPAND, 12)
+        form = wx.FlexGridSizer(cols=2, vgap=10, hgap=12)
+        form.AddGrowableCol(1, 1)
 
-        panel = wx.ScrolledWindow(self, style=wx.VSCROLL | wx.TAB_TRAVERSAL)
-        panel.SetScrollRate(0, 20)
-        panel_sizer = wx.BoxSizer(wx.VERTICAL)
-        for calendar in calendars:
-            label = calendar.name + (", kalendarz główny" if calendar.primary else "")
-            checkbox = wx.CheckBox(panel, label=label)
-            checkbox.SetName(label)
-            checkbox.SetValue(calendar.calendar_id in selected_ids)
-            self._checkboxes.append(checkbox)
-            panel_sizer.Add(checkbox, 0, wx.ALL | wx.EXPAND, 6)
-        panel.SetSizer(panel_sizer)
-        panel.SetMinSize((580, 300))
-        sizer.Add(panel, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
+        self.language_ctrl = wx.Choice(
+            self,
+            choices=list(language_choice_labels()),
+        )
+        normalized = normalize_language_preference(language_preference)
+        try:
+            language_index = self._language_values.index(normalized)
+        except ValueError:
+            language_index = 0
+        self.language_ctrl.SetSelection(language_index)
+        accessible = apply_accessible_name(
+            self.language_ctrl,
+            tr("Język aplikacji"),
+            tr("Język zostanie zmieniony po ponownym uruchomieniu aplikacji."),
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        form.Add(
+            wx.StaticText(self, label=f"{tr('Język aplikacji')}:") ,
+            0,
+            wx.ALIGN_CENTER_VERTICAL,
+        )
+        form.Add(self.language_ctrl, 1, wx.EXPAND)
+        sizer.Add(form, 0, wx.ALL | wx.EXPAND, 12)
+
+        calendar_box = wx.StaticBoxSizer(
+            wx.VERTICAL,
+            self,
+            tr("Kalendarze"),
+        )
+        if calendars:
+            info = wx.StaticText(
+                self,
+                label=tr(
+                    "Zaznacz kalendarze, których wydarzenia mają być pokazywane."
+                ),
+            )
+            info.Wrap(560)
+            calendar_box.Add(info, 0, wx.ALL | wx.EXPAND, 8)
+
+            panel = wx.ScrolledWindow(
+                self,
+                style=wx.VSCROLL | wx.TAB_TRAVERSAL,
+            )
+            panel.SetScrollRate(0, 20)
+            panel_sizer = wx.BoxSizer(wx.VERTICAL)
+            for calendar in calendars:
+                label = calendar.name + (
+                    f", {tr('kalendarz główny')}" if calendar.primary else ""
+                )
+                checkbox = wx.CheckBox(panel, label=label)
+                checkbox.SetName(label)
+                checkbox.SetValue(calendar.calendar_id in selected_ids)
+                self._checkboxes.append(checkbox)
+                panel_sizer.Add(checkbox, 0, wx.ALL | wx.EXPAND, 6)
+            panel.SetSizer(panel_sizer)
+            panel.SetMinSize((580, 280))
+            calendar_box.Add(panel, 1, wx.ALL | wx.EXPAND, 8)
+        else:
+            info = wx.StaticText(
+                self,
+                label=tr(
+                    "Zaloguj się do Google, aby wybrać kalendarze. Ustawienie języka jest dostępne bez logowania."
+                ),
+            )
+            info.Wrap(560)
+            calendar_box.Add(info, 0, wx.ALL | wx.EXPAND, 12)
+        sizer.Add(calendar_box, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
         buttons = wx.StdDialogButtonSizer()
-        self.ok_button = wx.Button(self, wx.ID_OK, "&Zapisz")
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        self.save_button = wx.Button(
+            self,
+            wx.ID_OK,
+            localized("&Zapisz", "&Save"),
+        )
+        self.cancel_button = wx.Button(
+            self,
+            wx.ID_CANCEL,
+            localized("&Anuluj", "&Cancel"),
+        )
         for control, name, shortcut, description in (
             (
-                self.ok_button,
-                "Zapisz",
-                "Alt+Z",
-                "Zapisuje wybór kalendarzy.",
+                self.save_button,
+                tr("Zapisz"),
+                _alt("Z", "S"),
+                tr("Zapisuje ustawienia aplikacji."),
             ),
             (
                 self.cancel_button,
-                "Anuluj",
-                "Alt+A",
-                "Zamyka okno bez zmieniania wyboru kalendarzy.",
+                tr("Anuluj"),
+                _alt("A", "C"),
+                tr("Zamyka ustawienia bez zapisywania zmian."),
             ),
         ):
             accessible = apply_accessible_name(
@@ -474,24 +611,52 @@ class CalendarSelectionDialog(wx.Dialog):
             )
             if accessible is not None:
                 self._accessible_objects.append(accessible)
-        self.ok_button.SetDefault()
-        buttons.AddButton(self.ok_button)
+        self.save_button.SetDefault()
+        buttons.AddButton(self.save_button)
         buttons.AddButton(self.cancel_button)
         buttons.Realize()
         sizer.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
 
         self.SetSizerAndFit(sizer)
-        self.SetMinSize((650, 450))
+        self.SetMinSize((650, 430))
         self.SetSize((700, 520))
         self.CentreOnParent()
-        wx.CallAfter((self._checkboxes[0] if self._checkboxes else self.cancel_button).SetFocus)
+        self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
+        wx.CallAfter(
+            (
+                self.language_ctrl
+                if not self._checkboxes
+                else self.language_ctrl
+            ).SetFocus
+        )
+
+    def _on_save(self, event: wx.CommandEvent) -> None:
+        if self._calendars and not self.selected_ids():
+            wx.MessageBox(
+                tr("Zaznacz co najmniej jeden kalendarz."),
+                tr("Wybór kalendarzy"),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            if self._checkboxes:
+                self._checkboxes[0].SetFocus()
+            return
+        self.EndModal(wx.ID_OK)
 
     def selected_ids(self) -> list[str]:
+        if not self._calendars:
+            return list(self._original_selected_ids)
         return [
             calendar.calendar_id
             for calendar, checkbox in zip(self._calendars, self._checkboxes)
             if checkbox.GetValue()
         ]
+
+    def language_preference(self) -> str:
+        index = self.language_ctrl.GetSelection()
+        if 0 <= index < len(self._language_values):
+            return self._language_values[index]
+        return self._language_values[0]
 
 
 class SearchDialog(wx.Dialog):
@@ -503,7 +668,7 @@ class SearchDialog(wx.Dialog):
     ) -> None:
         super().__init__(
             parent,
-            title="Wyszukaj wydarzenia",
+            title=tr("Wyszukaj wydarzenia"),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self._criteria: SearchCriteria | None = None
@@ -512,9 +677,8 @@ class SearchDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         intro = wx.StaticText(
             self,
-            label=(
-                "Wyszukiwanie obejmuje wybrane kalendarze Google. "
-                "Data początkowa i końcowa należą do zakresu."
+            label=tr(
+                "Wyszukiwanie obejmuje wybrane kalendarze Google. Data początkowa i końcowa należą do zakresu."
             ),
         )
         intro.Wrap(620)
@@ -522,62 +686,89 @@ class SearchDialog(wx.Dialog):
 
         form = wx.FlexGridSizer(cols=2, vgap=10, hgap=12)
         form.AddGrowableCol(1, 1)
-
         self.query_ctrl = wx.TextCtrl(self)
         self.start_date_ctrl = wx.TextCtrl(
             self,
-            value=default_start.strftime("%d.%m.%Y"),
+            value=format_short_date(default_start),
         )
         self.end_date_ctrl = wx.TextCtrl(
             self,
-            value=default_end.strftime("%d.%m.%Y"),
+            value=format_short_date(default_end),
         )
 
         self._add_accessible_name(
             self.query_ctrl,
-            "Szukany tekst",
-            "Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza.",
+            tr("Szukany tekst"),
+            tr("Wpisz fragment tytułu, opisu, lokalizacji albo nazwy kalendarza."),
         )
         self._add_accessible_name(
             self.start_date_ctrl,
-            "Data początkowa wyszukiwania, DD.MM.RRRR",
-            "Pierwszy dzień zakresu wyszukiwania, podawany włącznie.",
+            tr("Data początkowa wyszukiwania, DD.MM.RRRR lub RRRR-MM-DD"),
+            tr("Pierwszy dzień zakresu wyszukiwania, podawany włącznie."),
         )
         self._add_accessible_name(
             self.end_date_ctrl,
-            "Data końcowa wyszukiwania, DD.MM.RRRR",
-            "Ostatni dzień zakresu wyszukiwania, podawany włącznie.",
+            tr("Data końcowa wyszukiwania, DD.MM.RRRR lub RRRR-MM-DD"),
+            tr("Ostatni dzień zakresu wyszukiwania, podawany włącznie."),
         )
 
-        form.Add(wx.StaticText(self, label="Szukany tekst:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(
+            wx.StaticText(self, label=tr("Szukany tekst:")),
+            0,
+            wx.ALIGN_CENTER_VERTICAL,
+        )
         form.Add(self.query_ctrl, 1, wx.EXPAND)
-        form.Add(wx.StaticText(self, label="Data początkowa, DD.MM.RRRR:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(
+            wx.StaticText(
+                self,
+                label=tr("Data początkowa, DD.MM.RRRR lub RRRR-MM-DD:"),
+            ),
+            0,
+            wx.ALIGN_CENTER_VERTICAL,
+        )
         form.Add(self.start_date_ctrl, 1, wx.EXPAND)
-        form.Add(wx.StaticText(self, label="Data końcowa, DD.MM.RRRR:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        form.Add(
+            wx.StaticText(
+                self,
+                label=tr("Data końcowa, DD.MM.RRRR lub RRRR-MM-DD:"),
+            ),
+            0,
+            wx.ALIGN_CENTER_VERTICAL,
+        )
         form.Add(self.end_date_ctrl, 1, wx.EXPAND)
         sizer.Add(form, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
         note = wx.StaticText(
             self,
-            label="Duży zakres może zawierać wiele wydarzeń, ale wyszukiwanie nie blokuje głównego okna.",
+            label=tr(
+                "Duży zakres może zawierać wiele wydarzeń, ale wyszukiwanie nie blokuje głównego okna."
+            ),
         )
         note.Wrap(620)
         sizer.Add(note, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
         buttons = wx.StdDialogButtonSizer()
-        self.search_button = wx.Button(self, wx.ID_OK, "Wy&szukaj")
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        self.search_button = wx.Button(
+            self,
+            wx.ID_OK,
+            localized("Wy&szukaj", "&Search"),
+        )
+        self.cancel_button = wx.Button(
+            self,
+            wx.ID_CANCEL,
+            localized("&Anuluj", "&Cancel"),
+        )
         self._add_accessible_name(
             self.search_button,
-            "Wyszukaj",
-            "Rozpoczyna wyszukiwanie w podanym zakresie.",
-            "Alt+S",
+            tr("Wyszukaj"),
+            tr("Rozpoczyna wyszukiwanie w podanym zakresie."),
+            _alt("S", "S"),
         )
         self._add_accessible_name(
             self.cancel_button,
-            "Anuluj",
-            "Zamyka formularz wyszukiwania.",
-            "Alt+A",
+            tr("Anuluj"),
+            tr("Zamyka formularz wyszukiwania."),
+            _alt("A", "C"),
         )
         self.search_button.SetDefault()
         buttons.AddButton(self.search_button)
@@ -589,7 +780,6 @@ class SearchDialog(wx.Dialog):
         self.SetMinSize((680, 330))
         self.SetSize((720, 370))
         self.CentreOnParent()
-
         self.search_button.Bind(wx.EVT_BUTTON, self._on_search)
         wx.CallAfter(self.query_ctrl.SetFocus)
 
@@ -613,14 +803,14 @@ class SearchDialog(wx.Dialog):
         try:
             criteria = SearchCriteria(
                 query=self.query_ctrl.GetValue().strip(),
-                start_date=parse_polish_date(self.start_date_ctrl.GetValue()),
-                end_date_inclusive=parse_polish_date(self.end_date_ctrl.GetValue()),
+                start_date=parse_date_input(self.start_date_ctrl.GetValue()),
+                end_date_inclusive=parse_date_input(self.end_date_ctrl.GetValue()),
             )
             criteria.validate()
         except ValueError as error:
             wx.MessageBox(
                 str(error),
-                "Nieprawidłowe dane wyszukiwania",
+                tr("Nieprawidłowe dane wyszukiwania"),
                 wx.OK | wx.ICON_ERROR,
                 self,
             )
@@ -639,43 +829,63 @@ class SearchResultsDialog(wx.Dialog):
         events: list[CalendarEvent],
         criteria: SearchCriteria,
     ) -> None:
-        super().__init__(parent, title="Wyniki wyszukiwania", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super().__init__(
+            parent,
+            title=tr("Wyniki wyszukiwania"),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
         self._events = events
         self.selected_event: CalendarEvent | None = None
         self._accessible_objects: list[wx.Accessible] = []
         sizer = wx.BoxSizer(wx.VERTICAL)
         summary = wx.StaticText(
             self,
-            label=(
-                f"Znaleziono: {count_text(len(events))}. "
-                f"Zakres od {criteria.start_date:%d.%m.%Y} "
-                f"do {criteria.end_date_inclusive:%d.%m.%Y} włącznie."
+            label=tr(
+                "Znaleziono: {count}. Zakres od {start} do {end} włącznie.",
+                count=count_text(len(events)),
+                start=format_short_date(criteria.start_date),
+                end=format_short_date(criteria.end_date_inclusive),
             ),
         )
         summary.Wrap(700)
         sizer.Add(summary, 0, wx.ALL | wx.EXPAND, 12)
-        choices = [f"{format_full_date(event.start_date)}, {event.display_text(event.start_date)}" for event in events]
+        choices = [
+            f"{format_full_date(event.start_date)}, "
+            f"{event.display_text(event.start_date)}"
+            for event in events
+        ]
         self.results = wx.ListBox(self, choices=choices, style=wx.LB_SINGLE)
-        self.results.SetName(f"Wyniki wyszukiwania, {len(events)} elementów")
+        self.results.SetName(
+            tr("Wyniki wyszukiwania, {count} elementów", count=len(events))
+        )
         self.results.SetMinSize((680, 300))
         if events:
             self.results.SetSelection(0)
         sizer.Add(self.results, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
+
         buttons = wx.StdDialogButtonSizer()
-        self.open_button = wx.Button(self, wx.ID_OK, "&Przejdź do wydarzenia")
-        self.close_button = wx.Button(self, wx.ID_CANCEL, "&Zamknij")
+        self.open_button = wx.Button(
+            self,
+            wx.ID_OK,
+            localized("&Przejdź do wydarzenia", "&Go to event"),
+        )
+        self.close_button = wx.Button(
+            self,
+            wx.ID_CANCEL,
+            localized("&Zamknij", "&Close"),
+        )
         for control, name, shortcut, description in (
             (
                 self.open_button,
-                "Przejdź do wydarzenia",
-                "Alt+P",
-                "Przechodzi do zaznaczonego wyniku w głównym oknie.",
+                tr("Przejdź do wydarzenia"),
+                _alt("P", "G"),
+                tr("Przechodzi do zaznaczonego wyniku w głównym oknie."),
             ),
             (
                 self.close_button,
-                "Zamknij",
-                "Alt+Z",
-                "Zamyka wyniki wyszukiwania.",
+                tr("Zamknij"),
+                _alt("Z", "C"),
+                tr("Zamyka wyniki wyszukiwania."),
             ),
         ):
             accessible = apply_accessible_name(
@@ -697,13 +907,16 @@ class SearchResultsDialog(wx.Dialog):
         self.CentreOnParent()
         self.open_button.Bind(wx.EVT_BUTTON, self._on_open)
         self.results.Bind(wx.EVT_LISTBOX_DCLICK, self._on_open)
-        wx.CallAfter((self.results if events else self.close_button).SetFocus)
+        wx.CallAfter(
+            (self.results if events else self.close_button).SetFocus
+        )
 
     def _on_open(self, event: wx.Event) -> None:
         index = self.results.GetSelection()
         if 0 <= index < len(self._events):
             self.selected_event = self._events[index]
             self.EndModal(wx.ID_OK)
+
 
 class MeetingLinkDialog(wx.Dialog):
     def __init__(
@@ -714,7 +927,7 @@ class MeetingLinkDialog(wx.Dialog):
     ) -> None:
         super().__init__(
             parent,
-            title="Link spotkania",
+            title=tr("Link spotkania"),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self.action = ""
@@ -723,7 +936,10 @@ class MeetingLinkDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         provider = wx.StaticText(
             self,
-            label=f"Rodzaj spotkania: {meeting_label or 'spotkanie online'}",
+            label=tr(
+                "Rodzaj spotkania: {meeting}",
+                meeting=meeting_label or tr("spotkanie online"),
+            ),
         )
         sizer.Add(provider, 0, wx.ALL | wx.EXPAND, 12)
 
@@ -735,25 +951,55 @@ class MeetingLinkDialog(wx.Dialog):
         url_ctrl.SetMinSize((620, -1))
         accessible = apply_accessible_name(
             url_ctrl,
-            "Adres spotkania",
-            "Adres można zaznaczyć i skopiować ręcznie.",
+            tr("Adres spotkania"),
+            tr("Adres można zaznaczyć i skopiować ręcznie."),
         )
         if accessible is not None:
             self._accessible_objects.append(accessible)
         sizer.Add(url_ctrl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
         buttons = wx.BoxSizer(wx.HORIZONTAL)
-        self.open_button = wx.Button(self, label="&Otwórz link")
-        self.copy_button = wx.Button(self, label="&Kopiuj link")
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, "&Anuluj")
+        self.open_button = wx.Button(
+            self,
+            label=localized("&Otwórz link", "&Open link"),
+        )
+        self.copy_button = wx.Button(
+            self,
+            label=localized("&Kopiuj link", "&Copy link"),
+        )
+        self.cancel_button = wx.Button(
+            self,
+            wx.ID_CANCEL,
+            localized("&Anuluj", "&Cancel"),
+        )
         self.open_button.SetDefault()
 
         for control, name, shortcut, description in (
-            (self.open_button, "Otwórz link", "Alt+O", "Otwiera spotkanie w domyślnej przeglądarce."),
-            (self.copy_button, "Kopiuj link", "Alt+K", "Kopiuje adres spotkania do schowka."),
-            (self.cancel_button, "Anuluj", "Alt+A", "Zamyka okno bez wykonywania działania."),
+            (
+                self.open_button,
+                tr("Otwórz link"),
+                _alt("O", "O"),
+                tr("Otwiera spotkanie w domyślnej przeglądarce."),
+            ),
+            (
+                self.copy_button,
+                tr("Kopiuj link"),
+                _alt("K", "C"),
+                tr("Kopiuje adres spotkania do schowka."),
+            ),
+            (
+                self.cancel_button,
+                tr("Anuluj"),
+                _alt("A", "C"),
+                tr("Zamyka okno bez wykonywania działania."),
+            ),
         ):
-            accessible = apply_accessible_name(control, name, description, shortcut)
+            accessible = apply_accessible_name(
+                control,
+                name,
+                description,
+                shortcut,
+            )
             if accessible is not None:
                 self._accessible_objects.append(accessible)
 
@@ -765,7 +1011,6 @@ class MeetingLinkDialog(wx.Dialog):
         self.SetSizerAndFit(sizer)
         self.SetMinSize((680, 220))
         self.CentreOnParent()
-
         self.open_button.Bind(wx.EVT_BUTTON, self._on_open)
         self.copy_button.Bind(wx.EVT_BUTTON, self._on_copy)
         wx.CallAfter(self.open_button.SetFocus)
@@ -783,7 +1028,7 @@ class HelpDialog(wx.Dialog):
     def __init__(self, parent: wx.Window, help_text: str) -> None:
         super().__init__(
             parent,
-            title="Pomoc i skróty klawiaturowe",
+            title=tr("Pomoc i skróty klawiaturowe"),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self._accessible_objects: list[wx.Accessible] = []
@@ -797,24 +1042,33 @@ class HelpDialog(wx.Dialog):
         text.SetMinSize((720, 440))
         accessible = apply_accessible_name(
             text,
-            "Treść pomocy i lista skrótów",
-            "Czytaj strzałkami. Tekst można zaznaczać i kopiować.",
+            tr("Treść pomocy i lista skrótów"),
+            tr("Czytaj strzałkami. Tekst można zaznaczać i kopiować."),
         )
         if accessible is not None:
             self._accessible_objects.append(accessible)
         sizer.Add(text, 1, wx.ALL | wx.EXPAND, 12)
 
-        close_button = wx.Button(self, wx.ID_OK, "&Zamknij")
+        close_button = wx.Button(
+            self,
+            wx.ID_OK,
+            localized("&Zamknij", "&Close"),
+        )
         close_button.SetDefault()
         accessible = apply_accessible_name(
             close_button,
-            "Zamknij",
-            "Zamyka pomoc i wraca do głównego okna.",
-            "Alt+Z",
+            tr("Zamknij"),
+            tr("Zamyka pomoc i wraca do głównego okna."),
+            _alt("Z", "C"),
         )
         if accessible is not None:
             self._accessible_objects.append(accessible)
-        sizer.Add(close_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 12)
+        sizer.Add(
+            close_button,
+            0,
+            wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT,
+            12,
+        )
 
         self.SetSizerAndFit(sizer)
         self.SetMinSize((760, 520))

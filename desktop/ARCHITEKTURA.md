@@ -162,3 +162,24 @@ Aplikacja wyłącznie odczytuje istniejące dane konferencji. Nie generuje Meet,
 nie modyfikuje `conferenceData` i nie rozszerza zakresów OAuth. Otwieranie
 wydarzenia w Google stanowi świadomą granicę między prostą obsługą w GCM a
 zaawansowaną edycją w oficjalnym interfejsie.
+
+
+## Etap 0.11.0 — internacjonalizacja i wspólne ustawienia
+
+Warstwa `gcm_core.i18n` przechowuje stabilne polskie komunikaty źródłowe i
+kontrolowane tłumaczenia angielskie. `tr()` zwraca tekst aktywnego języka, a
+`localized()` służy tylko do krótkich elementów wymagających innej litery
+mnemonicznej w każdym języku. Aplikacja nie wykonuje tłumaczeń sieciowych.
+
+Ustawienie języka ma wartości `auto`, `pl` i `en`. Tryb `auto` odczytuje język
+interfejsu Windows; dla polskiego wybiera polski, a dla pozostałych angielski.
+Ręczny wybór ma pierwszeństwo i zaczyna działać po ponownym uruchomieniu.
+
+`AppSettings` przechowuje razem język oraz identyfikatory wybranych kalendarzy.
+Brak pola `language` w starszym `settings.json` jest automatycznie migrowany do
+`auto`. Główne okno ma jeden przycisk Ustawienia zamiast osobnego przycisku
+wyboru kalendarzy. `Ctrl+,` i zachowany `Ctrl+K` otwierają ten sam dialog.
+
+Daty wejściowe są niezależne od tłumaczenia: parser akceptuje `DD.MM.RRRR` oraz
+ISO `RRRR-MM-DD`. Nazwy dni, miesięcy, liczebniki, szczegóły wydarzeń i
+komunikaty błędów są formatowane przez aktywną warstwę językową.

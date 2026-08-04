@@ -6,31 +6,37 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
-POLISH_MONTHS = (
-    "", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
-    "lipca", "sierpnia", "września", "października", "listopada", "grudnia",
-)
-POLISH_MONTHS_NOMINATIVE = (
-    "", "styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec",
-    "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień",
-)
-POLISH_WEEKDAYS = (
-    "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela",
+from .i18n import (
+    MONTHS_GENITIVE,
+    MONTHS_NOMINATIVE,
+    WEEKDAYS,
+    get_language,
+    tr,
 )
 
-
-
-RECURRENCE_CHOICES = (
-    ("none", "Nie powtarza się"),
-    ("daily", "Codziennie"),
-    ("weekly", "Co tydzień"),
-    ("monthly", "Co miesiąc"),
-    ("quarterly", "Co 3 miesiące"),
-    ("semiannual", "Co 6 miesięcy"),
-    ("yearly", "Co rok"),
+RECURRENCE_MODES = (
+    "none",
+    "daily",
+    "weekly",
+    "monthly",
+    "quarterly",
+    "semiannual",
+    "yearly",
 )
-RECURRENCE_LABELS = dict(RECURRENCE_CHOICES)
+RECURRENCE_LABEL_MSGIDS = {
+    "none": "Nie powtarza się",
+    "daily": "Codziennie",
+    "weekly": "Co tydzień",
+    "monthly": "Co miesiąc",
+    "quarterly": "Co 3 miesiące",
+    "semiannual": "Co 6 miesięcy",
+    "yearly": "Co rok",
+}
 RRULE_WEEKDAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+
+
+def recurrence_choices() -> tuple[tuple[str, str], ...]:
+    return tuple((mode, tr(RECURRENCE_LABEL_MSGIDS[mode])) for mode in RECURRENCE_MODES)
 
 
 def normalize_web_url(value: object) -> str:
@@ -77,7 +83,7 @@ def meeting_info_from_google(item: dict) -> tuple[str, str]:
                 continue
             uri = normalize_web_url(entry.get("uri"))
             if uri:
-                return uri, solution_name or "Spotkanie online"
+                return uri, solution_name or tr("Spotkanie online")
 
     return "", ""
 
@@ -96,39 +102,39 @@ class RecurrenceSettings:
     @property
     def label(self) -> str:
         if not self.supported:
-            return "zaawansowany cykl"
-        return RECURRENCE_LABELS.get(self.mode, self.mode)
+            return tr("zaawansowany cykl")
+        return tr(RECURRENCE_LABEL_MSGIDS.get(self.mode, self.mode))
 
     def validate(self, start_date: dt.date) -> None:
-        if self.mode not in RECURRENCE_LABELS:
-            raise ValueError("Wybrany rodzaj powtarzania nie jest obsługiwany.")
+        if self.mode not in RECURRENCE_LABEL_MSGIDS:
+            raise ValueError(tr("Wybrany rodzaj powtarzania nie jest obsługiwany."))
         if self.mode == "none":
             return
         if self.end_date_inclusive is not None and self.end_date_inclusive < start_date:
             raise ValueError(
-                "Data zakończenia cyklu nie może być wcześniejsza od daty rozpoczęcia."
+                tr("Data zakończenia cyklu nie może być wcześniejsza od daty rozpoczęcia.")
             )
 
     def display_text(self) -> str:
         if not self.supported:
-            return "zaawansowany cykl utworzony poza GCM"
+            return tr("zaawansowany cykl utworzony poza GCM")
         if not self.is_recurring:
-            return "nie powtarza się"
+            return tr("Nie powtarza się").lower() if get_language() == "pl" else tr("Nie powtarza się")
         if self.end_date_inclusive is None:
-            return f"{self.label}, bez daty zakończenia"
-        return f"{self.label}, do {format_short_date(self.end_date_inclusive)} włącznie"
+            return tr("{label}, bez daty zakończenia", label=self.label)
+        return tr("{label}, do {date} włącznie", label=self.label, date=format_short_date(self.end_date_inclusive))
 
 
 def recurrence_mode_index(mode: str) -> int:
-    for index, (value, _label) in enumerate(RECURRENCE_CHOICES):
+    for index, value in enumerate(RECURRENCE_MODES):
         if value == mode:
             return index
     return 0
 
 
 def recurrence_mode_from_index(index: int) -> str:
-    if 0 <= index < len(RECURRENCE_CHOICES):
-        return RECURRENCE_CHOICES[index][0]
+    if 0 <= index < len(RECURRENCE_MODES):
+        return RECURRENCE_MODES[index]
     return "none"
 
 
@@ -262,9 +268,9 @@ class SearchCriteria:
 
     def validate(self) -> None:
         if not self.query.strip():
-            raise ValueError("Wpisz tekst do wyszukania.")
+            raise ValueError(tr("Wpisz tekst do wyszukania."))
         if self.end_date_inclusive < self.start_date:
-            raise ValueError("Data końcowa wyszukiwania nie może być wcześniejsza niż początkowa.")
+            raise ValueError(tr("Data końcowa wyszukiwania nie może być wcześniejsza niż początkowa."))
 
     @property
     def end_date_exclusive(self) -> dt.date:
@@ -300,22 +306,22 @@ class EventDraft:
 
     def validate(self) -> None:
         if not self.calendar_id.strip():
-            raise ValueError("Wybierz kalendarz.")
+            raise ValueError(tr("Wybierz kalendarz."))
         if not self.title.strip():
-            raise ValueError("Wpisz tytuł wydarzenia.")
+            raise ValueError(tr("Wpisz tytuł wydarzenia."))
         if self.end_date_inclusive < self.start_date:
-            raise ValueError("Data zakończenia nie może być wcześniejsza od daty rozpoczęcia.")
+            raise ValueError(tr("Data zakończenia nie może być wcześniejsza od daty rozpoczęcia."))
         self.recurrence.validate(self.start_date)
         if self.all_day:
             return
         if self.start_time is None:
-            raise ValueError("Podaj godzinę rozpoczęcia.")
+            raise ValueError(tr("Podaj godzinę rozpoczęcia."))
         if self.end_time is None:
-            raise ValueError("Podaj godzinę zakończenia.")
+            raise ValueError(tr("Podaj godzinę zakończenia."))
         start = dt.datetime.combine(self.start_date, self.start_time)
         end = dt.datetime.combine(self.end_date_inclusive, self.end_time)
         if end <= start:
-            raise ValueError("Koniec wydarzenia musi być późniejszy od początku.")
+            raise ValueError(tr("Koniec wydarzenia musi być późniejszy od początku."))
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,7 +381,7 @@ class CalendarEvent:
                 recurrence=self.recurrence,
             )
         if self.start_dt is None or self.end_dt is None:
-            raise ValueError("Wydarzenie godzinowe nie ma pełnych danych czasu.")
+            raise ValueError(tr("Wydarzenie godzinowe nie ma pełnych danych czasu."))
         return EventDraft(
             calendar_id=self.calendar_id,
             title=self.title,
@@ -396,57 +402,75 @@ class CalendarEvent:
         if self.all_day:
             if self.end_date_exclusive > self.start_date + dt.timedelta(days=1):
                 end_inclusive = self.end_date_exclusive - dt.timedelta(days=1)
-                timing = (
-                    f"cały dzień, wydarzenie wielodniowe od "
-                    f"{format_short_date(self.start_date)} do {format_short_date(end_inclusive)}"
+                timing = tr(
+                    "cały dzień, wydarzenie wielodniowe od {start} do {end}",
+                    start=format_short_date(self.start_date),
+                    end=format_short_date(end_inclusive),
                 )
             else:
-                timing = "cały dzień"
+                timing = tr("cały dzień")
         elif self.start_dt and self.end_dt:
             if self.start_dt.date() == selected_day:
                 timing = f"{self.start_dt:%H:%M}–{self.end_dt:%H:%M}"
             else:
-                timing = f"trwa od {format_short_datetime(self.start_dt)}"
+                timing = tr(
+                    "trwa od {start}",
+                    start=format_short_datetime(self.start_dt),
+                )
         else:
-            timing = "bez określonej godziny"
-        return f"{timing}, {self.title}, kalendarz {self.calendar_name}"
+            timing = tr("bez określonej godziny")
+        return tr(
+            "{timing}, {title}, kalendarz {calendar}",
+            timing=timing,
+            title=self.title,
+            calendar=self.calendar_name,
+        )
 
     def details_text(self) -> str:
         lines = [
-            f"Tytuł: {self.title}",
-            f"Kalendarz: {self.calendar_name}",
+            tr("Tytuł: {title}", title=self.title),
+            tr("Kalendarz: {calendar}", calendar=self.calendar_name),
         ]
         if self.all_day:
             end_inclusive = self.end_date_exclusive - dt.timedelta(days=1)
             if end_inclusive == self.start_date:
-                lines.append(f"Data: {format_full_date(self.start_date)}")
-                lines.append("Czas: wydarzenie całodniowe")
+                lines.append(tr("Data: {date}", date=format_full_date(self.start_date)))
+                lines.append(tr("Czas: wydarzenie całodniowe"))
             else:
                 lines.append(
-                    f"Zakres: {format_full_date(self.start_date)} — "
-                    f"{format_full_date(end_inclusive)}"
+                    tr(
+                        "Zakres: {start} — {end}",
+                        start=format_full_date(self.start_date),
+                        end=format_full_date(end_inclusive),
+                    )
                 )
-                lines.append("Czas: wydarzenie całodniowe, wielodniowe")
+                lines.append(tr("Czas: wydarzenie całodniowe, wielodniowe"))
         elif self.start_dt and self.end_dt:
-            lines.append(f"Początek: {format_full_datetime(self.start_dt)}")
-            lines.append(f"Koniec: {format_full_datetime(self.end_dt)}")
+            lines.append(tr("Początek: {start}", start=format_full_datetime(self.start_dt)))
+            lines.append(tr("Koniec: {end}", end=format_full_datetime(self.end_dt)))
         if self.is_recurring_instance:
-            lines.append("Powtarzanie: wydarzenie należy do cyklu")
+            lines.append(tr("Powtarzanie: wydarzenie należy do cyklu"))
         elif self.recurrence.is_recurring or not self.recurrence.supported:
-            lines.append(f"Powtarzanie: {self.recurrence.display_text()}")
-        lines.append(f"Lokalizacja: {self.location or 'brak'}")
-        lines.append(f"Opis: {self.description or 'brak'}")
+            lines.append(tr("Powtarzanie: {recurrence}", recurrence=self.recurrence.display_text()))
+        lines.append(tr("Lokalizacja: {location}", location=self.location or tr("brak")))
+        lines.append(tr("Opis: {description}", description=self.description or tr("brak")))
         if self.has_meeting_link:
-            lines.append(f"Spotkanie online: {self.meeting_label or 'dostępne'}")
-            lines.append(f"Link spotkania: {self.meeting_url}")
+            lines.append(
+                tr(
+                    "Spotkanie online: {meeting}",
+                    meeting=self.meeting_label or tr("dostępne"),
+                )
+            )
+            lines.append(tr("Link spotkania: {url}", url=self.meeting_url))
         else:
-            lines.append("Spotkanie online: brak linku")
+            lines.append(tr("Spotkanie online: brak linku"))
         lines.append(
-            "Strona wydarzenia w Kalendarzu Google: dostępna"
+            tr("Strona wydarzenia w Kalendarzu Google: dostępna")
             if self.can_open_in_google
-            else "Strona wydarzenia w Kalendarzu Google: niedostępna"
+            else tr("Strona wydarzenia w Kalendarzu Google: niedostępna")
         )
         return "\n".join(lines)
+
 
 
 class EventCollection:
@@ -532,7 +556,7 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
             event_id=str(item.get("id") or ""),
             calendar_id=calendar.calendar_id,
             calendar_name=calendar.name,
-            title=str(item.get("summary") or "Bez tytułu"),
+            title=str(item.get("summary") or tr("Bez tytułu")),
             all_day=True,
             start_date=start_date,
             end_date_exclusive=end_date,
@@ -565,7 +589,7 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
         event_id=str(item.get("id") or ""),
         calendar_id=calendar.calendar_id,
         calendar_name=calendar.name,
-        title=str(item.get("summary") or "Bez tytułu"),
+        title=str(item.get("summary") or tr("Bez tytułu")),
         all_day=False,
         start_date=start_dt.date(),
         end_date_exclusive=end_marker.date() + dt.timedelta(days=1),
@@ -595,7 +619,12 @@ def event_from_google(item: dict, calendar: CalendarInfo) -> CalendarEvent:
 
 
 def format_full_date(value: dt.date) -> str:
-    return f"{POLISH_WEEKDAYS[value.weekday()]}, {value.day} {POLISH_MONTHS[value.month]} {value.year}"
+    language = get_language()
+    weekday = WEEKDAYS[language][value.weekday()]
+    month = MONTHS_GENITIVE[language][value.month]
+    if language == "pl":
+        return f"{weekday}, {value.day} {month} {value.year}"
+    return f"{weekday}, {value.day} {month} {value.year}"
 
 
 def format_short_date(value: dt.date) -> str:
@@ -607,42 +636,67 @@ def format_full_datetime(value: dt.datetime) -> str:
 
 
 def format_short_datetime(value: dt.datetime) -> str:
-    return f"{value:%d.%m.%Y, %H:%M}"
+    return f"{format_short_date(value.date())}, {value:%H:%M}"
 
 
 def format_month(year: int, month: int) -> str:
-    return f"{POLISH_MONTHS_NOMINATIVE[month]} {year}"
+    return f"{MONTHS_NOMINATIVE[get_language()][month]} {year}"
 
 
 def count_text(count: int) -> str:
     if count == 0:
-        return "brak wydarzeń"
+        return tr("brak wydarzeń")
     if count == 1:
-        return "1 wydarzenie"
+        return tr("1 wydarzenie")
     if 2 <= count <= 4:
-        return f"{count} wydarzenia"
-    return f"{count} wydarzeń"
+        return tr("{count} wydarzenia", count=count)
+    return tr("{count} wydarzeń", count=count)
 
 
-def parse_polish_date(text: str) -> dt.date:
-    cleaned = str(text or "").strip().replace("/", ".").replace("-", ".")
-    parts = [part.strip() for part in cleaned.split(".") if part.strip()]
+def parse_date_input(text: str) -> dt.date:
+    cleaned = str(text or "").strip()
+    if not cleaned:
+        raise ValueError(tr("Podaj datę w formacie DD.MM.RRRR lub RRRR-MM-DD."))
+
+    # ISO is accepted in both interface languages. Other separators use the
+    # unambiguous day-month-year order.
+    if len(cleaned) >= 8 and cleaned[4:5] in {"-", "/", "."}:
+        iso_parts = cleaned.replace("/", "-").replace(".", "-").split("-")
+        if len(iso_parts) == 3 and len(iso_parts[0]) == 4:
+            try:
+                year, month, day = (int(part.strip()) for part in iso_parts)
+                return dt.date(year, month, day)
+            except (TypeError, ValueError) as error:
+                raise ValueError(tr("Podana data jest nieprawidłowa.")) from error
+
+    normalized = cleaned.replace("/", ".").replace("-", ".")
+    parts = [part.strip() for part in normalized.split(".") if part.strip()]
     if len(parts) != 3:
-        raise ValueError("Podaj datę w formacie DD.MM.RRRR.")
+        raise ValueError(tr("Podaj datę w formacie DD.MM.RRRR lub RRRR-MM-DD."))
     try:
         day, month, year = (int(part) for part in parts)
         return dt.date(year, month, day)
     except (TypeError, ValueError) as error:
-        raise ValueError("Podana data jest nieprawidłowa.") from error
+        raise ValueError(tr("Podana data jest nieprawidłowa.")) from error
 
 
-def parse_polish_time(text: str) -> dt.time:
+def parse_polish_date(text: str) -> dt.date:
+    """Backward-compatible alias used by older callers and tests."""
+    return parse_date_input(text)
+
+
+def parse_time_input(text: str) -> dt.time:
     cleaned = str(text or "").strip().replace(".", ":")
     parts = [part.strip() for part in cleaned.split(":")]
     if len(parts) != 2:
-        raise ValueError("Podaj godzinę w formacie GG:MM.")
+        raise ValueError(tr("Podaj godzinę w formacie GG:MM."))
     try:
         hour, minute = (int(part) for part in parts)
         return dt.time(hour, minute)
     except (TypeError, ValueError) as error:
-        raise ValueError("Podana godzina jest nieprawidłowa.") from error
+        raise ValueError(tr("Podana godzina jest nieprawidłowa.")) from error
+
+
+def parse_polish_time(text: str) -> dt.time:
+    """Backward-compatible alias used by older callers and tests."""
+    return parse_time_input(text)

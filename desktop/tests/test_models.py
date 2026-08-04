@@ -9,6 +9,7 @@ from gcm_core.calendar_api import (
     recurrence_until_before,
     trim_recurrence_before,
 )
+from gcm_core.i18n import set_language
 from gcm_core.models import (
     CalendarInfo,
     EventCollection,
@@ -24,8 +25,12 @@ from gcm_core.models import (
 )
 
 
+set_language("pl")
+
+
 class ModelTests(unittest.TestCase):
     def setUp(self) -> None:
+        set_language("pl")
         self.calendar = CalendarInfo("cal-1", "Familijne", primary=True)
 
     def test_month_range(self) -> None:

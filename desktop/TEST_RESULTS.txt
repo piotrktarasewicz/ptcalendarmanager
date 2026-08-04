@@ -1,15 +1,15 @@
-GCM by Piotrek 0.10.0 — wyniki testów automatycznych
+GCM by Piotrek 0.11.0 — wyniki testów automatycznych
 
-Spreadsheet runtime warmup failed during python startup
-Traceback (most recent call last):
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
-artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
+test_both_date_input_formats_are_accepted (test_i18n.EnglishPresentationTests.test_both_date_input_formats_are_accepted) ... ok
+test_dates_counts_and_recurrence_are_english (test_i18n.EnglishPresentationTests.test_dates_counts_and_recurrence_are_english) ... ok
+test_event_details_are_english (test_i18n.EnglishPresentationTests.test_event_details_are_english) ... ok
+test_automatic_language_uses_polish_only_for_polish_system (test_i18n.LanguageResolutionTests.test_automatic_language_uses_polish_only_for_polish_system) ... ok
+test_language_labels_are_localized (test_i18n.LanguageResolutionTests.test_language_labels_are_localized) ... ok
+test_manual_choice_overrides_system_language (test_i18n.LanguageResolutionTests.test_manual_choice_overrides_system_language) ... ok
+test_language_and_calendars_are_saved_together (test_i18n.SettingsMigrationTests.test_language_and_calendars_are_saved_together) ... ok
+test_old_settings_without_language_migrate_to_auto (test_i18n.SettingsMigrationTests.test_old_settings_without_language_migrate_to_auto) ... ok
+test_every_constant_tr_key_has_an_english_translation (test_i18n.TranslationCoverageTests.test_every_constant_tr_key_has_an_english_translation) ... ok
+test_translation_function_formats_values (test_i18n.TranslationCoverageTests.test_translation_function_formats_values) ... ok
 test_advanced_series_is_rejected_for_whole_series_edit (test_models.BasicRecurrenceTests.test_advanced_series_is_rejected_for_whole_series_edit) ... ok
 test_one_off_event_can_be_converted_to_cycle (test_models.BasicRecurrenceTests.test_one_off_event_can_be_converted_to_cycle) ... ok
 test_parser_accepts_simple_rules_from_google_ui (test_models.BasicRecurrenceTests.test_parser_accepts_simple_rules_from_google_ui) ... ok
@@ -66,17 +66,17 @@ test_search_rejects_empty_query (test_models.SearchRangeTests.test_search_reject
 test_search_rejects_reversed_range (test_models.SearchRangeTests.test_search_rejects_reversed_range) ... ok
 
 ----------------------------------------------------------------------
-Ran 54 tests in 0.003s
+Ran 64 tests in 0.039s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Kontrola struktury AST i powielonych metod: OK
-Odczyt htmlLink wydarzenia: OK
-Odczyt hangoutLink i conferenceData.entryPoints: OK
-Pierwszeństwo punktu wejścia wideo: OK
-Internetowy punkt zapasowy typu more: OK
-Ignorowanie punktów phone i sip: OK
-Blokada adresów innych niż HTTP i HTTPS: OK
-Przycisk i skrót otwierania wydarzenia w Google: obecne
-Okno otwierania i kopiowania linku spotkania: obecne
+Kontrola kompletności kluczy tłumaczeń angielskich: OK
+Automatyczny wybór języka Windows: OK
+Ręczny wybór polskiego i angielskiego: OK
+Migracja starszych ustawień do trybu automatycznego: OK
+Wspólny zapis języka i wybranych kalendarzy: OK
+Polskie i angielskie dni, miesiące, liczebniki i szczegóły: OK
+Formaty dat DD.MM.RRRR i RRRR-MM-DD: OK
+Usunięcie osobnego przycisku wyboru kalendarzy: OK
+Skróty Ctrl+, oraz Ctrl+K do Ustawień: OK

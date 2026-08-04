@@ -1,6 +1,6 @@
 [project]
 name = "gcm-by-piotrek"
-version = "0.10.0"
+version = "0.11.0"
 description = "Accessible Google Calendar desktop client for Windows"
 requires-python = ">=3.10,<3.14"
 dependencies = [

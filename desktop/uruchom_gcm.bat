@@ -20,16 +20,19 @@ if not defined PYTHON_CMD (
 if not defined PYTHON_CMD (
     echo.
     echo Nie znaleziono 64-bitowego Pythona w wersji 3.10-3.13.
+    echo Compatible 64-bit Python 3.10-3.13 was not found.
     echo Zainstaluj Python 3.12 albo 3.13 ze strony python.org.
+    echo Install Python 3.12 or 3.13 from python.org.
     echo Podczas instalacji zaznacz Add Python to PATH.
+    echo During installation, select Add Python to PATH.
     echo.
     pause
     exit /b 1
 )
 
-echo Znaleziono zgodny interpreter: %PYTHON_CMD%
+echo Interpreter / Python: %PYTHON_CMD%
 if not exist ".venv\Scripts\python.exe" (
-    echo Tworzenie srodowiska Python...
+    echo Tworzenie srodowiska Python / Creating Python environment...
     %PYTHON_CMD% -m venv .venv
     if errorlevel 1 goto :error
     call ".venv\Scripts\activate.bat"
@@ -47,6 +50,8 @@ exit /b 0
 :error
 echo.
 echo Uruchomienie GCM by Piotrek nie powiodlo sie.
+echo GCM by Piotrek could not be started.
 echo Sprawdz komunikaty powyzej oraz plik last_error.txt w katalogu danych aplikacji.
+echo Check the messages above and last_error.txt in the application data folder.
 pause
 exit /b 1

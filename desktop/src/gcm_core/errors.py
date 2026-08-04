@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import traceback
 
+from .i18n import tr
 from .paths import error_path
 
 
@@ -13,11 +14,12 @@ def clear_error() -> None:
 
 
 def save_error(context: str, error: BaseException) -> None:
-    text = (
-        f"Kontekst: {context}\n"
-        f"Typ: {type(error).__name__}\n"
-        f"Treść: {error}\n\n"
-        f"{traceback.format_exc()}"
+    text = tr(
+        "Kontekst: {context}\nTyp: {type}\nTreść: {message}\n\n{traceback}",
+        context=context,
+        type=type(error).__name__,
+        message=error,
+        traceback=traceback.format_exc(),
     )
     try:
         error_path().write_text(text, encoding="utf-8")

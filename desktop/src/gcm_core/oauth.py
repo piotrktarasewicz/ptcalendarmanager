@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .errors import clear_error, save_error
+from .i18n import tr
 from .paths import client_secret_path, find_client_secret, token_path
 
 SCOPES = [
@@ -24,7 +25,7 @@ def load_credentials():
         from google.oauth2.credentials import Credentials
         return Credentials.from_authorized_user_file(str(path), SCOPES)
     except Exception as error:
-        save_error("Odczyt tokenu OAuth", error)
+        save_error(tr("Odczyt tokenu OAuth"), error)
         return None
 
 
@@ -42,7 +43,7 @@ def ensure_valid_credentials():
             clear_error()
             return credentials
         except Exception as error:
-            save_error("Odświeżanie tokenu OAuth", error)
+            save_error(tr("Odświeżanie tokenu OAuth"), error)
             return None
     return None
 
@@ -54,7 +55,7 @@ def is_logged_in() -> bool:
 def login():
     secret = find_client_secret()
     if secret is None:
-        raise FileNotFoundError("Nie znaleziono pliku client_secret.json.")
+        raise FileNotFoundError(tr("Nie znaleziono pliku client_secret.json."))
     try:
         from google_auth_oauthlib.flow import InstalledAppFlow
         flow = InstalledAppFlow.from_client_secrets_file(str(secret), SCOPES)
@@ -62,20 +63,18 @@ def login():
             host="127.0.0.1",
             port=0,
             open_browser=True,
-            authorization_prompt_message=(
-                "Otwieranie przeglądarki do logowania Google. "
-                "Po zakończeniu wróć do aplikacji GCM by Piotrek."
+            authorization_prompt_message=tr(
+                "Otwieranie przeglądarki do logowania Google. Po zakończeniu wróć do aplikacji GCM by Piotrek."
             ),
-            success_message=(
-                "Logowanie zakończone. Możesz zamknąć tę kartę i wrócić do "
-                "GCM by Piotrek."
+            success_message=tr(
+                "Logowanie zakończone. Możesz zamknąć tę kartę i wrócić do GCM by Piotrek."
             ),
         )
         token_path().write_text(credentials.to_json(), encoding="utf-8")
         clear_error()
         return credentials
     except Exception as error:
-        save_error("Logowanie OAuth", error)
+        save_error(tr("Logowanie OAuth"), error)
         raise
 
 
