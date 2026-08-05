@@ -1,4 +1,4 @@
-# GCM by Piotrek 0.11.0 — Polski i English
+# GCM by Piotrek 0.11.1 — Polski i English
 
 GCM by Piotrek jest dostępnym klientem Kalendarza Google dla Windows,
 testowanym z NVDA, JAWS-em i Narratorem. Służy do szybkiego, doraźnego
@@ -96,3 +96,8 @@ tokens and calendar selection are preserved when upgrading to 0.11.0.
 
 Extract the archive into a new folder and run `uruchom_gcm.bat`. The first run
 creates a local Python environment and installs the required dependencies.
+
+
+## Aktualizacja 0.11.1
+
+Po zapisaniu zmiany języka GCM pyta, czy uruchomić aplikację ponownie teraz. Użytkownik może wybrać „Uruchom ponownie teraz” albo „Później”. Ponowne uruchomienie zachowuje token Google, ustawienia i wybór kalendarzy. Pytanie nie pojawia się przy zmianie samych kalendarzy ani wtedy, gdy zmiana preferencji nie zmienia faktycznego języka interfejsu.

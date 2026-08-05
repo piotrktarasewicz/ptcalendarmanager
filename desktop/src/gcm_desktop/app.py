@@ -12,8 +12,8 @@ from gcm_core import oauth
 from gcm_core.calendar_api import CalendarGateway
 from gcm_core.i18n import (
     get_language,
-    language_label,
     localized,
+    resolve_language,
     set_language,
     tr,
 )
@@ -34,6 +34,7 @@ from gcm_core.models import (
 )
 from gcm_core.paths import copy_client_secret, find_client_secret, migrate_from_nvda
 from gcm_core.settings import AppSettings, load_settings, save_settings
+from gcm_core.restart import launch_current_application
 from .accessibility import ExplicitNameAccessible, apply_accessible_name
 from .dialogs import (
     SettingsDialog,
@@ -41,6 +42,7 @@ from .dialogs import (
     EventEditDialog,
     HelpDialog,
     MeetingLinkDialog,
+    RestartRequiredDialog,
     SearchDialog,
     SearchResultsDialog,
 )
@@ -54,7 +56,7 @@ class MainFrame(wx.Frame):
         set_language(self.settings.language)
         super().__init__(
             None,
-            title=tr("GCM by Piotrek 0.11.0 — język polski i angielski"),
+            title=tr("GCM by Piotrek 0.11.1 — ponowne uruchamianie po zmianie języka"),
             size=(1120, 700),
         )
         self.calendars: list[CalendarInfo] = []
@@ -988,6 +990,7 @@ class MainFrame(wx.Frame):
             }
         old_ids = list(self.settings.selected_calendar_ids)
         old_language = self.settings.language
+        old_effective_language = get_language()
         dialog = SettingsDialog(
             self,
             calendars,
@@ -1008,17 +1011,41 @@ class MainFrame(wx.Frame):
             language=language,
         )
         save_settings(self.settings)
-        language_changed = language != old_language
+        preference_changed = language != old_language
+        effective_language_changed = (
+            preference_changed
+            and resolve_language(language) != old_effective_language
+        )
         calendar_changed = set(ids) != set(old_ids)
 
-        if language_changed:
-            self._show_message(
-                tr(
-                    "Język aplikacji zostanie zmieniony na {language} po ponownym uruchomieniu.",
-                    language=language_label(language),
-                ),
-                tr("Ustawienia"),
-            )
+        if effective_language_changed:
+            restart_dialog = RestartRequiredDialog(self)
+            try:
+                restart_result = restart_dialog.ShowModal()
+            finally:
+                restart_dialog.Destroy()
+
+            if restart_result == wx.ID_OK:
+                try:
+                    launch_current_application()
+                except Exception as error:
+                    self._show_message(
+                        tr(
+                            "Nie udało się ponownie uruchomić aplikacji. Ustawienie języka zostało zapisane i będzie użyte przy następnym ręcznym uruchomieniu.\n\n{error}",
+                            error=error,
+                        ),
+                        tr("Nie można ponownie uruchomić GCM"),
+                        error=True,
+                    )
+                else:
+                    self.Close()
+                    return
+            else:
+                self._set_status(
+                    tr(
+                        "Zmiana języka zostanie zastosowana przy następnym uruchomieniu."
+                    )
+                )
         else:
             self._set_status(tr("Ustawienia zostały zapisane."))
 

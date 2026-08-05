@@ -44,6 +44,10 @@ class LanguageResolutionTests(unittest.TestCase):
         self.assertEqual(resolve_language("en", "pl-PL"), "en")
         self.assertEqual(resolve_language("pl", "en-US"), "pl")
 
+    def test_restart_is_only_needed_when_effective_language_changes(self) -> None:
+        self.assertEqual(resolve_language("auto", "pl-PL"), resolve_language("pl", "pl-PL"))
+        self.assertNotEqual(resolve_language("auto", "pl-PL"), resolve_language("en", "pl-PL"))
+
     def test_language_labels_are_localized(self) -> None:
         set_language("pl")
         self.assertEqual(

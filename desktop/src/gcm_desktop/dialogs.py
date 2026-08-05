@@ -486,6 +486,82 @@ class EventEditDialog(EventCreateDialog):
         )
 
 
+class RestartRequiredDialog(wx.Dialog):
+    def __init__(self, parent: wx.Window) -> None:
+        super().__init__(
+            parent,
+            title=tr("Ponowne uruchomienie GCM"),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._accessible_objects: list[wx.Accessible] = []
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        message = wx.TextCtrl(
+            self,
+            value=tr(
+                "Język aplikacji zostanie zmieniony. Aby zastosować nowe ustawienie, GCM musi zostać uruchomiony ponownie.\n\nWybierz „Uruchom ponownie teraz”, aby zamknąć i ponownie uruchomić aplikację, albo „Później”, aby zastosować zmianę przy następnym uruchomieniu."
+            ),
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
+        )
+        message.SetMinSize((620, 150))
+        accessible = apply_accessible_name(
+            message,
+            tr("Ponowne uruchomienie GCM"),
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(message, 1, wx.ALL | wx.EXPAND, 12)
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        self.restart_button = wx.Button(
+            self,
+            wx.ID_OK,
+            localized("&Uruchom ponownie teraz", "&Restart now"),
+        )
+        self.later_button = wx.Button(
+            self,
+            wx.ID_CANCEL,
+            localized("&Później", "&Later"),
+        )
+        self.restart_button.SetDefault()
+
+        for control, name, shortcut, description in (
+            (
+                self.restart_button,
+                tr("Uruchom ponownie teraz"),
+                _alt("U", "R"),
+                tr(
+                    "Zamyka bieżącą instancję i uruchamia GCM ponownie w wybranym języku."
+                ),
+            ),
+            (
+                self.later_button,
+                tr("Później"),
+                _alt("P", "L"),
+                tr(
+                    "Pozostawia aplikację otwartą. Nowy język zostanie zastosowany przy następnym uruchomieniu."
+                ),
+            ),
+        ):
+            accessible = apply_accessible_name(
+                control,
+                name,
+                description,
+                shortcut,
+            )
+            if accessible is not None:
+                self._accessible_objects.append(accessible)
+
+        buttons.Add(self.restart_button, 0, wx.RIGHT, 8)
+        buttons.Add(self.later_button, 0)
+        sizer.Add(buttons, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 12)
+
+        self.SetSizerAndFit(sizer)
+        self.SetMinSize((680, 290))
+        self.CentreOnParent()
+        wx.CallAfter(message.SetFocus)
+
+
 class SettingsDialog(wx.Dialog):
     def __init__(
         self,

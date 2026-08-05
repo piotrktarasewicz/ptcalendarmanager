@@ -183,3 +183,10 @@ wyboru kalendarzy. `Ctrl+,` i zachowany `Ctrl+K` otwierają ten sam dialog.
 Daty wejściowe są niezależne od tłumaczenia: parser akceptuje `DD.MM.RRRR` oraz
 ISO `RRRR-MM-DD`. Nazwy dni, miesięcy, liczebniki, szczegóły wydarzeń i
 komunikaty błędów są formatowane przez aktywną warstwę językową.
+
+
+## Etap 0.11.1 — bezpieczne ponowne uruchamianie po zmianie języka
+
+Po zapisaniu ustawień porównywany jest aktualny język interfejsu z językiem wynikającym z nowej preferencji. Restart jest proponowany tylko wtedy, gdy język efektywnie się zmienia. Użytkownik może uruchomić GCM ponownie od razu albo odłożyć zmianę do następnego ręcznego uruchomienia.
+
+Moduł `gcm_core.restart` buduje polecenie osobno dla środowiska deweloperskiego i przyszłej wersji zamrożonej przez PyInstaller. Nowy proces jest uruchamiany przed zamknięciem starego. Ustawienia i token pozostają w katalogu danych użytkownika, więc ponowne uruchomienie nie wymaga logowania.
