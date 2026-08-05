@@ -1,55 +1,32 @@
-# GCM by Piotrek 0.11.2 — odporne pierwsze uruchomienie
+# GCM by Piotrek 0.12.0 — stabilizacja dostępnego interfejsu
 
-GCM by Piotrek jest dostępnym klientem Kalendarza Google dla Windows,
-testowanym z NVDA, JAWS-em i Narratorem. Służy do szybkiego, doraźnego
-zarządzania kalendarzem, a bardziej zaawansowane funkcje pozostawia oficjalnemu
-interfejsowi Google.
+Wersja 0.12.0 rozpoczyna stabilizację przed dokumentacją i instalatorem.
+Zakres funkcjonalny pozostaje taki sam jak w 0.11.2.
 
-## Nowości w wersji 0.11.0
+## Najważniejsza zmiana
 
-- pełny interfejs po polsku i po angielsku;
-- automatyczny wybór języka na podstawie języka interfejsu Windows;
-- ręczny wybór: `Automatycznie`, `Polski` albo `English`;
-- jedno okno `Ustawienia`, zawierające język aplikacji i wybór kalendarzy;
-- usunięcie osobnego przycisku wyboru kalendarzy z głównego okna;
-- skrót `Ctrl+,` do ustawień;
-- zachowanie `Ctrl+K` jako zgodnego wstecz skrótu do ustawień;
-- angielska pomoc, komunikaty, formularze, potwierdzenia, błędy, daty, dni,
-  miesiące i opisy dostępności;
-- przyjmowanie dat w formacie `DD.MM.RRRR` albo ISO `RRRR-MM-DD` niezależnie
-  od języka interfejsu;
-- automatyczna migracja starszego pliku ustawień bez pola języka.
+Przyciski przekazują czytnikowi ekranu tylko:
 
-Zmiana języka zaczyna działać po ponownym uruchomieniu aplikacji. Nie jest
-używane tłumaczenie internetowe ani maszynowe — oba zestawy komunikatów są
-wbudowane i kontrolowane razem z kodem aplikacji.
+- krótką nazwę;
+- rolę przycisku;
+- standardowy klawisz dostępu Windows `Alt+litera`.
 
-## Ustawienia
+Długie opisy działania oraz skróty `Ctrl`, `F1`, `F5` i `Delete` nie są już
+powtarzane przy każdym przejściu Tabulatorem. Pełna lista skrótów nadal znajduje
+się w pomocy otwieranej klawiszem `F1`.
 
-Przycisk `Ustawienia` jest dostępny także przed zalogowaniem. Bez logowania
-można zmienić język. Po zalogowaniu w tym samym oknie można wybrać kalendarze,
-których wydarzenia mają być pokazywane.
+Opisy pozostają przy polach, przy których wyjaśniają format albo sposób użycia.
+Przycisk Ustawienia ma teraz krótką nazwę „Ustawienia”, ponieważ jego zawartość
+jest opisana wewnątrz okna.
 
-Ustawienia są zapisywane w `%APPDATA%\GCM by Piotrek\settings.json`.
-Dotychczasowy token OAuth i wybór kalendarzy pozostają zachowane podczas
-uruchomienia wersji 0.11.0.
+## Cel testu
 
-## Najważniejsze skróty
+Po przejściu na przycisk oczekiwany odczyt jest zbliżony do:
 
-- `Ctrl+,` — ustawienia;
-- `Ctrl+K` — ustawienia, zachowany dawny skrót wyboru kalendarzy;
-- `Ctrl+L` — logowanie albo wylogowanie;
-- `F1` — pomoc;
-- `Ctrl+N` — dodawanie wydarzenia;
-- `Ctrl+E` — edycja wydarzenia;
-- `Delete` — usuwanie;
-- `Ctrl+F` — wyszukiwanie;
-- `Ctrl+G` — przejście do daty;
-- `F5` — odświeżenie;
-- `Ctrl+Shift+G` — otwarcie wydarzenia w Kalendarzu Google;
-- `Ctrl+J` — otwarcie lub skopiowanie istniejącego linku spotkania.
+`Dodaj wydarzenie, N, przycisk`
 
-Pełna lista znajduje się w pomocy otwieranej klawiszem `F1`.
+Szczegółowa kolejność słów może zależeć od NVDA, JAWS-a albo Narratora, ale
+czytnik nie powinien dopowiadać długiego opisu ani skrótu `Ctrl+N`.
 
 ## Uruchomienie wersji rozwojowej
 

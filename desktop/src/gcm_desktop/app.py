@@ -56,7 +56,7 @@ class MainFrame(wx.Frame):
         set_language(self.settings.language)
         super().__init__(
             None,
-            title=tr("GCM by Piotrek 0.11.2 — poprawione pierwsze uruchomienie i obsługa Google"),
+            title=tr("GCM by Piotrek 0.12.0 — stabilizacja dostępnego interfejsu"),
             size=(1120, 700),
         )
         self.calendars: list[CalendarInfo] = []
@@ -165,20 +165,11 @@ class MainFrame(wx.Frame):
         *,
         name: str,
         access_key: str,
-        action_description: str,
-        application_shortcut: str = "",
     ) -> None:
-        description = action_description
-        if application_shortcut:
-            description += " " + tr(
-                "Skrót aplikacji: {shortcut}.",
-                shortcut=application_shortcut,
-            )
         accessible = apply_accessible_name(
             control,
             name,
-            description,
-            f"Alt+{access_key}",
+            keyboard_shortcut=f"Alt+{access_key}",
         )
         if accessible is not None:
             self._accessible_objects.append(accessible)
@@ -186,119 +177,27 @@ class MainFrame(wx.Frame):
 
     def _configure_main_buttons(self) -> None:
         definitions = (
-            (
-                self.login_button,
-                tr("Zaloguj do Google"),
-                self._access_key("L", "L"),
-                tr("Łączy konto Google albo wylogowuje bieżące konto."),
-                "Ctrl+L",
-            ),
-            (
-                self.settings_button,
-                tr("Ustawienia aplikacji i wybór kalendarzy"),
-                self._access_key("T", "T"),
-                tr("Otwiera ustawienia języka i kalendarzy."),
-                "Ctrl+,",
-            ),
-            (
-                self.help_button,
-                tr("Pomoc i skróty"),
-                self._access_key("H", "H"),
-                tr("Otwiera opis aplikacji i pełną listę skrótów."),
-                "F1",
-            ),
-            (
-                self.previous_button,
-                tr("Poprzedni miesiąc"),
-                self._access_key("P", "P"),
-                tr("Przechodzi do poprzedniego miesiąca."),
-                tr("Alt+Strzałka w lewo"),
-            ),
-            (
-                self.today_button,
-                tr("Dzisiaj"),
-                self._access_key("D", "Y"),
-                tr("Przechodzi do dzisiejszej daty."),
-                "Ctrl+D",
-            ),
-            (
-                self.next_button,
-                tr("Następny miesiąc"),
-                self._access_key("M", "N"),
-                tr("Przechodzi do następnego miesiąca."),
-                tr("Alt+Strzałka w prawo"),
-            ),
-            (
-                self.goto_button,
-                tr("Przejdź do daty"),
-                self._access_key("G", "G"),
-                tr("Otwiera pole do podania konkretnej daty."),
-                "Ctrl+G",
-            ),
-            (
-                self.search_button,
-                tr("Wyszukaj"),
-                self._access_key("S", "S"),
-                tr("Otwiera wyszukiwanie wydarzeń w zakresie dat."),
-                "Ctrl+F",
-            ),
-            (
-                self.add_button,
-                tr("Dodaj wydarzenie"),
-                self._access_key("N", "A"),
-                tr("Otwiera formularz dodawania wydarzenia."),
-                "Ctrl+N",
-            ),
-            (
-                self.refresh_button,
-                tr("Odśwież"),
-                self._access_key("O", "R"),
-                tr("Pobiera ponownie wydarzenia z Google."),
-                "F5",
-            ),
-            (
-                self.details_button,
-                tr("Pokaż szczegóły"),
-                self._access_key("Z", "V"),
-                tr("Pokazuje wszystkie dane zaznaczonego wydarzenia."),
-                tr("Enter na liście wydarzeń"),
-            ),
-            (
-                self.edit_button,
-                tr("Edytuj"),
-                self._access_key("E", "E"),
-                tr("Otwiera formularz edycji zaznaczonego wydarzenia."),
-                "Ctrl+E",
-            ),
-            (
-                self.delete_button,
-                tr("Usuń"),
-                self._access_key("U", "D"),
-                tr("Usuwa zaznaczone wydarzenie po potwierdzeniu."),
-                "Delete",
-            ),
-            (
-                self.open_google_button,
-                tr("Otwórz w Google"),
-                self._access_key("W", "O"),
-                tr("Otwiera zaznaczone wydarzenie w internetowym Kalendarzu Google."),
-                "Ctrl+Shift+G",
-            ),
-            (
-                self.meeting_button,
-                tr("Link spotkania"),
-                self._access_key("I", "M"),
-                tr("Pozwala otworzyć albo skopiować istniejący link spotkania."),
-                "Ctrl+J",
-            ),
+            (self.login_button, tr("Zaloguj do Google"), self._access_key("L", "L")),
+            (self.settings_button, tr("Ustawienia"), self._access_key("T", "T")),
+            (self.help_button, tr("Pomoc i skróty"), self._access_key("H", "H")),
+            (self.previous_button, tr("Poprzedni miesiąc"), self._access_key("P", "P")),
+            (self.today_button, tr("Dzisiaj"), self._access_key("D", "Y")),
+            (self.next_button, tr("Następny miesiąc"), self._access_key("M", "N")),
+            (self.goto_button, tr("Przejdź do daty"), self._access_key("G", "G")),
+            (self.search_button, tr("Wyszukaj"), self._access_key("S", "S")),
+            (self.add_button, tr("Dodaj wydarzenie"), self._access_key("N", "A")),
+            (self.refresh_button, tr("Odśwież"), self._access_key("O", "R")),
+            (self.details_button, tr("Pokaż szczegóły"), self._access_key("Z", "V")),
+            (self.edit_button, tr("Edytuj"), self._access_key("E", "E")),
+            (self.delete_button, tr("Usuń"), self._access_key("U", "D")),
+            (self.open_google_button, tr("Otwórz w Google"), self._access_key("W", "O")),
+            (self.meeting_button, tr("Link spotkania"), self._access_key("I", "M")),
         )
-        for control, name, access_key, description, shortcut in definitions:
+        for control, name, access_key in definitions:
             self._configure_button(
                 control,
                 name=name,
                 access_key=access_key,
-                action_description=description,
-                application_shortcut=shortcut,
             )
 
     def _update_button_accessible_name(

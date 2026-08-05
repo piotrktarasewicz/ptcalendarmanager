@@ -76,6 +76,7 @@ ENGLISH_TRANSLATIONS: dict[str, str] = {
 
     # Main window and controls.
     "GCM by Piotrek 0.11.2 — poprawione pierwsze uruchomienie i obsługa Google": "GCM by Piotrek 0.11.2 — improved first launch and Google handling",
+    "GCM by Piotrek 0.12.0 — stabilizacja dostępnego interfejsu": "GCM by Piotrek 0.12.0 — accessible interface stabilization",
     "Główne okno GCM by Piotrek": "GCM by Piotrek main window",
     "Za&loguj do Google": "Sign in (&L)",
     "Wy&loguj z Google": "Sign out (&L)",

@@ -1,5 +1,8 @@
-GCM by Piotrek 0.11.2 — wyniki testów automatycznych
+GCM by Piotrek 0.12.0 — wyniki testów automatycznych
 
+test_accessibility_layer_suppresses_descriptions_for_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_accessibility_layer_suppresses_descriptions_for_buttons) ... ok
+test_main_button_configuration_contains_no_long_descriptions (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_main_button_configuration_contains_no_long_descriptions) ... ok
+test_settings_button_uses_short_accessible_name (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_settings_button_uses_short_accessible_name) ... ok
 test_is_logged_in_does_not_refresh_token_or_use_network (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_does_not_refresh_token_or_use_network) ... ok
 test_is_logged_in_is_false_without_saved_credentials (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_is_false_without_saved_credentials) ... ok
 test_valid_saved_credentials_are_recognized_locally (test_first_run_resilience.OAuthUiStateTests.test_valid_saved_credentials_are_recognized_locally) ... ok
@@ -75,14 +78,13 @@ test_empty_arguments_still_restart_the_interpreter (test_restart.RestartLaunchTe
 test_frozen_launch_reuses_the_executable (test_restart.RestartLaunchTests.test_frozen_launch_reuses_the_executable) ... ok
 
 ----------------------------------------------------------------------
-Ran 73 tests in 0.058s
+Ran 76 tests in 0.135s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Kontrola struktury AST i powielonych metod: OK
-Stan tokenu bez sieci w wątku UI: OK
-Ustawienia niezależne od Google: OK
-Ustawienia dostępne podczas zadań sieciowych: OK
-Strażnik 45 sekund dla interfejsu: obecny
-Komunikat o brakującym client_secret.json: obecny
+Zwięzłe profile dostępności przycisków: OK
+Brak długich opisów i skrótów Ctrl na fokusie przycisku: OK
+Standardowe klawisze dostępu Alt+litera: zachowane
+Krótka nazwa przycisku Ustawienia: OK
+Kompletność tłumaczeń polskich i angielskich: OK

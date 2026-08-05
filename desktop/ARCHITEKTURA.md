@@ -197,3 +197,17 @@ Moduł `gcm_core.restart` buduje polecenie osobno dla środowiska deweloperskieg
 `oauth.is_logged_in()` jest od tej wersji wyłącznie lokalnym sprawdzeniem obecności użytecznego zapisanego tokenu. Nie może odświeżać tokenu ani wykonywać sieciowych operacji w wątku wxPython. `ensure_valid_credentials()` jest wywoływane tylko wewnątrz zadań tła.
 
 Okno Ustawień jest funkcją lokalną i nie zależy od pobrania kalendarzy. Pozostaje dostępne podczas pracy Google. Zadania tła mają identyfikator oraz 45-sekundowy strażnik interfejsu; spóźniona odpowiedź starego zadania jest ignorowana.
+
+## Etap 0.12.0 — stabilizacja dostępnego interfejsu
+
+Warstwa dostępności rozróżnia przyciski od pól formularza. Dla przycisków
+udostępniane są wyłącznie zwięzła nazwa oraz natywny klawisz dostępu Windows.
+Opis MSAA, tekst pomocy i podpowiedź nie są ustawiane, ponieważ trzy czytniki
+ekranu potrafiły łączyć je w przeładowany komunikat przy każdym przejściu
+Tabulatorem.
+
+Skróty aplikacji (`Ctrl+N`, `Ctrl+F`, `F5`, `Delete` i pozostałe) są nadal
+obsługiwane, lecz dokumentowane w pomocy `F1`, a nie powtarzane na fokusie.
+Pola tekstowe, listy i inne kontrolki mogą nadal otrzymywać krótki opis, gdy
+jest on potrzebny do zrozumienia formatu lub działania kontrolki.
+

@@ -4,7 +4,6 @@ import sys
 
 import wx
 
-from gcm_core.i18n import tr
 
 
 class ExplicitNameAccessible(wx.Accessible):
@@ -76,17 +75,23 @@ def apply_accessible_name(
 
     control.SetName(str(name))
 
-    help_parts = []
-    if description:
-        help_parts.append(str(description))
-    if keyboard_shortcut:
-        help_parts.append(tr("Klawisz dostępu: {shortcut}.", shortcut=keyboard_shortcut))
-    help_text = " ".join(help_parts)
+    # A focused button should stay concise. Its visible label, native role and
+    # Windows access key already explain how to use it. Long help text and a
+    # second application shortcut made NVDA, JAWS and Narrator repeat several
+    # pieces of information on every Tab press.
+    is_button = isinstance(control, wx.Button)
+    accessible_description = "" if is_button else str(description or "")
 
-    if help_text:
-        control.SetHelpText(help_text)
+    if accessible_description:
+        control.SetHelpText(accessible_description)
         try:
-            control.SetToolTip(help_text)
+            control.SetToolTip(accessible_description)
+        except Exception:
+            pass
+    elif is_button:
+        try:
+            control.SetHelpText("")
+            control.UnsetToolTip()
         except Exception:
             pass
 
@@ -97,7 +102,7 @@ def apply_accessible_name(
         accessible = ExplicitNameAccessible(
             control,
             name,
-            help_text,
+            accessible_description,
             keyboard_shortcut,
         )
         control.SetAccessible(accessible)
