@@ -75,7 +75,7 @@ ENGLISH_TRANSLATIONS: dict[str, str] = {
     "Bez nazwy": "Untitled calendar",
 
     # Main window and controls.
-    "GCM by Piotrek 0.11.1 — ponowne uruchamianie po zmianie języka": "GCM by Piotrek 0.11.1 — restart after changing language",
+    "GCM by Piotrek 0.11.2 — poprawione pierwsze uruchomienie i obsługa Google": "GCM by Piotrek 0.11.2 — improved first launch and Google handling",
     "Główne okno GCM by Piotrek": "GCM by Piotrek main window",
     "Za&loguj do Google": "Sign in (&L)",
     "Wy&loguj z Google": "Sign out (&L)",
@@ -161,6 +161,15 @@ ENGLISH_TRANSLATIONS: dict[str, str] = {
     "Logowanie zakończone. Pobieranie kalendarzy...": "Sign-in complete. Downloading calendars...",
     "Pobieranie listy kalendarzy...": "Downloading the calendar list...",
     "Pobieranie ustawień i kalendarzy...": "Loading settings and calendars...",
+    "Nie udało się jeszcze pobrać listy kalendarzy. Ustawienie języka pozostaje dostępne. Po przywróceniu połączenia zamknij Ustawienia, użyj Odśwież i otwórz Ustawienia ponownie.": "The calendar list has not been downloaded yet. Language settings remain available. After restoring the connection, close Settings, use Refresh and open Settings again.",
+    "Otwieranie ustawień": "Opening Settings",
+    "Nie udało się otworzyć Ustawień.\n\n{error}": "Settings could not be opened.\n\n{error}",
+    "Błąd Ustawień": "Settings error",
+    "Google nie odpowiedział w wymaganym czasie. Interfejs został odblokowany. Sprawdź połączenie z Internetem, zaporę sieciową albo zaloguj się ponownie. Ustawienia języka pozostają dostępne bez połączenia z Google.": "Google did not respond in time. The interface has been unlocked. Check your Internet connection or firewall, or sign in again. Language settings remain available without a Google connection.",
+    "Przekroczono czas oczekiwania na Google": "Google request timed out",
+    "Na tym komputerze nie znaleziono konfiguracji logowania Google client_secret.json. Jest ona potrzebna do rozpoczęcia logowania.\n\nSkopiuj ten plik z poprzedniego komputera z katalogu %APPDATA%\\GCM by Piotrek albo wskaż plik używany przez wtyczkę NVDA. Po wybraniu OK otworzy się okno wyboru pliku.": "The Google sign-in configuration file client_secret.json was not found on this computer. It is required to start signing in.\n\nCopy the file from %APPDATA%\\GCM by Piotrek on the previous computer, or select the file used by the NVDA add-on. After choosing OK, a file selection dialog will open.",
+    "Brak konfiguracji logowania Google": "Google sign-in configuration missing",
+    "Logowanie anulowane: nie wskazano konfiguracji OAuth.": "Sign-in cancelled: no OAuth configuration was selected.",
 
     # Dates, month rendering and search.
     "{date}, cały dzień": "{date}, all day",

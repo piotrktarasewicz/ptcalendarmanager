@@ -569,6 +569,7 @@ class SettingsDialog(wx.Dialog):
         calendars: list[CalendarInfo],
         selected_ids: set[str],
         language_preference: str,
+        google_logged_in: bool = False,
     ) -> None:
         super().__init__(
             parent,
@@ -644,11 +645,18 @@ class SettingsDialog(wx.Dialog):
             panel.SetMinSize((580, 280))
             calendar_box.Add(panel, 1, wx.ALL | wx.EXPAND, 8)
         else:
+            empty_calendar_message = (
+                tr(
+                    "Nie udało się jeszcze pobrać listy kalendarzy. Ustawienie języka pozostaje dostępne. Po przywróceniu połączenia zamknij Ustawienia, użyj Odśwież i otwórz Ustawienia ponownie."
+                )
+                if google_logged_in
+                else tr(
+                    "Zaloguj się do Google, aby wybrać kalendarze. Ustawienie języka jest dostępne bez logowania."
+                )
+            )
             info = wx.StaticText(
                 self,
-                label=tr(
-                    "Zaloguj się do Google, aby wybrać kalendarze. Ustawienie języka jest dostępne bez logowania."
-                ),
+                label=empty_calendar_message,
             )
             info.Wrap(560)
             calendar_box.Add(info, 0, wx.ALL | wx.EXPAND, 12)

@@ -1,4 +1,4 @@
-# GCM by Piotrek 0.11.1 — Polski i English
+# GCM by Piotrek 0.11.2 — odporne pierwsze uruchomienie
 
 GCM by Piotrek jest dostępnym klientem Kalendarza Google dla Windows,
 testowanym z NVDA, JAWS-em i Narratorem. Służy do szybkiego, doraźnego
@@ -101,3 +101,16 @@ creates a local Python environment and installs the required dependencies.
 ## Aktualizacja 0.11.1
 
 Po zapisaniu zmiany języka GCM pyta, czy uruchomić aplikację ponownie teraz. Użytkownik może wybrać „Uruchom ponownie teraz” albo „Później”. Ponowne uruchomienie zachowuje token Google, ustawienia i wybór kalendarzy. Pytanie nie pojawia się przy zmianie samych kalendarzy ani wtedy, gdy zmiana preferencji nie zmienia faktycznego języka interfejsu.
+
+
+## Aktualizacja 0.11.2
+
+- sprawdzanie stanu zapisanej sesji OAuth nie wykonuje już operacji sieciowej w głównym wątku interfejsu;
+- odświeżenie wygasłego tokenu odbywa się wyłącznie w zadaniu działającym w tle;
+- Ustawienia otwierają się natychmiast nawet wtedy, gdy Google jest niedostępny lub lista kalendarzy nie została pobrana;
+- przycisk Ustawienia pozostaje dostępny podczas operacji Google;
+- operacja Google, która nie odpowie w ciągu 45 sekund, nie może już pozostawić interfejsu trwale zablokowanego;
+- brak `client_secret.json` jest wyjaśniany w dostępnym komunikacie przed otwarciem okna wyboru pliku;
+- błędy otwierania Ustawień są pokazywane użytkownikowi i zapisywane w `last_error.txt`.
+
+Na komputerze bez wcześniejszej konfiguracji GCM nadal wymaga pliku OAuth `client_secret.json` do rozpoczęcia logowania. Można skopiować go z `%APPDATA%\GCM by Piotrek` na poprzednim komputerze albo wskazać egzemplarz używany przez wtyczkę NVDA.

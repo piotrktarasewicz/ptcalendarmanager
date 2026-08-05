@@ -1,5 +1,10 @@
-GCM by Piotrek 0.11.1 — wyniki testów automatycznych
+GCM by Piotrek 0.11.2 — wyniki testów automatycznych
 
+test_is_logged_in_does_not_refresh_token_or_use_network (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_does_not_refresh_token_or_use_network) ... ok
+test_is_logged_in_is_false_without_saved_credentials (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_is_false_without_saved_credentials) ... ok
+test_valid_saved_credentials_are_recognized_locally (test_first_run_resilience.OAuthUiStateTests.test_valid_saved_credentials_are_recognized_locally) ... ok
+test_settings_button_is_not_disabled_by_google_busy_state (test_first_run_resilience.SettingsIndependenceTests.test_settings_button_is_not_disabled_by_google_busy_state) ... ok
+test_settings_handler_does_not_start_google_task (test_first_run_resilience.SettingsIndependenceTests.test_settings_handler_does_not_start_google_task) ... ok
 test_both_date_input_formats_are_accepted (test_i18n.EnglishPresentationTests.test_both_date_input_formats_are_accepted) ... ok
 test_dates_counts_and_recurrence_are_english (test_i18n.EnglishPresentationTests.test_dates_counts_and_recurrence_are_english) ... ok
 test_event_details_are_english (test_i18n.EnglishPresentationTests.test_event_details_are_english) ... ok
@@ -70,14 +75,14 @@ test_empty_arguments_still_restart_the_interpreter (test_restart.RestartLaunchTe
 test_frozen_launch_reuses_the_executable (test_restart.RestartLaunchTests.test_frozen_launch_reuses_the_executable) ... ok
 
 ----------------------------------------------------------------------
-Ran 68 tests in 0.047s
+Ran 73 tests in 0.058s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Kontrola kompletności tłumaczeń: OK
 Kontrola struktury AST i powielonych metod: OK
-Restart środowiska deweloperskiego: OK
-Restart przyszłej wersji EXE: OK
-Restart tylko po faktycznej zmianie języka: OK
-Wybór „Później” i zachowanie ustawień: obecne
+Stan tokenu bez sieci w wątku UI: OK
+Ustawienia niezależne od Google: OK
+Ustawienia dostępne podczas zadań sieciowych: OK
+Strażnik 45 sekund dla interfejsu: obecny
+Komunikat o brakującym client_secret.json: obecny

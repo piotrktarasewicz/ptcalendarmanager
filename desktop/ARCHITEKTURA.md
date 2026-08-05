@@ -190,3 +190,10 @@ komunikaty błędów są formatowane przez aktywną warstwę językową.
 Po zapisaniu ustawień porównywany jest aktualny język interfejsu z językiem wynikającym z nowej preferencji. Restart jest proponowany tylko wtedy, gdy język efektywnie się zmienia. Użytkownik może uruchomić GCM ponownie od razu albo odłożyć zmianę do następnego ręcznego uruchomienia.
 
 Moduł `gcm_core.restart` buduje polecenie osobno dla środowiska deweloperskiego i przyszłej wersji zamrożonej przez PyInstaller. Nowy proces jest uruchamiany przed zamknięciem starego. Ustawienia i token pozostają w katalogu danych użytkownika, więc ponowne uruchomienie nie wymaga logowania.
+
+
+## Etap 0.11.2 — odporność pierwszego uruchomienia
+
+`oauth.is_logged_in()` jest od tej wersji wyłącznie lokalnym sprawdzeniem obecności użytecznego zapisanego tokenu. Nie może odświeżać tokenu ani wykonywać sieciowych operacji w wątku wxPython. `ensure_valid_credentials()` jest wywoływane tylko wewnątrz zadań tła.
+
+Okno Ustawień jest funkcją lokalną i nie zależy od pobrania kalendarzy. Pozostaje dostępne podczas pracy Google. Zadania tła mają identyfikator oraz 45-sekundowy strażnik interfejsu; spóźniona odpowiedź starego zadania jest ignorowana.

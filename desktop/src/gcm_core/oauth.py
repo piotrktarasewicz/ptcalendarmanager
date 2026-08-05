@@ -49,7 +49,17 @@ def ensure_valid_credentials():
 
 
 def is_logged_in() -> bool:
-    return ensure_valid_credentials() is not None
+    """Return whether a reusable OAuth token is stored, without network I/O.
+
+    This function is called by the wxPython UI thread. It must never refresh an
+    expired token because a network wait here would freeze the whole window.
+    Actual refresh is performed by ensure_valid_credentials() inside a
+    background task immediately before a Google operation.
+    """
+    credentials = load_credentials()
+    if credentials is None:
+        return False
+    return bool(credentials.valid or credentials.refresh_token)
 
 
 def login():

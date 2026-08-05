@@ -56,7 +56,7 @@ class MainFrame(wx.Frame):
         set_language(self.settings.language)
         super().__init__(
             None,
-            title=tr("GCM by Piotrek 0.11.1 — ponowne uruchamianie po zmianie języka"),
+            title=tr("GCM by Piotrek 0.11.2 — poprawione pierwsze uruchomienie i obsługa Google"),
             size=(1120, 700),
         )
         self.calendars: list[CalendarInfo] = []
@@ -68,6 +68,8 @@ class MainFrame(wx.Frame):
         self._day_values: list[dt.date] = []
         self._event_values: list[CalendarEvent] = []
         self._busy = False
+        self._active_task_id = 0
+        self._task_timeout_call: wx.CallLater | None = None
         self._focus_event_after_refresh: str | None = None
         self._focus_events_after_refresh = False
         self._accessible_objects: list[wx.Accessible] = []
@@ -479,8 +481,10 @@ class MainFrame(wx.Frame):
 
     def _set_busy(self, busy: bool, message: str = "") -> None:
         self._busy = busy
+        # Settings and Help deliberately remain available while Google is busy.
+        # Language selection and diagnostics must never depend on the network.
         for control in (
-            self.login_button, self.settings_button, self.previous_button,
+            self.login_button, self.previous_button,
             self.today_button, self.next_button, self.goto_button,
             self.search_button, self.add_button, self.refresh_button,
             self.edit_button, self.delete_button,
@@ -489,34 +493,64 @@ class MainFrame(wx.Frame):
         if message:
             self._set_status(message)
 
+    def _cancel_task_timeout(self) -> None:
+        call = self._task_timeout_call
+        self._task_timeout_call = None
+        if call is not None:
+            try:
+                if call.IsRunning():
+                    call.Stop()
+            except Exception:
+                pass
+
     def _run_task(
         self,
         *,
         busy_message: str,
         target: Callable[[], T],
         on_success: Callable[[T], None],
+        timeout_seconds: int = 45,
     ) -> None:
         if self._busy:
             self._set_status(tr("Inna operacja jest już wykonywana."))
             return
+        self._active_task_id += 1
+        task_id = self._active_task_id
         self._set_busy(True, busy_message)
+        self._cancel_task_timeout()
+        self._task_timeout_call = wx.CallLater(
+            max(1, int(timeout_seconds)) * 1000,
+            self._task_timed_out,
+            task_id,
+        )
 
         def runner() -> None:
             try:
                 result = target()
             except Exception as error:
                 save_error(busy_message, error)
-                wx.CallAfter(self._task_failed, error)
+                wx.CallAfter(self._task_failed, task_id, error)
                 return
-            wx.CallAfter(self._task_succeeded, result, on_success)
+            wx.CallAfter(self._task_succeeded, task_id, result, on_success)
 
         threading.Thread(target=runner, name="GCMNetworkTask", daemon=True).start()
 
-    def _task_succeeded(self, result: T, callback: Callable[[T], None]) -> None:
+    def _task_succeeded(
+        self,
+        task_id: int,
+        result: T,
+        callback: Callable[[T], None],
+    ) -> None:
+        if task_id != self._active_task_id or not self._busy:
+            return
+        self._cancel_task_timeout()
         self._set_busy(False)
         callback(result)
 
-    def _task_failed(self, error: BaseException) -> None:
+    def _task_failed(self, task_id: int, error: BaseException) -> None:
+        if task_id != self._active_task_id or not self._busy:
+            return
+        self._cancel_task_timeout()
         self._set_busy(False)
         details = get_error_text()
         message = tr("Operacja nie powiodła się.\n\n{error}", error=error)
@@ -524,6 +558,21 @@ class MainFrame(wx.Frame):
             message += "\n\n" + tr("Szczegóły zapisano w pliku last_error.txt w katalogu danych aplikacji.")
         self._show_message(message, tr("Błąd GCM by Piotrek"), error=True)
         self._set_status(tr("Błąd: {error}", error=error))
+
+    def _task_timed_out(self, task_id: int) -> None:
+        if task_id != self._active_task_id or not self._busy:
+            return
+        self._task_timeout_call = None
+        self._set_busy(False)
+        message = tr(
+            "Google nie odpowiedział w wymaganym czasie. Interfejs został odblokowany. Sprawdź połączenie z Internetem, zaporę sieciową albo zaloguj się ponownie. Ustawienia języka pozostają dostępne bez połączenia z Google."
+        )
+        self._show_message(
+            message,
+            tr("Przekroczono czas oczekiwania na Google"),
+            error=True,
+        )
+        self._set_status(message)
 
     def _update_account_state(self) -> None:
         logged_in = oauth.is_logged_in()
@@ -924,6 +973,22 @@ class MainFrame(wx.Frame):
             return
 
         if find_client_secret() is None:
+            explanation = wx.MessageDialog(
+                self,
+                tr(
+                    "Na tym komputerze nie znaleziono konfiguracji logowania Google client_secret.json. Jest ona potrzebna do rozpoczęcia logowania.\n\nSkopiuj ten plik z poprzedniego komputera z katalogu %APPDATA%\\GCM by Piotrek albo wskaż plik używany przez wtyczkę NVDA. Po wybraniu OK otworzy się okno wyboru pliku."
+                ),
+                tr("Brak konfiguracji logowania Google"),
+                wx.OK | wx.CANCEL | wx.ICON_INFORMATION,
+            )
+            try:
+                explanation_result = explanation.ShowModal()
+            finally:
+                explanation.Destroy()
+            if explanation_result != wx.ID_OK:
+                self._set_status(tr("Logowanie anulowane: nie wskazano konfiguracji OAuth."))
+                return
+
             picker = wx.FileDialog(
                 self,
                 tr("Wskaż plik client_secret.json"),
@@ -936,6 +1001,7 @@ class MainFrame(wx.Frame):
             finally:
                 picker.Destroy()
             if result != wx.ID_OK:
+                self._set_status(tr("Logowanie anulowane: nie wskazano konfiguracji OAuth."))
                 return
             try:
                 copy_client_secret(Path(chosen))
@@ -963,22 +1029,29 @@ class MainFrame(wx.Frame):
         self._refresh_google()
 
     def _on_settings(self, event: wx.Event) -> None:
-        if oauth.is_logged_in() and not self.calendars:
-            def load() -> list[CalendarInfo]:
-                credentials = oauth.ensure_valid_credentials()
-                if credentials is None:
-                    raise RuntimeError(tr("Brak ważnego logowania Google."))
-                return CalendarGateway(credentials).list_calendars()
-
-            self._run_task(
-                busy_message=tr("Pobieranie ustawień i kalendarzy..."),
-                target=load,
-                on_success=self._show_settings_dialog,
+        # Opening Settings must never require a successful Google request.
+        # When calendars are unavailable, the dialog still exposes language
+        # selection and explains how to retry calendar loading.
+        logged_in = oauth.is_logged_in()
+        try:
+            self._show_settings_dialog(
+                self.calendars if logged_in else [],
+                google_logged_in=logged_in,
             )
-            return
-        self._show_settings_dialog(self.calendars if oauth.is_logged_in() else [])
+        except Exception as error:
+            save_error(tr("Otwieranie ustawień"), error)
+            self._show_message(
+                tr("Nie udało się otworzyć Ustawień.\n\n{error}", error=error),
+                tr("Błąd Ustawień"),
+                error=True,
+            )
 
-    def _show_settings_dialog(self, calendars: list[CalendarInfo]) -> None:
+    def _show_settings_dialog(
+        self,
+        calendars: list[CalendarInfo],
+        *,
+        google_logged_in: bool | None = None,
+    ) -> None:
         if calendars:
             self.calendars = calendars
         selected = set(self.settings.selected_calendar_ids)
@@ -991,11 +1064,14 @@ class MainFrame(wx.Frame):
         old_ids = list(self.settings.selected_calendar_ids)
         old_language = self.settings.language
         old_effective_language = get_language()
+        if google_logged_in is None:
+            google_logged_in = oauth.is_logged_in()
         dialog = SettingsDialog(
             self,
             calendars,
             selected,
             old_language,
+            google_logged_in=google_logged_in,
         )
         try:
             result = dialog.ShowModal()
