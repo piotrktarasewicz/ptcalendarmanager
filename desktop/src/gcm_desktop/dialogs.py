@@ -12,6 +12,9 @@ from gcm_core.i18n import (
     normalize_language_preference,
     tr,
 )
+from gcm_core.legal import about_text, legal_text, privacy_text
+from gcm_core.branding import PRODUCT_NAME
+
 from gcm_core.models import (
     CalendarEvent,
     CalendarInfo,
@@ -562,6 +565,182 @@ class RestartRequiredDialog(wx.Dialog):
         wx.CallAfter(message.SetFocus)
 
 
+
+class ReadOnlyDocumentDialog(wx.Dialog):
+    def __init__(
+        self,
+        parent: wx.Window,
+        *,
+        title: str,
+        content: str,
+        accessible_name: str,
+    ) -> None:
+        super().__init__(
+            parent,
+            title=title,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._accessible_objects: list[wx.Accessible] = []
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        text = wx.TextCtrl(
+            self,
+            value=content,
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
+        )
+        text.SetMinSize((760, 500))
+        accessible = apply_accessible_name(
+            text,
+            accessible_name,
+            localized(
+                "Czytaj strzałkami. Tekst można zaznaczać i kopiować.",
+                "Read with the arrow keys. The text can be selected and copied.",
+            ),
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(text, 1, wx.ALL | wx.EXPAND, 12)
+
+        close_button = wx.Button(
+            self,
+            wx.ID_OK,
+            localized("&Zamknij", "&Close"),
+        )
+        close_button.SetDefault()
+        accessible = apply_accessible_name(
+            close_button,
+            localized("Zamknij", "Close"),
+            keyboard_shortcut=_alt("Z", "C"),
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(
+            close_button,
+            0,
+            wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT,
+            12,
+        )
+        self.SetSizerAndFit(sizer)
+        self.SetMinSize((800, 560))
+        self.SetSize((880, 650))
+        self.CentreOnParent()
+        wx.CallAfter(text.SetFocus)
+
+
+class AboutDialog(wx.Dialog):
+    def __init__(self, parent: wx.Window) -> None:
+        super().__init__(
+            parent,
+            title=localized(
+                f"O programie {PRODUCT_NAME}",
+                f"About {PRODUCT_NAME}",
+            ),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._accessible_objects: list[wx.Accessible] = []
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        text = wx.TextCtrl(
+            self,
+            value=about_text(),
+            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
+        )
+        text.SetMinSize((680, 300))
+        accessible = apply_accessible_name(
+            text,
+            localized("Informacje o programie", "About information"),
+            localized(
+                "Czytaj strzałkami. Tekst można zaznaczać i kopiować.",
+                "Read with the arrow keys. The text can be selected and copied.",
+            ),
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(text, 1, wx.ALL | wx.EXPAND, 12)
+
+        actions = wx.BoxSizer(wx.HORIZONTAL)
+        self.privacy_button = wx.Button(
+            self,
+            label=localized("&Polityka prywatności", "&Privacy policy"),
+        )
+        self.legal_button = wx.Button(
+            self,
+            label=localized("&Informacje prawne", "&Legal information"),
+        )
+        self.close_button = wx.Button(
+            self,
+            wx.ID_OK,
+            localized("&Zamknij", "&Close"),
+        )
+        for control, name, shortcut in (
+            (
+                self.privacy_button,
+                localized("Polityka prywatności", "Privacy policy"),
+                _alt("P", "P"),
+            ),
+            (
+                self.legal_button,
+                localized("Informacje prawne", "Legal information"),
+                _alt("I", "L"),
+            ),
+            (
+                self.close_button,
+                localized("Zamknij", "Close"),
+                _alt("Z", "C"),
+            ),
+        ):
+            accessible = apply_accessible_name(
+                control,
+                name,
+                keyboard_shortcut=shortcut,
+            )
+            if accessible is not None:
+                self._accessible_objects.append(accessible)
+        self.close_button.SetDefault()
+        actions.Add(self.privacy_button, 0, wx.RIGHT, 8)
+        actions.Add(self.legal_button, 0, wx.RIGHT, 8)
+        actions.Add(self.close_button, 0)
+        sizer.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 12)
+
+        self.SetSizerAndFit(sizer)
+        self.SetMinSize((730, 430))
+        self.SetSize((800, 500))
+        self.CentreOnParent()
+        self.privacy_button.Bind(wx.EVT_BUTTON, self._on_privacy)
+        self.legal_button.Bind(wx.EVT_BUTTON, self._on_legal)
+        wx.CallAfter(text.SetFocus)
+
+    def _show_document(self, *, title: str, content: str, name: str) -> None:
+        dialog = ReadOnlyDocumentDialog(
+            self,
+            title=title,
+            content=content,
+            accessible_name=name,
+        )
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+
+    def _on_privacy(self, event: wx.CommandEvent) -> None:
+        self._show_document(
+            title=localized(
+                f"Polityka prywatności — {PRODUCT_NAME}",
+                f"Privacy Policy — {PRODUCT_NAME}",
+            ),
+            content=privacy_text(),
+            name=localized("Treść polityki prywatności", "Privacy policy content"),
+        )
+
+    def _on_legal(self, event: wx.CommandEvent) -> None:
+        self._show_document(
+            title=localized(
+                f"Informacje prawne — {PRODUCT_NAME}",
+                f"Legal Information — {PRODUCT_NAME}",
+            ),
+            content=legal_text(),
+            name=localized("Treść informacji prawnych", "Legal information content"),
+        )
+
+
 class SettingsDialog(wx.Dialog):
     def __init__(
         self,
@@ -662,6 +841,24 @@ class SettingsDialog(wx.Dialog):
             calendar_box.Add(info, 0, wx.ALL | wx.EXPAND, 12)
         sizer.Add(calendar_box, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
+        self.about_button = wx.Button(
+            self,
+            label=localized("&O programie", "&About"),
+        )
+        accessible = apply_accessible_name(
+            self.about_button,
+            localized("O programie", "About"),
+            keyboard_shortcut=_alt("O", "A"),
+        )
+        if accessible is not None:
+            self._accessible_objects.append(accessible)
+        sizer.Add(
+            self.about_button,
+            0,
+            wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_LEFT,
+            12,
+        )
+
         buttons = wx.StdDialogButtonSizer()
         self.save_button = wx.Button(
             self,
@@ -706,6 +903,7 @@ class SettingsDialog(wx.Dialog):
         self.SetSize((700, 520))
         self.CentreOnParent()
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
+        self.about_button.Bind(wx.EVT_BUTTON, self._on_about)
         wx.CallAfter(
             (
                 self.language_ctrl
@@ -713,6 +911,13 @@ class SettingsDialog(wx.Dialog):
                 else self.language_ctrl
             ).SetFocus
         )
+
+    def _on_about(self, event: wx.CommandEvent) -> None:
+        dialog = AboutDialog(self)
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
 
     def _on_save(self, event: wx.CommandEvent) -> None:
         if self._calendars and not self.selected_ids():

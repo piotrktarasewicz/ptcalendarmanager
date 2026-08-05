@@ -234,3 +234,19 @@ ryzyka regresji.
 
 Aplikacja wyraźnie informuje, że jest niezależnym klientem Kalendarza Google, nie
 jest produktem Google LLC i nie jest przez Google sponsorowana ani zatwierdzona.
+
+## Etap 0.14.0 — przygotowanie do wydania, prywatność i bezpieczny token
+
+Ustawienia zawierają przycisk „O programie”. Okno udostępnia w standardowych polach tekstowych tylko do odczytu:
+
+- informacje o produkcie i autorze;
+- politykę prywatności;
+- informacje prawne i informację o niezależności od Google.
+
+Treści są wbudowane po polsku i po angielsku, dzięki czemu działają bez Internetu i można je czytać, zaznaczać oraz kopiować z użyciem czytnika ekranu.
+
+Token OAuth jest przechowywany jako `token.dat`. Zawartość JSON jest szyfrowana mechanizmem Windows Data Protection API dla bieżącego użytkownika Windows. Format pliku zawiera własny nagłówek wersji, a zapis odbywa się atomowo przez plik tymczasowy.
+
+Podczas pierwszego uruchomienia po aktualizacji aplikacja może odczytać starszy `token.json`. Po poprawnym utworzeniu zaszyfrowanego `token.dat` usuwa wyłącznie jawną kopię znajdującą się w aktualnym katalogu danych. Gdy szyfrowanie nie powiedzie się, plik jawny nie jest usuwany. Starsze katalogi aplikacji pozostają nienaruszone.
+
+Wylogowanie usuwa zarówno `token.dat`, jak i ewentualny zgodnościowy `token.json`. Sprawdzanie stanu logowania nadal nie wykonuje operacji sieciowej w wątku interfejsu.

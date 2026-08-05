@@ -12,7 +12,7 @@ from gcm_core.paths import app_data_dir, legacy_app_data_dirs, migrate_legacy_ap
 class ProductBrandingTests(unittest.TestCase):
     def test_official_product_name_and_version(self) -> None:
         self.assertEqual(PRODUCT_NAME, "PT Calendar Manager")
-        self.assertEqual(PRODUCT_VERSION, "0.13.0")
+        self.assertEqual(PRODUCT_VERSION, "0.14.0")
         self.assertEqual(DATA_DIR_NAME, PRODUCT_NAME)
 
     def test_windows_data_directory_uses_official_name(self) -> None:

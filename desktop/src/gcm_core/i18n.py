@@ -442,6 +442,8 @@ ENGLISH_TRANSLATIONS: dict[str, str] = {
     "Otwieranie przeglądarki do logowania Google. Po zakończeniu wróć do aplikacji PT Calendar Manager.": "Opening the browser for Google sign-in. When finished, return to PT Calendar Manager.",
     "Logowanie zakończone. Możesz zamknąć tę kartę i wrócić do PT Calendar Manager.": "Sign-in complete. You can close this tab and return to PT Calendar Manager.",
     "Odczyt tokenu OAuth": "Reading the OAuth token",
+    "Odczyt zaszyfrowanego tokenu OAuth": "Reading the encrypted OAuth token",
+    "Szyfrowanie tokenu OAuth": "Encrypting the OAuth token",
     "Odświeżanie tokenu OAuth": "Refreshing the OAuth token",
     "Logowanie OAuth": "OAuth sign-in",
     "Kontekst: {context}\nTyp: {type}\nTreść: {message}\n\n{traceback}": "Context: {context}\nType: {type}\nMessage: {message}\n\n{traceback}",

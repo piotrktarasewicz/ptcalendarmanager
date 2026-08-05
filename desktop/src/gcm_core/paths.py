@@ -8,6 +8,7 @@ from pathlib import Path
 from .branding import DATA_DIR_NAME, LEGACY_DATA_DIR_NAMES, LEGACY_UNIX_DATA_DIR_NAMES
 
 _MIGRATABLE_USER_FILES = (
+    "token.dat",
     "token.json",
     "settings.json",
     "client_secret.json",
@@ -58,6 +59,10 @@ def migrate_legacy_app_data() -> dict[str, bool]:
 
 
 def token_path() -> Path:
+    return app_data_dir() / "token.dat"
+
+
+def plaintext_token_path() -> Path:
     return app_data_dir() / "token.json"
 
 
@@ -137,7 +142,7 @@ def migrate_from_nvda() -> dict[str, bool]:
     nvda_dir = nvda_user_data_dir()
     if nvda_dir:
         for name, target, key in (
-            ("token.json", token_path(), "token"),
+            ("token.json", plaintext_token_path(), "token"),
             ("settings.json", settings_path(), "settings"),
         ):
             source = nvda_dir / name
