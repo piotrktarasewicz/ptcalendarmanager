@@ -37,18 +37,23 @@ class LegalDocumentTests(unittest.TestCase):
 
 
 class AboutUiTests(unittest.TestCase):
-    def test_settings_contains_about_button_and_handler(self) -> None:
+    def test_about_dialog_and_documents_remain_available(self) -> None:
         path = Path(__file__).resolve().parents[1] / "src/gcm_desktop/dialogs.py"
         source = path.read_text(encoding="utf-8")
         self.assertIn("class AboutDialog", source)
-        self.assertIn("self.about_button", source)
-        self.assertIn("def _on_about", source)
         self.assertIn("privacy_text()", source)
         self.assertIn("legal_text()", source)
 
-    def test_about_handler_is_part_of_settings_not_event_form(self) -> None:
-        path = Path(__file__).resolve().parents[1] / "src/gcm_desktop/dialogs.py"
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    def test_about_is_opened_from_help_menu_not_settings(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        app_path = root / "src/gcm_desktop/app.py"
+        app_source = app_path.read_text(encoding="utf-8")
+        self.assertIn('self._append_menu_item(help_menu, "about"', app_source)
+        self.assertIn("def _on_about", app_source)
+        self.assertIn("AboutDialog(self)", app_source)
+
+        dialogs_path = root / "src/gcm_desktop/dialogs.py"
+        tree = ast.parse(dialogs_path.read_text(encoding="utf-8"), filename=str(dialogs_path))
         classes = {
             node.name: node
             for node in tree.body
@@ -59,13 +64,12 @@ class AboutUiTests(unittest.TestCase):
             for node in classes["SettingsDialog"].body
             if isinstance(node, ast.FunctionDef)
         }
-        event_methods = {
-            node.name
-            for node in classes["EventCreateDialog"].body
-            if isinstance(node, ast.FunctionDef)
-        }
-        self.assertIn("_on_about", settings_methods)
-        self.assertNotIn("_on_about", event_methods)
+        self.assertNotIn("_on_about", settings_methods)
+        settings_source = ast.get_source_segment(
+            dialogs_path.read_text(encoding="utf-8"),
+            classes["SettingsDialog"],
+        ) or ""
+        self.assertNotIn("about_button", settings_source)
 
 
 if __name__ == "__main__":

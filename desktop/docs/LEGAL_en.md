@@ -12,7 +12,7 @@ The Google and Google Calendar names are used only descriptively to identify the
 
 2. Version status
 
-Version 0.14.0 is a test release being prepared for the first public release. Users should verify the result of important operations in Google Calendar. Editing and deletion operations require confirmation in the application, but the user remains responsible for selecting the correct event and operation scope.
+Version 0.15.0 is a test release being prepared for the first public release. Users should verify the result of important operations in Google Calendar. Editing and deletion operations require confirmation in the application, but the user remains responsible for selecting the correct event and operation scope.
 
 3. Dependence on external services
 

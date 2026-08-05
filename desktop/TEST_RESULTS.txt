@@ -1,8 +1,18 @@
-PT Calendar Manager 0.14.0 — wyniki testów automatycznych
+PT Calendar Manager 0.15.0 — wyniki testów automatycznych
 
+Spreadsheet runtime warmup failed during python startup
+Traceback (most recent call last):
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
+artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
 test_accessibility_layer_suppresses_descriptions_for_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_accessibility_layer_suppresses_descriptions_for_buttons) ... ok
-test_main_button_configuration_contains_no_long_descriptions (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_main_button_configuration_contains_no_long_descriptions) ... ok
-test_settings_button_uses_short_accessible_name (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_settings_button_uses_short_accessible_name) ... ok
+test_main_window_contains_no_command_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_main_window_contains_no_command_buttons) ... ok
+test_settings_is_a_short_native_menu_command (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_settings_is_a_short_native_menu_command) ... ok
 test_existing_new_files_are_never_overwritten (test_branding_migration.LegacyApplicationDataMigrationTests.test_existing_new_files_are_never_overwritten) ... ok
 test_files_are_copied_without_deleting_legacy_data (test_branding_migration.LegacyApplicationDataMigrationTests.test_files_are_copied_without_deleting_legacy_data) ... ok
 test_repeated_migration_is_idempotent (test_branding_migration.LegacyApplicationDataMigrationTests.test_repeated_migration_is_idempotent) ... ok
@@ -11,8 +21,8 @@ test_windows_data_directory_uses_official_name (test_branding_migration.ProductB
 test_is_logged_in_does_not_refresh_token_or_use_network (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_does_not_refresh_token_or_use_network) ... ok
 test_is_logged_in_is_false_without_saved_credentials (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_is_false_without_saved_credentials) ... ok
 test_valid_saved_credentials_are_recognized_locally (test_first_run_resilience.OAuthUiStateTests.test_valid_saved_credentials_are_recognized_locally) ... ok
-test_settings_button_is_not_disabled_by_google_busy_state (test_first_run_resilience.SettingsIndependenceTests.test_settings_button_is_not_disabled_by_google_busy_state) ... ok
 test_settings_handler_does_not_start_google_task (test_first_run_resilience.SettingsIndependenceTests.test_settings_handler_does_not_start_google_task) ... ok
+test_settings_menu_is_not_disabled_by_google_busy_state (test_first_run_resilience.SettingsIndependenceTests.test_settings_menu_is_not_disabled_by_google_busy_state) ... ok
 test_both_date_input_formats_are_accepted (test_i18n.EnglishPresentationTests.test_both_date_input_formats_are_accepted) ... ok
 test_dates_counts_and_recurrence_are_english (test_i18n.EnglishPresentationTests.test_dates_counts_and_recurrence_are_english) ... ok
 test_event_details_are_english (test_i18n.EnglishPresentationTests.test_event_details_are_english) ... ok
@@ -24,6 +34,12 @@ test_language_and_calendars_are_saved_together (test_i18n.SettingsMigrationTests
 test_old_settings_without_language_migrate_to_auto (test_i18n.SettingsMigrationTests.test_old_settings_without_language_migrate_to_auto) ... ok
 test_every_constant_tr_key_has_an_english_translation (test_i18n.TranslationCoverageTests.test_every_constant_tr_key_has_an_english_translation) ... ok
 test_translation_function_formats_values (test_i18n.TranslationCoverageTests.test_translation_function_formats_values) ... ok
+test_both_lists_have_context_menus (test_main_menu_layout.NativeMenuLayoutTests.test_both_lists_have_context_menus) ... ok
+test_main_window_uses_five_native_menus (test_main_menu_layout.NativeMenuLayoutTests.test_main_window_uses_five_native_menus) ... ok
+test_shortcuts_are_displayed_next_to_menu_commands (test_main_menu_layout.NativeMenuLayoutTests.test_shortcuts_are_displayed_next_to_menu_commands) ... ok
+test_status_bar_separates_operation_and_account_state (test_main_menu_layout.NativeMenuLayoutTests.test_status_bar_separates_operation_and_account_state) ... ok
+test_tab_cycles_only_between_the_two_lists (test_main_menu_layout.NativeMenuLayoutTests.test_tab_cycles_only_between_the_two_lists) ... ok
+test_visual_accent_uses_windows_system_colours (test_main_menu_layout.NativeMenuLayoutTests.test_visual_accent_uses_windows_system_colours) ... ok
 test_advanced_series_is_rejected_for_whole_series_edit (test_models.BasicRecurrenceTests.test_advanced_series_is_rejected_for_whole_series_edit) ... ok
 test_one_off_event_can_be_converted_to_cycle (test_models.BasicRecurrenceTests.test_one_off_event_can_be_converted_to_cycle) ... ok
 test_parser_accepts_simple_rules_from_google_ui (test_models.BasicRecurrenceTests.test_parser_accepts_simple_rules_from_google_ui) ... ok
@@ -78,8 +94,8 @@ test_search_matches_calendar_name (test_models.SearchRangeTests.test_search_matc
 test_search_range_end_is_inclusive (test_models.SearchRangeTests.test_search_range_end_is_inclusive) ... ok
 test_search_rejects_empty_query (test_models.SearchRangeTests.test_search_rejects_empty_query) ... ok
 test_search_rejects_reversed_range (test_models.SearchRangeTests.test_search_rejects_reversed_range) ... ok
-test_about_handler_is_part_of_settings_not_event_form (test_release_documentation.AboutUiTests.test_about_handler_is_part_of_settings_not_event_form) ... ok
-test_settings_contains_about_button_and_handler (test_release_documentation.AboutUiTests.test_settings_contains_about_button_and_handler) ... ok
+test_about_dialog_and_documents_remain_available (test_release_documentation.AboutUiTests.test_about_dialog_and_documents_remain_available) ... ok
+test_about_is_opened_from_help_menu_not_settings (test_release_documentation.AboutUiTests.test_about_is_opened_from_help_menu_not_settings) ... ok
 test_about_and_legal_text_identify_product_and_independence (test_release_documentation.LegalDocumentTests.test_about_and_legal_text_identify_product_and_independence) ... ok
 test_english_privacy_policy_covers_scopes_storage_and_no_server (test_release_documentation.LegalDocumentTests.test_english_privacy_policy_covers_scopes_storage_and_no_server) ... ok
 test_polish_privacy_policy_covers_scopes_storage_and_no_server (test_release_documentation.LegalDocumentTests.test_polish_privacy_policy_covers_scopes_storage_and_no_server) ... ok
@@ -94,15 +110,17 @@ test_protected_file_round_trip_uses_unprotect (test_secure_storage.ProtectedFile
 test_primary_token_file_uses_dat_extension (test_secure_storage.TokenPathTests.test_primary_token_file_uses_dat_extension) ... ok
 
 ----------------------------------------------------------------------
-Ran 92 tests in 0.075s
+Ran 98 tests in 0.188s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
 Kontrola struktury AST i powielonych metod: OK
-Kontrola wersji i metadanych projektu: OK
-Okno O programie oraz dokumenty polskie i angielskie: OK
-Komplet zakresów OAuth w polityce prywatności: OK
-Szyfrowany format token.dat i migracja token.json: OK
-Usuwanie obu formatów tokenu przy wylogowaniu: OK
-Kontrola integralności dokumentacji wydaniowej: OK
+Brak przycisków funkcyjnych w głównym oknie: OK
+Pięć natywnych menu Windows: OK
+Skróty widoczne przy poleceniach menu: OK
+Menu kontekstowe obu list: OK
+Dwuelementowy cykl Tabulatora: OK
+Oddzielny stan operacji i konta na pasku stanu: OK
+Systemowy kolor akcentu bez własnych kolorów tła: OK
+O programie przeniesione do menu Pomoc: OK

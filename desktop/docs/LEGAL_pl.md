@@ -12,7 +12,7 @@ Nazwa Google i nazwa Google Calendar są używane wyłącznie opisowo, aby wskaz
 
 2. Status wersji
 
-Wersja 0.14.0 jest wersją testową przygotowywaną do pierwszego wydania publicznego. Przed wykonaniem ważnej operacji użytkownik powinien sprawdzić jej wynik w Kalendarzu Google. Operacje usuwania i edycji wymagają potwierdzenia w aplikacji, lecz użytkownik nadal odpowiada za wybór właściwego wydarzenia i zakresu operacji.
+Wersja 0.15.0 jest wersją testową przygotowywaną do pierwszego wydania publicznego. Przed wykonaniem ważnej operacji użytkownik powinien sprawdzić jej wynik w Kalendarzu Google. Operacje usuwania i edycji wymagają potwierdzenia w aplikacji, lecz użytkownik nadal odpowiada za wybór właściwego wydarzenia i zakresu operacji.
 
 3. Zależność od usług zewnętrznych
 

@@ -13,34 +13,33 @@ class QuietButtonAccessibilityTests(unittest.TestCase):
         self.assertIn('accessible_description = "" if is_button', source)
         self.assertNotIn('tr("Klawisz dostępu:', source)
 
-    def test_main_button_configuration_contains_no_long_descriptions(self) -> None:
+    def test_main_window_contains_no_command_buttons(self) -> None:
         path = ROOT / "src/gcm_desktop/app.py"
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         main_frame = next(
             node for node in tree.body
             if isinstance(node, ast.ClassDef) and node.name == "MainFrame"
         )
-        configure = next(
+        initializer = next(
             node for node in main_frame.body
-            if isinstance(node, ast.FunctionDef) and node.name == "_configure_button"
+            if isinstance(node, ast.FunctionDef) and node.name == "__init__"
         )
-        parameter_names = [argument.arg for argument in configure.args.args]
-        keyword_only_names = [argument.arg for argument in configure.args.kwonlyargs]
-        self.assertEqual(parameter_names, ["self", "control"])
-        self.assertEqual(keyword_only_names, ["name", "access_key"])
+        button_calls = [
+            node
+            for node in ast.walk(initializer)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "wx"
+            and node.func.attr == "Button"
+        ]
+        self.assertEqual(button_calls, [])
 
-        source = path.read_text(encoding="utf-8")
-        start = source.index("    def _configure_button(")
-        end = source.index("    def _update_button_accessible_name(", start)
-        block = source[start:end]
-        self.assertNotIn("action_description", block)
-        self.assertNotIn("application_shortcut", block)
-        self.assertNotIn("Skrót aplikacji", block)
-
-    def test_settings_button_uses_short_accessible_name(self) -> None:
+    def test_settings_is_a_short_native_menu_command(self) -> None:
         source = (ROOT / "src/gcm_desktop/app.py").read_text(encoding="utf-8")
-        self.assertIn('(self.settings_button, tr("Ustawienia"),', source)
-        self.assertNotIn('tr("Ustawienia aplikacji i wybór kalendarzy")', source)
+        self.assertIn('menu_bar.Append(settings_menu, tr("&Ustawienia"))', source)
+        self.assertIn('tr("Us&tawienia")', source)
+        self.assertNotIn("self.settings_button", source)
 
 
 if __name__ == "__main__":

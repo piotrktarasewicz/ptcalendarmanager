@@ -250,3 +250,21 @@ Token OAuth jest przechowywany jako `token.dat`. Zawartość JSON jest szyfrowan
 Podczas pierwszego uruchomienia po aktualizacji aplikacja może odczytać starszy `token.json`. Po poprawnym utworzeniu zaszyfrowanego `token.dat` usuwa wyłącznie jawną kopię znajdującą się w aktualnym katalogu danych. Gdy szyfrowanie nie powiedzie się, plik jawny nie jest usuwany. Starsze katalogi aplikacji pozostają nienaruszone.
 
 Wylogowanie usuwa zarówno `token.dat`, jak i ewentualny zgodnościowy `token.json`. Sprawdzanie stanu logowania nadal nie wykonuje operacji sieciowej w wątku interfejsu.
+
+## Etap 0.15.0 — docelowe główne okno z natywnym menu
+
+Główne okno nie zawiera już przycisków poleceń. Jedynymi kontrolkami roboczymi w kolejności Tabulatora są lista dni i lista wydarzeń. Natywny `wx.MenuBar` udostępnia pięć menu: Kalendarz, Wydarzenie, Konto, Ustawienia i Pomoc.
+
+Identyfikatory poleceń są współdzielone przez:
+
+- pozycje głównego paska menu;
+- tablicę skrótów `wx.AcceleratorTable`;
+- tymczasowe menu kontekstowe obu list.
+
+Dzięki temu wszystkie drogi wywołania korzystają z tych samych metod obsługi, a skróty nie duplikują logiki funkcjonalnej.
+
+Stany aktywności poleceń są zarządzane centralnie przez `_update_command_states()`. Ustawienia, Pomoc i O programie pozostają dostępne podczas operacji sieciowych. Polecenia edycji i usuwania wymagają zaznaczonego wydarzenia oraz braku aktywnego zadania Google.
+
+Tabulator jest jawnie obsługiwany na obu listach, aby zapewnić przewidywalny, dwuelementowy cykl fokusu. `Shift+F10` i klawisz aplikacji są obsługiwane przez natywne zdarzenie `wx.EVT_CONTEXT_MENU`.
+
+Warstwa wizualna nie ma własnej skórki. Nagłówek miesiąca i nagłówki dwóch paneli otrzymują kolor `wx.SYS_COLOUR_HOTLIGHT`, pobierany z ustawień Windows. Tła, zaznaczenia, stan nieaktywny i pozostałe kolory pozostają w pełni systemowe.

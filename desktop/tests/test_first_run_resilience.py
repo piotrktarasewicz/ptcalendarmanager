@@ -45,13 +45,13 @@ class SettingsIndependenceTests(unittest.TestCase):
         self.assertIn("_show_settings_dialog", calls)
         self.assertNotIn("_run_task", calls)
 
-    def test_settings_button_is_not_disabled_by_google_busy_state(self) -> None:
+    def test_settings_menu_is_not_disabled_by_google_busy_state(self) -> None:
         path = Path(__file__).resolve().parents[1] / "src/gcm_desktop/app.py"
         source = path.read_text(encoding="utf-8")
-        start = source.index("    def _set_busy(")
-        end = source.index("    def _run_task(", start)
+        start = source.index("    def _update_command_states(")
+        end = source.index("    def _update_event_action_buttons(", start)
         block = source[start:end]
-        self.assertNotIn("self.settings_button,", block)
+        self.assertIn('self._set_command_enabled("settings", True)', block)
 
 
 if __name__ == "__main__":

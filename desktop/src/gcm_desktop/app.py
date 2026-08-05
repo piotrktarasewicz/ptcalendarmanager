@@ -46,8 +46,9 @@ from gcm_core.branding import (
     PRODUCT_NAME,
     PRODUCT_VERSION,
 )
-from .accessibility import ExplicitNameAccessible, apply_accessible_name
+from .accessibility import apply_accessible_name
 from .dialogs import (
+    AboutDialog,
     SettingsDialog,
     EventCreateDialog,
     EventEditDialog,
@@ -85,82 +86,72 @@ class MainFrame(wx.Frame):
         self._focus_event_after_refresh: str | None = None
         self._focus_events_after_refresh = False
         self._accessible_objects: list[wx.Accessible] = []
-        self._button_accessibility: dict[wx.Button, ExplicitNameAccessible] = {}
+        self._command_ids = {
+            name: wx.NewIdRef()
+            for name in (
+                "login", "settings", "add", "edit", "delete", "search", "goto",
+                "today", "refresh", "previous", "next", "help", "about",
+                "details", "open_google", "meeting",
+            )
+        }
+        self._menu_items: dict[str, wx.MenuItem] = {}
 
         panel = wx.Panel(self)
         panel.SetName(tr("Główne okno PT Calendar Manager"))
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        account_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.login_button = wx.Button(panel, label=tr("Za&loguj do Google"))
-        self.settings_button = wx.Button(panel, label=tr("Us&tawienia"))
-        self.help_button = wx.Button(panel, label=tr("Pomoc i skróty (&H)"))
-        self.account_label = wx.StaticText(
+        self.month_label = wx.StaticText(
             panel,
-            label=tr("Konto Google: sprawdzanie stanu"),
+            label="",
+            style=wx.ALIGN_CENTER_HORIZONTAL,
         )
-        account_row.Add(self.login_button, 0, wx.RIGHT, 8)
-        account_row.Add(self.settings_button, 0, wx.RIGHT, 8)
-        account_row.Add(self.help_button, 0, wx.RIGHT, 12)
-        account_row.Add(self.account_label, 1, wx.ALIGN_CENTER_VERTICAL)
-        main_sizer.Add(account_row, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
-
-        nav_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.previous_button = wx.Button(panel, label=tr("&Poprzedni miesiąc"))
-        self.today_button = wx.Button(panel, label=tr("&Dzisiaj"))
-        self.next_button = wx.Button(panel, label=tr("Następny &miesiąc"))
-        self.month_label = wx.StaticText(panel, label="")
-        self.goto_button = wx.Button(panel, label=tr("Przejdź do daty (&G)"))
-        self.search_button = wx.Button(panel, label=tr("Wy&szukaj"))
-        self.add_button = wx.Button(panel, label=tr("Dodaj wydarze&nie"))
-        self.refresh_button = wx.Button(panel, label=tr("&Odśwież"))
-        for button in (self.previous_button, self.today_button, self.next_button):
-            nav_row.Add(button, 0, wx.RIGHT, 6)
-        nav_row.Add(self.month_label, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 12)
-        for button in (self.goto_button, self.search_button, self.add_button, self.refresh_button):
-            nav_row.Add(button, 0, wx.LEFT, 6)
-        main_sizer.Add(nav_row, 0, wx.ALL | wx.EXPAND, 12)
+        self.month_label.SetName(tr("Wybrany miesiąc"))
+        month_font = self.month_label.GetFont()
+        month_font.SetWeight(wx.FONTWEIGHT_BOLD)
+        month_font.SetPointSize(max(month_font.GetPointSize() + 3, 13))
+        self.month_label.SetFont(month_font)
+        main_sizer.Add(
+            self.month_label,
+            0,
+            wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND,
+            14,
+        )
+        main_sizer.Add(
+            wx.StaticLine(panel),
+            0,
+            wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND,
+            12,
+        )
 
         content = wx.BoxSizer(wx.HORIZONTAL)
-        days_box = wx.StaticBoxSizer(wx.VERTICAL, panel, tr("Dni miesiąca"))
+        self.days_box = wx.StaticBoxSizer(wx.VERTICAL, panel, tr("Dni miesiąca"))
         self.days_list = wx.ListBox(panel, style=wx.LB_SINGLE)
         self.days_list.SetName(tr("Dni miesiąca"))
-        self.days_list.SetMinSize((440, 440))
-        days_box.Add(self.days_list, 1, wx.ALL | wx.EXPAND, 8)
-        content.Add(days_box, 1, wx.RIGHT | wx.EXPAND, 8)
+        self.days_list.SetMinSize((440, 500))
+        self.days_box.Add(self.days_list, 1, wx.ALL | wx.EXPAND, 8)
+        content.Add(self.days_box, 1, wx.RIGHT | wx.EXPAND, 8)
 
-        events_box = wx.StaticBoxSizer(wx.VERTICAL, panel, tr("Wydarzenia wybranego dnia"))
+        self.events_box = wx.StaticBoxSizer(
+            wx.VERTICAL,
+            panel,
+            tr("Wydarzenia wybranego dnia"),
+        )
         self.events_list = wx.ListBox(panel, style=wx.LB_SINGLE)
         self.events_list.SetName(tr("Wydarzenia wybranego dnia"))
-        self.events_list.SetMinSize((540, 380))
-        events_box.Add(self.events_list, 1, wx.ALL | wx.EXPAND, 8)
-        event_buttons = wx.BoxSizer(wx.VERTICAL)
-        primary_event_buttons = wx.BoxSizer(wx.HORIZONTAL)
-        self.details_button = wx.Button(panel, label=tr("Pokaż s&zczegóły"))
-        self.edit_button = wx.Button(panel, label=tr("&Edytuj"))
-        self.delete_button = wx.Button(panel, label=tr("&Usuń"))
-        primary_event_buttons.Add(self.details_button, 0, wx.RIGHT, 8)
-        primary_event_buttons.Add(self.edit_button, 0, wx.RIGHT, 8)
-        primary_event_buttons.Add(self.delete_button, 0)
-        event_buttons.Add(primary_event_buttons, 0, wx.BOTTOM, 6)
-
-        link_event_buttons = wx.BoxSizer(wx.HORIZONTAL)
-        self.open_google_button = wx.Button(panel, label=tr("Otwórz &w Google"))
-        self.meeting_button = wx.Button(panel, label=tr("Link spotkan&ia"))
-        link_event_buttons.Add(self.open_google_button, 0, wx.RIGHT, 8)
-        link_event_buttons.Add(self.meeting_button, 0)
-        event_buttons.Add(link_event_buttons, 0)
-        events_box.Add(event_buttons, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
-        content.Add(events_box, 1, wx.LEFT | wx.EXPAND, 8)
-        main_sizer.Add(content, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
+        self.events_list.SetMinSize((540, 500))
+        self.events_box.Add(self.events_list, 1, wx.ALL | wx.EXPAND, 8)
+        content.Add(self.events_box, 1, wx.LEFT | wx.EXPAND, 8)
+        main_sizer.Add(content, 1, wx.ALL | wx.EXPAND, 12)
 
         panel.SetSizer(main_sizer)
-        self.status_bar = self.CreateStatusBar()
+        self.status_bar = self.CreateStatusBar(2)
+        self.status_bar.SetStatusWidths([-1, 280])
         self.status_bar.SetName(tr("Stan aplikacji"))
 
-        self._configure_main_buttons()
+        self._build_menu_bar()
         self._bind_events()
         self._install_accelerators()
+        self._apply_system_accent()
         self._render_month(select_date=today)
         self.Centre()
         wx.CallAfter(self.days_list.SetFocus)
@@ -171,84 +162,130 @@ class MainFrame(wx.Frame):
     def _access_key(polish: str, english: str) -> str:
         return polish if get_language() == "pl" else english
 
-    def _configure_button(
-        self,
-        control: wx.Button,
-        *,
-        name: str,
-        access_key: str,
-    ) -> None:
-        accessible = apply_accessible_name(
-            control,
-            name,
-            keyboard_shortcut=f"Alt+{access_key}",
-        )
-        if accessible is not None:
-            self._accessible_objects.append(accessible)
-            self._button_accessibility[control] = accessible
+    @staticmethod
+    def _menu_label(label: str, shortcut: str = "") -> str:
+        return f"{label}\t{shortcut}" if shortcut else label
 
-    def _configure_main_buttons(self) -> None:
-        definitions = (
-            (self.login_button, tr("Zaloguj do Google"), self._access_key("L", "L")),
-            (self.settings_button, tr("Ustawienia"), self._access_key("T", "T")),
-            (self.help_button, tr("Pomoc i skróty"), self._access_key("H", "H")),
-            (self.previous_button, tr("Poprzedni miesiąc"), self._access_key("P", "P")),
-            (self.today_button, tr("Dzisiaj"), self._access_key("D", "Y")),
-            (self.next_button, tr("Następny miesiąc"), self._access_key("M", "N")),
-            (self.goto_button, tr("Przejdź do daty"), self._access_key("G", "G")),
-            (self.search_button, tr("Wyszukaj"), self._access_key("S", "S")),
-            (self.add_button, tr("Dodaj wydarzenie"), self._access_key("N", "A")),
-            (self.refresh_button, tr("Odśwież"), self._access_key("O", "R")),
-            (self.details_button, tr("Pokaż szczegóły"), self._access_key("Z", "V")),
-            (self.edit_button, tr("Edytuj"), self._access_key("E", "E")),
-            (self.delete_button, tr("Usuń"), self._access_key("U", "D")),
-            (self.open_google_button, tr("Otwórz w Google"), self._access_key("W", "O")),
-            (self.meeting_button, tr("Link spotkania"), self._access_key("I", "M")),
-        )
-        for control, name, access_key in definitions:
-            self._configure_button(
-                control,
-                name=name,
-                access_key=access_key,
-            )
-
-    def _update_button_accessible_name(
+    def _append_menu_item(
         self,
-        control: wx.Button,
-        name: str,
-    ) -> None:
-        control.SetName(name)
-        accessible = self._button_accessibility.get(control)
-        if accessible is not None:
-            accessible.update(name=name)
+        menu: wx.Menu,
+        command: str,
+        label: str,
+        shortcut: str = "",
+    ) -> wx.MenuItem:
+        item = menu.Append(
+            self._command_ids[command],
+            self._menu_label(label, shortcut),
+        )
+        self._menu_items[command] = item
+        return item
+
+    def _build_menu_bar(self) -> None:
+        menu_bar = wx.MenuBar()
+
+        calendar_menu = wx.Menu()
+        self._append_menu_item(
+            calendar_menu,
+            "previous",
+            tr("&Poprzedni miesiąc"),
+            localized("Alt+Strzałka w lewo", "Alt+Left Arrow"),
+        )
+        self._append_menu_item(calendar_menu, "today", tr("&Dzisiaj"), "Ctrl+D")
+        self._append_menu_item(
+            calendar_menu,
+            "next",
+            tr("Następny &miesiąc"),
+            localized("Alt+Strzałka w prawo", "Alt+Right Arrow"),
+        )
+        calendar_menu.AppendSeparator()
+        self._append_menu_item(
+            calendar_menu,
+            "goto",
+            tr("Przejdź do daty (&G)"),
+            "Ctrl+G",
+        )
+        self._append_menu_item(calendar_menu, "search", tr("Wy&szukaj"), "Ctrl+F")
+        self._append_menu_item(calendar_menu, "add", tr("Dodaj wydarze&nie"), "Ctrl+N")
+        self._append_menu_item(calendar_menu, "refresh", tr("&Odśwież"), "F5")
+        menu_bar.Append(calendar_menu, tr("&Kalendarz"))
+
+        event_menu = wx.Menu()
+        self._append_menu_item(
+            event_menu,
+            "details",
+            tr("Pokaż s&zczegóły"),
+            "Enter",
+        )
+        self._append_menu_item(event_menu, "edit", tr("&Edytuj"), "Ctrl+E")
+        self._append_menu_item(event_menu, "delete", tr("&Usuń"), "Delete")
+        event_menu.AppendSeparator()
+        self._append_menu_item(
+            event_menu,
+            "open_google",
+            tr("Otwórz &w Google"),
+            "Ctrl+Shift+G",
+        )
+        self._append_menu_item(
+            event_menu,
+            "meeting",
+            tr("Link spotkan&ia"),
+            "Ctrl+J",
+        )
+        menu_bar.Append(event_menu, tr("&Wydarzenie"))
+
+        account_menu = wx.Menu()
+        self.login_menu_item = self._append_menu_item(
+            account_menu,
+            "login",
+            tr("Za&loguj do Google"),
+            "Ctrl+L",
+        )
+        menu_bar.Append(account_menu, tr("Ko&nto"))
+
+        settings_menu = wx.Menu()
+        self._append_menu_item(
+            settings_menu,
+            "settings",
+            tr("Us&tawienia"),
+            "Ctrl+,",
+        )
+        menu_bar.Append(settings_menu, tr("&Ustawienia"))
+
+        help_menu = wx.Menu()
+        self._append_menu_item(
+            help_menu,
+            "help",
+            tr("Pomoc i skróty (&H)"),
+            "F1",
+        )
+        help_menu.AppendSeparator()
+        self._append_menu_item(help_menu, "about", tr("&O programie"))
+        menu_bar.Append(help_menu, tr("&Pomoc"))
+
+        self.SetMenuBar(menu_bar)
+        self._update_command_states()
+
+    def _apply_system_accent(self) -> None:
+        try:
+            accent = wx.SystemSettings.GetColour(wx.SYS_COLOUR_HOTLIGHT)
+            if accent.IsOk():
+                self.month_label.SetForegroundColour(accent)
+                self.days_box.GetStaticBox().SetForegroundColour(accent)
+                self.events_box.GetStaticBox().SetForegroundColour(accent)
+        except Exception:
+            pass
 
     def _bind_events(self) -> None:
-        self.login_button.Bind(wx.EVT_BUTTON, self._on_login)
-        self.settings_button.Bind(wx.EVT_BUTTON, self._on_settings)
-        self.help_button.Bind(wx.EVT_BUTTON, self._on_help)
-        self.previous_button.Bind(wx.EVT_BUTTON, lambda event: self._change_month(-1))
-        self.next_button.Bind(wx.EVT_BUTTON, lambda event: self._change_month(1))
-        self.today_button.Bind(wx.EVT_BUTTON, self._on_today)
-        self.goto_button.Bind(wx.EVT_BUTTON, self._on_goto)
-        self.search_button.Bind(wx.EVT_BUTTON, self._on_search)
-        self.add_button.Bind(wx.EVT_BUTTON, self._on_add)
-        self.refresh_button.Bind(wx.EVT_BUTTON, lambda event: self._refresh_google())
         self.days_list.Bind(wx.EVT_LISTBOX, self._on_day_selected)
         self.days_list.Bind(wx.EVT_KEY_DOWN, self._on_days_key)
+        self.days_list.Bind(wx.EVT_CONTEXT_MENU, self._on_days_context_menu)
         self.events_list.Bind(wx.EVT_KEY_DOWN, self._on_events_key)
         self.events_list.Bind(wx.EVT_LISTBOX_DCLICK, self._on_details)
-        self.details_button.Bind(wx.EVT_BUTTON, self._on_details)
-        self.edit_button.Bind(wx.EVT_BUTTON, self._on_edit)
-        self.delete_button.Bind(wx.EVT_BUTTON, self._on_delete)
-        self.open_google_button.Bind(wx.EVT_BUTTON, self._on_open_google)
-        self.meeting_button.Bind(wx.EVT_BUTTON, self._on_meeting_link)
         self.events_list.Bind(wx.EVT_LISTBOX, self._on_event_selected)
+        self.events_list.Bind(wx.EVT_CONTEXT_MENU, self._on_events_context_menu)
 
     def _install_accelerators(self) -> None:
-        ids = {name: wx.NewIdRef() for name in (
-            "login", "settings", "add", "edit", "delete", "search", "goto",
-            "today", "refresh", "previous", "next", "help", "open_google", "meeting",
-        )}
+        ids = self._command_ids
         entries = [
             (wx.ACCEL_CTRL, ord("L"), ids["login"]),
             (wx.ACCEL_CTRL, ord(","), ids["settings"]),
@@ -277,6 +314,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self._on_today, id=ids["today"])
         self.Bind(wx.EVT_MENU, lambda event: self._refresh_google(), id=ids["refresh"])
         self.Bind(wx.EVT_MENU, self._on_help, id=ids["help"])
+        self.Bind(wx.EVT_MENU, self._on_about, id=ids["about"])
+        self.Bind(wx.EVT_MENU, self._on_details, id=ids["details"])
         self.Bind(wx.EVT_MENU, self._on_open_google, id=ids["open_google"])
         self.Bind(wx.EVT_MENU, self._on_meeting_link, id=ids["meeting"])
         self.Bind(wx.EVT_MENU, lambda event: self._change_month(-1), id=ids["previous"])
@@ -292,11 +331,13 @@ class MainFrame(wx.Frame):
                 "PT Calendar Manager służy do szybkiego, dostępnego zarządzania Kalendarzem Google. "
                 "Bardziej zaawansowane funkcje pozostają w oficjalnym interfejsie Google.\n\n"
                 "UKŁAD GŁÓWNEGO OKNA\n"
-                "W górnej części znajdują się logowanie, ustawienia i pomoc. "
-                "W ustawieniach wybiera się język aplikacji oraz kalendarze. "
+                "Na górze znajduje się klasyczny pasek menu: Kalendarz, Wydarzenie, "
+                "Konto, Ustawienia i Pomoc. Lewy Alt przenosi fokus do menu. "
                 "Po lewej znajduje się lista dni bieżącego miesiąca, a po prawej "
-                "lista wydarzeń zaznaczonego dnia. Enter na liście dni przenosi "
-                "fokus na wydarzenia. Enter na wydarzeniu otwiera szczegóły.\n\n"
+                "lista wydarzeń zaznaczonego dnia. Tab przełącza tylko między tymi "
+                "dwiema listami. Enter na liście dni przenosi fokus na wydarzenia, "
+                "a Enter na wydarzeniu otwiera szczegóły. Shift+F10 otwiera menu "
+                "kontekstowe bieżącej listy.\n\n"
                 "SKRÓTY APLIKACJI\n"
                 "Ctrl+L — zaloguj do Google albo wyloguj.\n"
                 "Ctrl+, — otwórz ustawienia.\n"
@@ -319,7 +360,7 @@ class MainFrame(wx.Frame):
                 "systemu, a angielskiego dla pozostałych. Ręczna zmiana języka "
                 "zaczyna działać po ponownym uruchomieniu PT Calendar Manager.\n\n"
                 "O PROGRAMIE I PRYWATNOŚĆ\n"
-                "W Ustawieniach znajduje się przycisk O programie. Udostępnia on "
+                "W menu Pomoc znajduje się polecenie O programie. Udostępnia ono "
                 "informacje o wersji, autorze, niezależności produktu, politykę "
                 "prywatności oraz informacje prawne. Token Google jest przechowywany "
                 "lokalnie i szyfrowany mechanizmem Windows DPAPI.\n\n"
@@ -340,11 +381,13 @@ class MainFrame(wx.Frame):
             "PT Calendar Manager provides quick, accessible management of Google Calendar. "
             "More advanced features remain available in Google's official interface.\n\n"
             "MAIN WINDOW\n"
-            "Sign-in, Settings and Help are at the top. Settings contains the "
-            "application language and calendar selection. The days of the current "
-            "month are listed on the left and events for the selected day are on "
-            "the right. Enter on the day list moves focus to events. Enter on an "
-            "event opens its details.\n\n"
+            "A standard menu bar at the top contains Calendar, Event, Account, "
+            "Settings and Help. Press the left Alt key to move to the menu bar. "
+            "The days of the current month are listed on the left and events for "
+            "the selected day are on the right. Tab moves only between these two "
+            "lists. Enter on the day list moves focus to events, and Enter on an "
+            "event opens its details. Shift+F10 opens the context menu for the "
+            "focused list.\n\n"
             "APPLICATION SHORTCUTS\n"
             "Ctrl+L — sign in to or sign out of Google.\n"
             "Ctrl+, — open Settings.\n"
@@ -366,7 +409,7 @@ class MainFrame(wx.Frame):
             "uses the Windows language: Polish on a Polish system and English for "
             "other systems. A manual language change takes effect after PT Calendar Manager is restarted.\n\n"
             "ABOUT AND PRIVACY\n"
-            "Settings contains an About button with version and author information, "
+            "The Help menu contains About with version and author information, "
             "the independence notice, the Privacy Policy and legal information. "
             "The Google token is stored locally and encrypted with Windows DPAPI.\n\n"
             "RECURRING EVENTS\n"
@@ -382,6 +425,14 @@ class MainFrame(wx.Frame):
 
     def _on_help(self, event: wx.Event) -> None:
         dialog = HelpDialog(self, self._help_text())
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+        self.days_list.SetFocus()
+
+    def _on_about(self, event: wx.Event) -> None:
+        dialog = AboutDialog(self)
         try:
             dialog.ShowModal()
         finally:
@@ -405,22 +456,14 @@ class MainFrame(wx.Frame):
         if oauth.is_logged_in():
             self._refresh_google()
         else:
-            self._set_status(tr("Brak aktywnego logowania Google. Użyj przycisku Zaloguj do Google."))
+            self._set_status(tr("Brak aktywnego logowania Google. Użyj polecenia Zaloguj do Google w menu Konto."))
 
     def _set_status(self, text: str) -> None:
-        self.status_bar.SetStatusText(text)
+        self.status_bar.SetStatusText(text, 0)
 
     def _set_busy(self, busy: bool, message: str = "") -> None:
         self._busy = busy
-        # Settings and Help deliberately remain available while Google is busy.
-        # Language selection and diagnostics must never depend on the network.
-        for control in (
-            self.login_button, self.previous_button,
-            self.today_button, self.next_button, self.goto_button,
-            self.search_button, self.add_button, self.refresh_button,
-            self.edit_button, self.delete_button,
-        ):
-            control.Enable(not busy)
+        self._update_command_states()
         if message:
             self._set_status(message)
 
@@ -507,19 +550,19 @@ class MainFrame(wx.Frame):
 
     def _update_account_state(self) -> None:
         logged_in = oauth.is_logged_in()
-        login_name = (
-            tr("Wyloguj z Google") if logged_in else tr("Zaloguj do Google")
+        self.login_menu_item.SetItemLabel(
+            self._menu_label(
+                tr("Wy&loguj z Google") if logged_in else tr("Za&loguj do Google"),
+                "Ctrl+L",
+            )
         )
-        self.login_button.SetLabel(
-            tr("Wy&loguj z Google") if logged_in else tr("Za&loguj do Google")
-        )
-        self._update_button_accessible_name(self.login_button, login_name)
-        self.account_label.SetLabel(
+        self.status_bar.SetStatusText(
             tr("Konto Google: połączone")
             if logged_in
-            else tr("Konto Google: niepołączone")
+            else tr("Konto Google: niepołączone"),
+            1,
         )
-        self.settings_button.Enable(not self._busy)
+        self._update_command_states()
 
     def _selected_calendars(self) -> list[CalendarInfo]:
         selected = set(self.settings.selected_calendar_ids)
@@ -702,18 +745,33 @@ class MainFrame(wx.Frame):
         index = self.events_list.GetSelection()
         return self._event_values[index] if 0 <= index < len(self._event_values) else None
 
-    def _update_event_action_buttons(self) -> None:
+    def _set_command_enabled(self, command: str, enabled: bool) -> None:
+        item = self._menu_items.get(command)
+        if item is not None:
+            item.Enable(bool(enabled))
+
+    def _update_command_states(self) -> None:
         selected = self._selected_event()
         has_selection = selected is not None
-        self.details_button.Enable(has_selection)
-        self.edit_button.Enable(has_selection and not self._busy)
-        self.delete_button.Enable(has_selection and not self._busy)
-        self.open_google_button.Enable(
-            bool(selected and selected.can_open_in_google)
+        for command in ("previous", "today", "next", "goto", "search", "add", "refresh", "login"):
+            self._set_command_enabled(command, not self._busy)
+        self._set_command_enabled("settings", True)
+        self._set_command_enabled("help", True)
+        self._set_command_enabled("about", True)
+        self._set_command_enabled("details", has_selection)
+        self._set_command_enabled("edit", has_selection and not self._busy)
+        self._set_command_enabled("delete", has_selection and not self._busy)
+        self._set_command_enabled(
+            "open_google",
+            bool(selected and selected.can_open_in_google),
         )
-        self.meeting_button.Enable(
-            bool(selected and selected.has_meeting_link)
+        self._set_command_enabled(
+            "meeting",
+            bool(selected and selected.has_meeting_link),
         )
+
+    def _update_event_action_buttons(self) -> None:
+        self._update_command_states()
 
     def _on_event_selected(self, event: wx.CommandEvent) -> None:
         self._update_event_action_buttons()
@@ -727,16 +785,84 @@ class MainFrame(wx.Frame):
         event.Skip()
 
     def _on_days_key(self, event: wx.KeyEvent) -> None:
+        if event.GetKeyCode() == wx.WXK_TAB:
+            self.events_list.SetFocus()
+            return
         if event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
             self.events_list.SetFocus()
             return
         event.Skip()
 
     def _on_events_key(self, event: wx.KeyEvent) -> None:
+        if event.GetKeyCode() == wx.WXK_TAB:
+            self.days_list.SetFocus()
+            return
         if event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
             self._on_details(event)
             return
         event.Skip()
+
+    def _append_context_item(
+        self,
+        menu: wx.Menu,
+        command: str,
+        label: str,
+        shortcut: str = "",
+        *,
+        enabled: bool = True,
+    ) -> wx.MenuItem:
+        item = menu.Append(
+            self._command_ids[command],
+            self._menu_label(label, shortcut),
+        )
+        item.Enable(enabled)
+        return item
+
+    def _on_days_context_menu(self, event: wx.ContextMenuEvent) -> None:
+        menu = wx.Menu()
+        self._append_context_item(
+            menu,
+            "add",
+            tr("Dodaj wydarze&nie"),
+            "Ctrl+N",
+            enabled=not self._busy,
+        )
+        menu.AppendSeparator()
+        self._append_context_item(menu, "today", tr("&Dzisiaj"), "Ctrl+D", enabled=not self._busy)
+        self._append_context_item(menu, "goto", tr("Przejdź do daty (&G)"), "Ctrl+G", enabled=not self._busy)
+        self._append_context_item(menu, "search", tr("Wy&szukaj"), "Ctrl+F", enabled=not self._busy)
+        self._append_context_item(menu, "refresh", tr("&Odśwież"), "F5", enabled=not self._busy)
+        try:
+            self.days_list.PopupMenu(menu)
+        finally:
+            menu.Destroy()
+
+    def _on_events_context_menu(self, event: wx.ContextMenuEvent) -> None:
+        selected = self._selected_event()
+        has_selection = selected is not None
+        menu = wx.Menu()
+        self._append_context_item(menu, "details", tr("Pokaż s&zczegóły"), "Enter", enabled=has_selection)
+        self._append_context_item(menu, "edit", tr("&Edytuj"), "Ctrl+E", enabled=has_selection and not self._busy)
+        self._append_context_item(menu, "delete", tr("&Usuń"), "Delete", enabled=has_selection and not self._busy)
+        menu.AppendSeparator()
+        self._append_context_item(
+            menu,
+            "open_google",
+            tr("Otwórz &w Google"),
+            "Ctrl+Shift+G",
+            enabled=bool(selected and selected.can_open_in_google),
+        )
+        self._append_context_item(
+            menu,
+            "meeting",
+            tr("Link spotkan&ia"),
+            "Ctrl+J",
+            enabled=bool(selected and selected.has_meeting_link),
+        )
+        try:
+            self.events_list.PopupMenu(menu)
+        finally:
+            menu.Destroy()
 
     def _change_month(self, offset: int) -> None:
         if self._busy:
@@ -751,6 +877,8 @@ class MainFrame(wx.Frame):
             self._refresh_google()
 
     def _on_today(self, event: wx.Event) -> None:
+        if self._busy:
+            return
         today = dt.date.today()
         changed_month = (today.year, today.month) != (self.current_year, self.current_month)
         self.current_year, self.current_month = today.year, today.month
@@ -764,6 +892,8 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_goto(self, event: wx.Event) -> None:
+        if self._busy:
+            return
         dialog = wx.TextEntryDialog(
             self,
             tr("Wpisz datę w formacie DD.MM.RRRR lub RRRR-MM-DD."),
@@ -797,6 +927,8 @@ class MainFrame(wx.Frame):
             self.days_list.SetFocus()
 
     def _on_search(self, event: wx.Event) -> None:
+        if self._busy:
+            return
         if not oauth.is_logged_in():
             self._show_message(
                 tr("Najpierw zaloguj się do Google."),
@@ -865,7 +997,7 @@ class MainFrame(wx.Frame):
             result_dialog.Destroy()
 
         if dialog_result != wx.ID_OK or selected is None:
-            self.search_button.SetFocus()
+            self.days_list.SetFocus()
             return
 
         self.current_year = selected.start_date.year
@@ -877,6 +1009,8 @@ class MainFrame(wx.Frame):
         self._refresh_google()
 
     def _on_login(self, event: wx.Event) -> None:
+        if self._busy:
+            return
         if oauth.is_logged_in():
             dialog = wx.MessageDialog(
                 self,
@@ -1059,9 +1193,11 @@ class MainFrame(wx.Frame):
         if calendar_changed and oauth.is_logged_in():
             self._refresh_google()
         else:
-            self.settings_button.SetFocus()
+            self.days_list.SetFocus()
 
     def _on_add(self, event: wx.Event) -> None:
+        if self._busy:
+            return
         if not oauth.is_logged_in():
             self._show_message(
                 tr("Najpierw zaloguj się do Google."),
@@ -1172,6 +1308,8 @@ class MainFrame(wx.Frame):
         return ("instance", "series")[selection]
 
     def _on_edit(self, event: wx.Event) -> None:
+        if self._busy:
+            return
         if not oauth.is_logged_in():
             self._show_message(
                 tr("Najpierw zaloguj się do Google."),
@@ -1448,6 +1586,8 @@ class MainFrame(wx.Frame):
         return ("single", "following", "series")[selection]
 
     def _on_delete(self, event: wx.Event) -> None:
+        if self._busy:
+            return
         if not oauth.is_logged_in():
             self._show_message(
                 tr("Najpierw zaloguj się do Google."),

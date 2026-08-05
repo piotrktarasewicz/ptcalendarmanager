@@ -841,24 +841,6 @@ class SettingsDialog(wx.Dialog):
             calendar_box.Add(info, 0, wx.ALL | wx.EXPAND, 12)
         sizer.Add(calendar_box, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
 
-        self.about_button = wx.Button(
-            self,
-            label=localized("&O programie", "&About"),
-        )
-        accessible = apply_accessible_name(
-            self.about_button,
-            localized("O programie", "About"),
-            keyboard_shortcut=_alt("O", "A"),
-        )
-        if accessible is not None:
-            self._accessible_objects.append(accessible)
-        sizer.Add(
-            self.about_button,
-            0,
-            wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_LEFT,
-            12,
-        )
-
         buttons = wx.StdDialogButtonSizer()
         self.save_button = wx.Button(
             self,
@@ -903,7 +885,6 @@ class SettingsDialog(wx.Dialog):
         self.SetSize((700, 520))
         self.CentreOnParent()
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
-        self.about_button.Bind(wx.EVT_BUTTON, self._on_about)
         wx.CallAfter(
             (
                 self.language_ctrl
@@ -911,13 +892,6 @@ class SettingsDialog(wx.Dialog):
                 else self.language_ctrl
             ).SetFocus
         )
-
-    def _on_about(self, event: wx.CommandEvent) -> None:
-        dialog = AboutDialog(self)
-        try:
-            dialog.ShowModal()
-        finally:
-            dialog.Destroy()
 
     def _on_save(self, event: wx.CommandEvent) -> None:
         if self._calendars and not self.selected_ids():

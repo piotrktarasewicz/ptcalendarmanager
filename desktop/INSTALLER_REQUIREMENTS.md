@@ -1,6 +1,6 @@
 # PT Calendar Manager — wymagania instalatora
 
-Dokument roboczy dla etapu po zatwierdzeniu wersji 0.14.0.
+Dokument roboczy dla etapu po zatwierdzeniu wersji 0.15.0.
 
 ## Pakiety
 
