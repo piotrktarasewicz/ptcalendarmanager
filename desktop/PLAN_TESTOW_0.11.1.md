@@ -1,4 +1,4 @@
-# Plan testów GCM by Piotrek 0.11.1
+# Plan testów PT Calendar Manager 0.11.1
 
 Test wykonaj osobno z NVDA, JAWS-em 2025 i Narratorem.
 

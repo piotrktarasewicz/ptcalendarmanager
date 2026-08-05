@@ -20,45 +20,38 @@ if not defined PYTHON_CMD (
 if not defined PYTHON_CMD (
     echo.
     echo Nie znaleziono 64-bitowego Pythona w wersji 3.10-3.13.
+    echo Compatible 64-bit Python 3.10-3.13 was not found.
     echo Zainstaluj Python 3.12 albo 3.13 ze strony python.org.
+    echo Install Python 3.12 or 3.13 from python.org.
     echo Podczas instalacji zaznacz Add Python to PATH.
+    echo During installation, select Add Python to PATH.
     echo.
     pause
     exit /b 1
 )
 
-echo Znaleziono zgodny interpreter: %PYTHON_CMD%
-if not exist ".venv-build\Scripts\python.exe" (
-    echo Tworzenie srodowiska do budowania...
-    %PYTHON_CMD% -m venv .venv-build
+echo Interpreter / Python: %PYTHON_CMD%
+if not exist ".venv\Scripts\python.exe" (
+    echo Tworzenie srodowiska Python / Creating Python environment...
+    %PYTHON_CMD% -m venv .venv
     if errorlevel 1 goto :error
+    call ".venv\Scripts\activate.bat"
+    python -m pip install --upgrade pip
+    if errorlevel 1 goto :error
+    python -m pip install -r requirements.txt
+    if errorlevel 1 goto :error
+) else (
+    call ".venv\Scripts\activate.bat"
 )
-call ".venv-build\Scripts\activate.bat"
-python -m pip install --upgrade pip
+set "PYTHONPATH=%CD%\src"
+python launcher.py
 if errorlevel 1 goto :error
-python -m pip install -r requirements-build.txt
-if errorlevel 1 goto :error
-rmdir /s /q build 2>nul
-rmdir /s /q "dist\PT Calendar Manager" 2>nul
-python -m PyInstaller ^
-    --noconfirm ^
-    --clean ^
-    --windowed ^
-    --onedir ^
-    --name "PT Calendar Manager" ^
-    --paths src ^
-    --collect-all googleapiclient ^
-    --collect-all google_auth_oauthlib ^
-    --collect-all tzdata ^
-    launcher.py
-if errorlevel 1 goto :error
-echo.
-echo Gotowe. Program znajduje sie w:
-echo dist\PT Calendar Manager
-pause
 exit /b 0
 :error
 echo.
-echo Budowanie programu nie powiodlo sie.
+echo Uruchomienie PT Calendar Manager nie powiodlo sie.
+echo PT Calendar Manager could not be started.
+echo Sprawdz komunikaty powyzej oraz plik last_error.txt w katalogu danych aplikacji.
+echo Check the messages above and last_error.txt in the application data folder.
 pause
 exit /b 1

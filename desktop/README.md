@@ -1,93 +1,63 @@
-# GCM by Piotrek 0.12.0 — stabilizacja dostępnego interfejsu
+# PT Calendar Manager 0.13.0
 
-Wersja 0.12.0 rozpoczyna stabilizację przed dokumentacją i instalatorem.
-Zakres funkcjonalny pozostaje taki sam jak w 0.11.2.
+**Dostępna aplikacja do obsługi Kalendarza Google**  
+**Accessible desktop application for Google Calendar**
 
-## Najważniejsza zmiana
+PT Calendar Manager jest samodzielną aplikacją dla systemu Windows, przeznaczoną do szybkiego i dostępnego zarządzania wydarzeniami Kalendarza Google. Interfejs został przygotowany do obsługi klawiaturą i jest testowany z NVDA, JAWS-em oraz Narratorem.
 
-Przyciski przekazują czytnikowi ekranu tylko:
+## Ważna informacja
 
-- krótką nazwę;
-- rolę przycisku;
-- standardowy klawisz dostępu Windows `Alt+litera`.
+PT Calendar Manager jest niezależną aplikacją do obsługi Kalendarza Google. Program nie jest produktem Google LLC, nie jest przez Google sponsorowany ani oficjalnie zatwierdzony. Google Calendar jest znakiem towarowym Google LLC.
 
-Długie opisy działania oraz skróty `Ctrl`, `F1`, `F5` i `Delete` nie są już
-powtarzane przy każdym przejściu Tabulatorem. Pełna lista skrótów nadal znajduje
-się w pomocy otwieranej klawiszem `F1`.
+PT Calendar Manager is an independent application for accessing Google Calendar. It is not a Google LLC product and is not sponsored or endorsed by Google. Google Calendar is a trademark of Google LLC.
 
-Opisy pozostają przy polach, przy których wyjaśniają format albo sposób użycia.
-Przycisk Ustawienia ma teraz krótką nazwę „Ustawienia”, ponieważ jego zawartość
-jest opisana wewnątrz okna.
+## Zmiana nazwy w wersji 0.13.0
 
-## Cel testu
+Dotychczasowa nazwa robocza **GCM by Piotrek** została zastąpiona oficjalną nazwą **PT Calendar Manager**.
 
-Po przejściu na przycisk oczekiwany odczyt jest zbliżony do:
+Przy pierwszym uruchomieniu program kopiuje zgodne pliki użytkownika z:
 
-`Dodaj wydarzenie, N, przycisk`
+`%APPDATA%\GCM by Piotrek`
 
-Szczegółowa kolejność słów może zależeć od NVDA, JAWS-a albo Narratora, ale
-czytnik nie powinien dopowiadać długiego opisu ani skrótu `Ctrl+N`.
+do:
+
+`%APPDATA%\PT Calendar Manager`
+
+Migracja obejmuje, jeśli pliki istnieją:
+
+- `token.json`;
+- `settings.json`;
+- `client_secret.json`;
+- `last_error.txt`.
+
+Pliki w starym katalogu nie są usuwane. Jeżeli w nowym katalogu istnieje już plik o tej samej nazwie, nie zostanie nadpisany.
 
 ## Uruchomienie wersji rozwojowej
 
-Rozpakuj archiwum do nowego katalogu i uruchom `uruchom_gcm.bat`.
-Pierwsze uruchomienie tworzy lokalne środowisko Pythona i instaluje zależności.
+1. Rozpakuj archiwum do nowego katalogu.
+2. Uruchom `uruchom_pt_calendar_manager.bat`.
+3. Starszy plik `uruchom_gcm.bat` pozostaje jako zgodnościowy skrót i uruchamia ten sam program.
 
----
+## Najważniejsze funkcje
 
-# GCM by Piotrek 0.11.0 — Polish and English
+- logowanie do Kalendarza Google przez OAuth;
+- wybór kalendarzy w Ustawieniach;
+- polski i angielski interfejs;
+- odczyt miesiąca i wydarzeń wybranego dnia;
+- dodawanie oraz edycja wydarzeń;
+- podstawowe cykle: codziennie, co tydzień, co miesiąc, co 3 miesiące, co 6 miesięcy i co rok;
+- bezpieczne usuwanie pojedynczego wystąpienia, przyszłych wystąpień albo całego cyklu;
+- wyszukiwanie w podanym zakresie dat;
+- otwieranie wydarzenia w oficjalnym Kalendarzu Google;
+- otwieranie i kopiowanie istniejącego linku spotkania;
+- pomoc i komplet skrótów pod `F1`.
 
-GCM by Piotrek is an accessible Google Calendar client for Windows, tested
-with NVDA, JAWS and Narrator. It is designed for quick everyday calendar
-management. More advanced operations remain available in Google's official
-interface.
+## Granice aplikacji
 
-## What's new in 0.11.0
+PT Calendar Manager nie zastępuje pełnego interfejsu Kalendarza Google. Zaawansowane reguły cykliczności, uczestnicy, tworzenie spotkań Google Meet, indywidualne przypomnienia, ręczny wybór strefy czasowej oraz pozostałe funkcje specjalistyczne pozostają w oficjalnym interfejsie Google.
 
-- complete Polish and English interface;
-- automatic language selection based on the Windows display language;
-- manual `Automatic`, `Polish` or `English` selection;
-- one `Settings` window for both language and calendar selection;
-- the separate calendar button was removed from the main window;
-- `Ctrl+,` opens Settings;
-- `Ctrl+K` remains available as a backward-compatible Settings shortcut;
-- English help, messages, forms, confirmations, errors, dates, weekdays,
-  months and accessibility descriptions;
-- both `DD.MM.YYYY` and ISO `YYYY-MM-DD` date input in either interface language;
-- automatic migration of older settings files without a language field.
+## Budowanie EXE
 
-A language change takes effect after the application is restarted. GCM does
-not use online or machine translation; both language sets are bundled with and
-reviewed as part of the application.
+Uruchom `zbuduj_exe.bat`. Katalog wynikowy będzie miał nazwę:
 
-## Settings
-
-Settings can be opened before signing in, so the application language is always
-available. After signing in, the same window also contains the calendars whose
-events should be displayed.
-
-Settings are stored in `%APPDATA%\GCM by Piotrek\settings.json`. Existing OAuth
-tokens and calendar selection are preserved when upgrading to 0.11.0.
-
-## Development launch
-
-Extract the archive into a new folder and run `uruchom_gcm.bat`. The first run
-creates a local Python environment and installs the required dependencies.
-
-
-## Aktualizacja 0.11.1
-
-Po zapisaniu zmiany języka GCM pyta, czy uruchomić aplikację ponownie teraz. Użytkownik może wybrać „Uruchom ponownie teraz” albo „Później”. Ponowne uruchomienie zachowuje token Google, ustawienia i wybór kalendarzy. Pytanie nie pojawia się przy zmianie samych kalendarzy ani wtedy, gdy zmiana preferencji nie zmienia faktycznego języka interfejsu.
-
-
-## Aktualizacja 0.11.2
-
-- sprawdzanie stanu zapisanej sesji OAuth nie wykonuje już operacji sieciowej w głównym wątku interfejsu;
-- odświeżenie wygasłego tokenu odbywa się wyłącznie w zadaniu działającym w tle;
-- Ustawienia otwierają się natychmiast nawet wtedy, gdy Google jest niedostępny lub lista kalendarzy nie została pobrana;
-- przycisk Ustawienia pozostaje dostępny podczas operacji Google;
-- operacja Google, która nie odpowie w ciągu 45 sekund, nie może już pozostawić interfejsu trwale zablokowanego;
-- brak `client_secret.json` jest wyjaśniany w dostępnym komunikacie przed otwarciem okna wyboru pliku;
-- błędy otwierania Ustawień są pokazywane użytkownikowi i zapisywane w `last_error.txt`.
-
-Na komputerze bez wcześniejszej konfiguracji GCM nadal wymaga pliku OAuth `client_secret.json` do rozpoczęcia logowania. Można skopiować go z `%APPDATA%\GCM by Piotrek` na poprzednim komputerze albo wskazać egzemplarz używany przez wtyczkę NVDA.
+`dist\PT Calendar Manager`

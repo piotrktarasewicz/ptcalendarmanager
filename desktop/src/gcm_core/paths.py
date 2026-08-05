@@ -5,17 +5,56 @@ import shutil
 import sys
 from pathlib import Path
 
-APP_DIR_NAME = "GCM by Piotrek"
+from .branding import DATA_DIR_NAME, LEGACY_DATA_DIR_NAMES, LEGACY_UNIX_DATA_DIR_NAMES
+
+_MIGRATABLE_USER_FILES = (
+    "token.json",
+    "settings.json",
+    "client_secret.json",
+    "last_error.txt",
+)
 
 
-def app_data_dir() -> Path:
+def app_data_dir(*, create: bool = True) -> Path:
     base = os.environ.get("APPDATA")
     if base:
-        result = Path(base) / APP_DIR_NAME
+        result = Path(base) / DATA_DIR_NAME
     else:
-        result = Path.home() / ".gcm-by-piotrek"
-    result.mkdir(parents=True, exist_ok=True)
+        result = Path.home() / ".pt-calendar-manager"
+    if create:
+        result.mkdir(parents=True, exist_ok=True)
     return result
+
+
+def legacy_app_data_dirs() -> list[Path]:
+    base = os.environ.get("APPDATA")
+    if base:
+        return [Path(base) / name for name in LEGACY_DATA_DIR_NAMES]
+    return [Path.home() / name for name in LEGACY_UNIX_DATA_DIR_NAMES]
+
+
+def migrate_legacy_app_data() -> dict[str, bool]:
+    """Copy compatible files from an earlier product-name directory.
+
+    Existing files in the new directory always win. The old directory and its
+    contents are never removed, so rollback to an earlier development version
+    remains possible.
+    """
+    target_dir = app_data_dir()
+    migrated = {name: False for name in _MIGRATABLE_USER_FILES}
+    for legacy_dir in legacy_app_data_dirs():
+        if not legacy_dir.is_dir():
+            continue
+        for name in _MIGRATABLE_USER_FILES:
+            source = legacy_dir / name
+            target = target_dir / name
+            if source.is_file() and not target.exists():
+                try:
+                    shutil.copy2(source, target)
+                except OSError:
+                    continue
+                migrated[name] = True
+    return migrated
 
 
 def token_path() -> Path:
@@ -70,6 +109,7 @@ def client_secret_candidates() -> list[Path]:
         client_secret_path(),
         _runtime_root() / "client_secret.json",
     ]
+    candidates.extend(directory / "client_secret.json" for directory in legacy_app_data_dirs())
     candidates.extend(nvda_addon_client_secret_candidates())
     return candidates
 

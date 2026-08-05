@@ -1,4 +1,4 @@
-# Plan testów GCM by Piotrek 0.4.0
+# Plan testów PT Calendar Manager 0.4.0
 
 Test edycji wykonaj najpierw na zwykłym wydarzeniu utworzonym specjalnie do
 testów. Sprawdź osobno NVDA, JAWS i Narratora.

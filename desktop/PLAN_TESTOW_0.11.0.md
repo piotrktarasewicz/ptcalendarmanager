@@ -1,11 +1,11 @@
-# Plan testów GCM by Piotrek 0.11.0
+# Plan testów PT Calendar Manager 0.11.0
 
 Testy wykonaj osobno z NVDA, JAWS-em 2025 i Narratorem. Najważniejszy jest
 pełny przebieg po polsku i po angielsku, a nie tylko sprawdzenie głównego okna.
 
 ## 1. Aktualizacja ze starszej wersji
 
-1. Uruchom 0.11.0 przy istniejącym `%APPDATA%\GCM by Piotrek`.
+1. Uruchom 0.11.0 przy istniejącym `%APPDATA%\PT Calendar Manager`.
 2. Sprawdź, czy logowanie Google i dotychczas wybrane kalendarze pozostały.
 3. Otwórz Ustawienia. Starszy plik bez pola języka powinien zostać potraktowany
    jako `Automatycznie`.

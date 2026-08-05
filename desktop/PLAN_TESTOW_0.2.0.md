@@ -1,4 +1,4 @@
-# Plan testów GCM by Piotrek 0.2.0
+# Plan testów PT Calendar Manager 0.2.0
 
 Wykonaj najpierw test z NVDA, później z JAWS-em i Narratorem.
 
@@ -58,4 +58,4 @@ Wersja 0.2.0 szuka tylko w wydarzeniach aktualnie pobranego miesiąca.
 - czy aplikacja się zawiesiła, czy tylko nie odświeżyła listy;
 - gdzie znajdował się fokus;
 - czy problem wystąpił z każdym czytnikiem;
-- zawartość pliku `%APPDATA%\GCM by Piotrek\last_error.txt`, jeżeli powstał.
+- zawartość pliku `%APPDATA%\PT Calendar Manager\last_error.txt`, jeżeli powstał.

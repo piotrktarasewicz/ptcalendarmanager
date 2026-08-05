@@ -279,7 +279,7 @@ class CalendarGateway:
             raise ValueError(tr("Edycja nie może przenieść wydarzenia do innego kalendarza."))
         if not existing.supports_basic_edit:
             raise ValueError(
-                tr("Ten rodzaj wydarzenia nie jest jeszcze obsługiwany przez edycję GCM.")
+                tr("Ten rodzaj wydarzenia nie jest jeszcze obsługiwany przez edycję PT Calendar Manager.")
             )
         body = build_event_patch_body(draft, calendar.time_zone)
         if not existing.is_recurring_instance and draft.recurrence.is_recurring:
@@ -307,7 +307,7 @@ class CalendarGateway:
         if not parent.recurrence.supported:
             raise ValueError(
                 tr(
-                    "Ten cykl ma zaawansowaną regułę powtarzania. GCM może edytować pojedyncze wystąpienie, ale cały cykl trzeba zmienić w oficjalnym Kalendarzu Google."
+                    "Ten cykl ma zaawansowaną regułę powtarzania. PT Calendar Manager może edytować pojedyncze wystąpienie, ale cały cykl trzeba zmienić w oficjalnym Kalendarzu Google."
                 )
             )
         return parent
@@ -337,7 +337,7 @@ class CalendarGateway:
         if not parent.recurrence.supported:
             raise ValueError(
                 tr(
-                    "Ten cykl ma zaawansowaną regułę powtarzania i nie może być bezpiecznie uproszczony przez GCM."
+                    "Ten cykl ma zaawansowaną regułę powtarzania i nie może być bezpiecznie uproszczony przez PT Calendar Manager."
                 )
             )
         body = apply_draft_to_event_resource(

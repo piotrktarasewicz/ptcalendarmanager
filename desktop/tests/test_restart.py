@@ -24,7 +24,7 @@ class RestartLaunchTests(unittest.TestCase):
 
     def test_frozen_launch_reuses_the_executable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            executable = Path(directory) / "GCM by Piotrek.exe"
+            executable = Path(directory) / "PT Calendar Manager.exe"
             launch = build_restart_launch(
                 executable=str(executable),
                 arguments=[str(executable), "--example"],

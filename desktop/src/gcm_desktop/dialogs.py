@@ -490,7 +490,7 @@ class RestartRequiredDialog(wx.Dialog):
     def __init__(self, parent: wx.Window) -> None:
         super().__init__(
             parent,
-            title=tr("Ponowne uruchomienie GCM"),
+            title=tr("Ponowne uruchomienie PT Calendar Manager"),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self._accessible_objects: list[wx.Accessible] = []
@@ -499,14 +499,14 @@ class RestartRequiredDialog(wx.Dialog):
         message = wx.TextCtrl(
             self,
             value=tr(
-                "Język aplikacji zostanie zmieniony. Aby zastosować nowe ustawienie, GCM musi zostać uruchomiony ponownie.\n\nWybierz „Uruchom ponownie teraz”, aby zamknąć i ponownie uruchomić aplikację, albo „Później”, aby zastosować zmianę przy następnym uruchomieniu."
+                "Język aplikacji zostanie zmieniony. Aby zastosować nowe ustawienie, PT Calendar Manager musi zostać uruchomiony ponownie.\n\nWybierz „Uruchom ponownie teraz”, aby zamknąć i ponownie uruchomić aplikację, albo „Później”, aby zastosować zmianę przy następnym uruchomieniu."
             ),
             style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
         )
         message.SetMinSize((620, 150))
         accessible = apply_accessible_name(
             message,
-            tr("Ponowne uruchomienie GCM"),
+            tr("Ponowne uruchomienie PT Calendar Manager"),
         )
         if accessible is not None:
             self._accessible_objects.append(accessible)
@@ -531,7 +531,7 @@ class RestartRequiredDialog(wx.Dialog):
                 tr("Uruchom ponownie teraz"),
                 _alt("U", "R"),
                 tr(
-                    "Zamyka bieżącą instancję i uruchamia GCM ponownie w wybranym języku."
+                    "Zamyka bieżącą instancję i uruchamia PT Calendar Manager ponownie w wybranym języku."
                 ),
             ),
             (

@@ -1,4 +1,4 @@
-# Plan testów GCM by Piotrek 0.3.0
+# Plan testów PT Calendar Manager 0.3.0
 
 ## Bezpieczny pierwszy test
 

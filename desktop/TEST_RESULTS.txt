@@ -1,90 +1,14 @@
-GCM by Piotrek 0.12.0 — wyniki testów automatycznych
+PT Calendar Manager 0.13.0 — wyniki testów automatycznych
 
-test_accessibility_layer_suppresses_descriptions_for_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_accessibility_layer_suppresses_descriptions_for_buttons) ... ok
-test_main_button_configuration_contains_no_long_descriptions (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_main_button_configuration_contains_no_long_descriptions) ... ok
-test_settings_button_uses_short_accessible_name (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_settings_button_uses_short_accessible_name) ... ok
-test_is_logged_in_does_not_refresh_token_or_use_network (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_does_not_refresh_token_or_use_network) ... ok
-test_is_logged_in_is_false_without_saved_credentials (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_is_false_without_saved_credentials) ... ok
-test_valid_saved_credentials_are_recognized_locally (test_first_run_resilience.OAuthUiStateTests.test_valid_saved_credentials_are_recognized_locally) ... ok
-test_settings_button_is_not_disabled_by_google_busy_state (test_first_run_resilience.SettingsIndependenceTests.test_settings_button_is_not_disabled_by_google_busy_state) ... ok
-test_settings_handler_does_not_start_google_task (test_first_run_resilience.SettingsIndependenceTests.test_settings_handler_does_not_start_google_task) ... ok
-test_both_date_input_formats_are_accepted (test_i18n.EnglishPresentationTests.test_both_date_input_formats_are_accepted) ... ok
-test_dates_counts_and_recurrence_are_english (test_i18n.EnglishPresentationTests.test_dates_counts_and_recurrence_are_english) ... ok
-test_event_details_are_english (test_i18n.EnglishPresentationTests.test_event_details_are_english) ... ok
-test_automatic_language_uses_polish_only_for_polish_system (test_i18n.LanguageResolutionTests.test_automatic_language_uses_polish_only_for_polish_system) ... ok
-test_language_labels_are_localized (test_i18n.LanguageResolutionTests.test_language_labels_are_localized) ... ok
-test_manual_choice_overrides_system_language (test_i18n.LanguageResolutionTests.test_manual_choice_overrides_system_language) ... ok
-test_restart_is_only_needed_when_effective_language_changes (test_i18n.LanguageResolutionTests.test_restart_is_only_needed_when_effective_language_changes) ... ok
-test_language_and_calendars_are_saved_together (test_i18n.SettingsMigrationTests.test_language_and_calendars_are_saved_together) ... ok
-test_old_settings_without_language_migrate_to_auto (test_i18n.SettingsMigrationTests.test_old_settings_without_language_migrate_to_auto) ... ok
-test_every_constant_tr_key_has_an_english_translation (test_i18n.TranslationCoverageTests.test_every_constant_tr_key_has_an_english_translation) ... ok
-test_translation_function_formats_values (test_i18n.TranslationCoverageTests.test_translation_function_formats_values) ... ok
-test_advanced_series_is_rejected_for_whole_series_edit (test_models.BasicRecurrenceTests.test_advanced_series_is_rejected_for_whole_series_edit) ... ok
-test_one_off_event_can_be_converted_to_cycle (test_models.BasicRecurrenceTests.test_one_off_event_can_be_converted_to_cycle) ... ok
-test_parser_accepts_simple_rules_from_google_ui (test_models.BasicRecurrenceTests.test_parser_accepts_simple_rules_from_google_ui) ... ok
-test_parser_blocks_advanced_rules (test_models.BasicRecurrenceTests.test_parser_blocks_advanced_rules) ... ok
-test_parser_recognizes_quarterly_and_semiannual (test_models.BasicRecurrenceTests.test_parser_recognizes_quarterly_and_semiannual) ... ok
-test_recurrence_end_before_start_is_rejected (test_models.BasicRecurrenceTests.test_recurrence_end_before_start_is_rejected) ... ok
-test_recurrence_end_date_is_inclusive (test_models.BasicRecurrenceTests.test_recurrence_end_date_is_inclusive) ... ok
-test_supported_recurrence_lines (test_models.BasicRecurrenceTests.test_supported_recurrence_lines) ... ok
-test_timed_recurrence_until_uses_calendar_timezone (test_models.BasicRecurrenceTests.test_timed_recurrence_until_uses_calendar_timezone) ... ok
-test_timed_until_is_parsed_back_in_calendar_timezone (test_models.BasicRecurrenceTests.test_timed_until_is_parsed_back_in_calendar_timezone) ... ok
-test_whole_series_update_uses_parent_and_preserves_extra_fields (test_models.BasicRecurrenceTests.test_whole_series_update_uses_parent_and_preserves_extra_fields) ... ok
-test_all_day_body_uses_exclusive_google_end_date (test_models.CreateEventTests.test_all_day_body_uses_exclusive_google_end_date) ... ok
-test_calendar_write_permission (test_models.CreateEventTests.test_calendar_write_permission) ... ok
-test_timed_body_preserves_dates_times_and_timezone (test_models.CreateEventTests.test_timed_body_preserves_dates_times_and_timezone) ... ok
-test_timed_event_must_end_after_start (test_models.CreateEventTests.test_timed_event_must_end_after_start) ... ok
-test_delete_does_not_notify_when_only_owner_is_present (test_models.DeleteEventTests.test_delete_does_not_notify_when_only_owner_is_present) ... ok
-test_delete_sends_updates_to_real_attendees (test_models.DeleteEventTests.test_delete_sends_updates_to_real_attendees) ... ok
-test_event_from_another_calendar_is_rejected (test_models.DeleteEventTests.test_event_from_another_calendar_is_rejected) ... ok
-test_locked_event_is_rejected (test_models.DeleteEventTests.test_locked_event_is_rejected) ... ok
-test_read_only_calendar_is_rejected (test_models.DeleteEventTests.test_read_only_calendar_is_rejected) ... ok
-test_recurring_instance_uses_instance_id_not_series_id (test_models.DeleteEventTests.test_recurring_instance_uses_instance_id_not_series_id) ... ok
-test_special_event_type_can_be_deleted (test_models.DeleteEventTests.test_special_event_type_can_be_deleted) ... ok
-test_all_day_event_converts_to_edit_draft (test_models.EditEventTests.test_all_day_event_converts_to_edit_draft) ... ok
-test_gateway_patch_preserves_event_and_notifies_attendees (test_models.EditEventTests.test_gateway_patch_preserves_event_and_notifies_attendees) ... ok
-test_google_metadata_marks_recurring_and_attendees (test_models.EditEventTests.test_google_metadata_marks_recurring_and_attendees) ... ok
-test_patch_body_can_clear_optional_fields (test_models.EditEventTests.test_patch_body_can_clear_optional_fields) ... ok
-test_self_only_attendee_does_not_trigger_notifications (test_models.EditEventTests.test_self_only_attendee_does_not_trigger_notifications) ... ok
-test_special_event_type_is_not_basic_editable (test_models.EditEventTests.test_special_event_type_is_not_basic_editable) ... ok
-test_timed_event_converts_to_edit_draft (test_models.EditEventTests.test_timed_event_converts_to_edit_draft) ... ok
-test_all_day_multi_day_event (test_models.ModelTests.test_all_day_multi_day_event) ... ok
-test_collection (test_models.ModelTests.test_collection) ... ok
-test_count_text (test_models.ModelTests.test_count_text) ... ok
-test_event_exposes_google_and_meet_links (test_models.ModelTests.test_event_exposes_google_and_meet_links) ... ok
-test_month_range (test_models.ModelTests.test_month_range) ... ok
-test_more_entry_point_is_used_as_web_fallback (test_models.ModelTests.test_more_entry_point_is_used_as_web_fallback) ... ok
-test_parse_date (test_models.ModelTests.test_parse_date) ... ok
-test_phone_only_conference_is_not_a_web_meeting_link (test_models.ModelTests.test_phone_only_conference_is_not_a_web_meeting_link) ... ok
-test_timed_event (test_models.ModelTests.test_timed_event) ... ok
-test_unsafe_links_are_ignored (test_models.ModelTests.test_unsafe_links_are_ignored) ... ok
-test_video_entry_point_is_used_without_hangout_link (test_models.ModelTests.test_video_entry_point_is_used_without_hangout_link) ... ok
-test_all_day_until_is_previous_date (test_models.RecurringDeleteScopeTests.test_all_day_until_is_previous_date) ... ok
-test_delete_following_from_first_deletes_parent (test_models.RecurringDeleteScopeTests.test_delete_following_from_first_deletes_parent) ... ok
-test_delete_following_updates_parent_rrule (test_models.RecurringDeleteScopeTests.test_delete_following_updates_parent_rrule) ... ok
-test_delete_series_notifies_guests (test_models.RecurringDeleteScopeTests.test_delete_series_notifies_guests) ... ok
-test_delete_whole_series_uses_parent_id (test_models.RecurringDeleteScopeTests.test_delete_whole_series_uses_parent_id) ... ok
-test_non_recurring_event_is_rejected_for_series_delete (test_models.RecurringDeleteScopeTests.test_non_recurring_event_is_rejected_for_series_delete) ... ok
-test_original_start_time_is_retained (test_models.RecurringDeleteScopeTests.test_original_start_time_is_retained) ... ok
-test_timed_until_is_utc_second_before (test_models.RecurringDeleteScopeTests.test_timed_until_is_utc_second_before) ... ok
-test_trim_replaces_count_and_preserves_exdate (test_models.RecurringDeleteScopeTests.test_trim_replaces_count_and_preserves_exdate) ... ok
-test_gateway_fetches_full_range_and_filters_locally (test_models.SearchRangeTests.test_gateway_fetches_full_range_and_filters_locally) ... ok
-test_search_matches_calendar_name (test_models.SearchRangeTests.test_search_matches_calendar_name) ... ok
-test_search_range_end_is_inclusive (test_models.SearchRangeTests.test_search_range_end_is_inclusive) ... ok
-test_search_rejects_empty_query (test_models.SearchRangeTests.test_search_rejects_empty_query) ... ok
-test_search_rejects_reversed_range (test_models.SearchRangeTests.test_search_rejects_reversed_range) ... ok
-test_development_launch_reuses_python_and_launcher (test_restart.RestartLaunchTests.test_development_launch_reuses_python_and_launcher) ... ok
-test_empty_arguments_still_restart_the_interpreter (test_restart.RestartLaunchTests.test_empty_arguments_still_restart_the_interpreter) ... ok
-test_frozen_launch_reuses_the_executable (test_restart.RestartLaunchTests.test_frozen_launch_reuses_the_executable) ... ok
-
-----------------------------------------------------------------------
-Ran 76 tests in 0.135s
-
-OK
-
+81 testów: OK
 Kontrola składni wszystkich plików Python: OK
-Zwięzłe profile dostępności przycisków: OK
-Brak długich opisów i skrótów Ctrl na fokusie przycisku: OK
-Standardowe klawisze dostępu Alt+litera: zachowane
-Krótka nazwa przycisku Ustawienia: OK
 Kompletność tłumaczeń polskich i angielskich: OK
+Oficjalna nazwa produktu w interfejsie i metadanych: OK
+Nazwa przyszłego pliku EXE: PT Calendar Manager.exe
+Nowy katalog danych: %APPDATA%\PT Calendar Manager
+Migracja danych z %APPDATA%\GCM by Piotrek: OK
+Migracja nie usuwa starego katalogu: OK
+Migracja nie nadpisuje nowych plików: OK
+Wielokrotne uruchomienie migracji: OK
+Restart po zmianie języka: OK
+Regresja funkcji kalendarza: OK

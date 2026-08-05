@@ -32,9 +32,20 @@ from gcm_core.models import (
     month_range,
     parse_date_input,
 )
-from gcm_core.paths import copy_client_secret, find_client_secret, migrate_from_nvda
+from gcm_core.paths import (
+    copy_client_secret,
+    find_client_secret,
+    migrate_from_nvda,
+    migrate_legacy_app_data,
+)
 from gcm_core.settings import AppSettings, load_settings, save_settings
 from gcm_core.restart import launch_current_application
+from gcm_core.branding import (
+    INDEPENDENCE_NOTICE_EN,
+    INDEPENDENCE_NOTICE_PL,
+    PRODUCT_NAME,
+    PRODUCT_VERSION,
+)
 from .accessibility import ExplicitNameAccessible, apply_accessible_name
 from .dialogs import (
     SettingsDialog,
@@ -52,11 +63,12 @@ T = TypeVar("T")
 
 class MainFrame(wx.Frame):
     def __init__(self) -> None:
+        self._legacy_migration = migrate_legacy_app_data()
         self.settings: AppSettings = load_settings()
         set_language(self.settings.language)
         super().__init__(
             None,
-            title=tr("GCM by Piotrek 0.12.0 — stabilizacja dostępnego interfejsu"),
+            title=f"{PRODUCT_NAME} {PRODUCT_VERSION}",
             size=(1120, 700),
         )
         self.calendars: list[CalendarInfo] = []
@@ -76,7 +88,7 @@ class MainFrame(wx.Frame):
         self._button_accessibility: dict[wx.Button, ExplicitNameAccessible] = {}
 
         panel = wx.Panel(self)
-        panel.SetName(tr("Główne okno GCM by Piotrek"))
+        panel.SetName(tr("Główne okno PT Calendar Manager"))
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
         account_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -275,9 +287,9 @@ class MainFrame(wx.Frame):
     def _help_text() -> str:
         if get_language() == "pl":
             return (
-                "GCM by Piotrek — pomoc i skróty klawiaturowe\n\n"
+                "PT Calendar Manager — pomoc i skróty klawiaturowe\n\n"
                 "PRZEZNACZENIE APLIKACJI\n"
-                "GCM służy do szybkiego, dostępnego zarządzania Kalendarzem Google. "
+                "PT Calendar Manager służy do szybkiego, dostępnego zarządzania Kalendarzem Google. "
                 "Bardziej zaawansowane funkcje pozostają w oficjalnym interfejsie Google.\n\n"
                 "UKŁAD GŁÓWNEGO OKNA\n"
                 "W górnej części znajdują się logowanie, ustawienia i pomoc. "
@@ -305,20 +317,22 @@ class MainFrame(wx.Frame):
                 "Dostępne są ustawienia Automatycznie, Polski i English. "
                 "Tryb automatyczny używa języka Windows: polskiego dla polskiego "
                 "systemu, a angielskiego dla pozostałych. Ręczna zmiana języka "
-                "zaczyna działać po ponownym uruchomieniu GCM.\n\n"
+                "zaczyna działać po ponownym uruchomieniu PT Calendar Manager.\n\n"
                 "WYDARZENIA CYKLICZNE\n"
-                "GCM tworzy i edytuje podstawowe cykle: codzienne, tygodniowe, "
+                "PT Calendar Manager tworzy i edytuje podstawowe cykle: codzienne, tygodniowe, "
                 "miesięczne, kwartalne, półroczne i roczne. Zaawansowane reguły "
-                "utworzone poza GCM można edytować tylko jako pojedyncze wystąpienia.\n\n"
+                "utworzone poza PT Calendar Manager można edytować tylko jako pojedyncze wystąpienia.\n\n"
                 "OTWIERANIE W GOOGLE I LINK SPOTKANIA\n"
                 "Otwórz w Google przechodzi do wybranego wydarzenia w przeglądarce. "
                 "Link spotkania można otworzyć albo skopiować, jeżeli został dodany "
-                "do wydarzenia poza GCM."
+                "do wydarzenia poza PT Calendar Manager.\n\n"
+                "INFORMACJA O NIEZALEŻNOŚCI\n"
+                + INDEPENDENCE_NOTICE_PL
             )
         return (
-            "GCM by Piotrek — help and keyboard shortcuts\n\n"
+            "PT Calendar Manager — help and keyboard shortcuts\n\n"
             "PURPOSE\n"
-            "GCM provides quick, accessible management of Google Calendar. "
+            "PT Calendar Manager provides quick, accessible management of Google Calendar. "
             "More advanced features remain available in Google's official interface.\n\n"
             "MAIN WINDOW\n"
             "Sign-in, Settings and Help are at the top. Settings contains the "
@@ -345,14 +359,16 @@ class MainFrame(wx.Frame):
             "APPLICATION LANGUAGE\n"
             "The available choices are Automatic, Polish and English. Automatic "
             "uses the Windows language: Polish on a Polish system and English for "
-            "other systems. A manual language change takes effect after GCM is restarted.\n\n"
+            "other systems. A manual language change takes effect after PT Calendar Manager is restarted.\n\n"
             "RECURRING EVENTS\n"
-            "GCM creates and edits basic daily, weekly, monthly, quarterly, "
+            "PT Calendar Manager creates and edits basic daily, weekly, monthly, quarterly, "
             "semiannual and yearly recurrences. Advanced rules created outside "
-            "GCM can only be edited as individual occurrences.\n\n"
+            "PT Calendar Manager can only be edited as individual occurrences.\n\n"
             "OPENING IN GOOGLE AND MEETING LINKS\n"
             "Open in Google opens the selected event in a browser. A meeting link "
-            "can be opened or copied when it was added to the event outside GCM."
+            "can be opened or copied when it was added to the event outside PT Calendar Manager.\n\n"
+            "INDEPENDENCE NOTICE\n"
+            + INDEPENDENCE_NOTICE_EN
         )
 
     def _on_help(self, event: wx.Event) -> None:
@@ -366,7 +382,14 @@ class MainFrame(wx.Frame):
     def _initialize(self) -> None:
         migrated = migrate_from_nvda()
         self.settings = load_settings()
-        if any(migrated.values()):
+        if any(self._legacy_migration.values()):
+            copied = ", ".join(
+                name for name, value in self._legacy_migration.items() if value
+            )
+            self._set_status(
+                tr("Skopiowano dane z wcześniejszej nazwy aplikacji: {items}", items=copied)
+            )
+        elif any(migrated.values()):
             copied = ", ".join(key for key, value in migrated.items() if value)
             self._set_status(tr("Skopiowano z dodatku NVDA: {items}", items=copied))
         self._update_account_state()
@@ -432,7 +455,7 @@ class MainFrame(wx.Frame):
                 return
             wx.CallAfter(self._task_succeeded, task_id, result, on_success)
 
-        threading.Thread(target=runner, name="GCMNetworkTask", daemon=True).start()
+        threading.Thread(target=runner, name="PTCalendarManagerNetworkTask", daemon=True).start()
 
     def _task_succeeded(
         self,
@@ -455,7 +478,7 @@ class MainFrame(wx.Frame):
         message = tr("Operacja nie powiodła się.\n\n{error}", error=error)
         if details:
             message += "\n\n" + tr("Szczegóły zapisano w pliku last_error.txt w katalogu danych aplikacji.")
-        self._show_message(message, tr("Błąd GCM by Piotrek"), error=True)
+        self._show_message(message, tr("Błąd PT Calendar Manager"), error=True)
         self._set_status(tr("Błąd: {error}", error=error))
 
     def _task_timed_out(self, task_id: int) -> None:
@@ -849,7 +872,7 @@ class MainFrame(wx.Frame):
             dialog = wx.MessageDialog(
                 self,
                 tr(
-                    "Czy wylogować aplikację GCM by Piotrek? Token dodatku NVDA nie zostanie zmieniony."
+                    "Czy wylogować aplikację PT Calendar Manager? Token dodatku NVDA nie zostanie zmieniony."
                 ),
                 tr("Wyloguj z Google"),
                 wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
@@ -875,7 +898,7 @@ class MainFrame(wx.Frame):
             explanation = wx.MessageDialog(
                 self,
                 tr(
-                    "Na tym komputerze nie znaleziono konfiguracji logowania Google client_secret.json. Jest ona potrzebna do rozpoczęcia logowania.\n\nSkopiuj ten plik z poprzedniego komputera z katalogu %APPDATA%\\GCM by Piotrek albo wskaż plik używany przez wtyczkę NVDA. Po wybraniu OK otworzy się okno wyboru pliku."
+                    "Na tym komputerze nie znaleziono konfiguracji logowania Google client_secret.json. Jest ona potrzebna do rozpoczęcia logowania.\n\nSkopiuj ten plik z poprzedniego komputera z katalogu %APPDATA%\\PT Calendar Manager albo wskaż plik używany przez wtyczkę NVDA. Po wybraniu OK otworzy się okno wyboru pliku."
                 ),
                 tr("Brak konfiguracji logowania Google"),
                 wx.OK | wx.CANCEL | wx.ICON_INFORMATION,
@@ -1009,7 +1032,7 @@ class MainFrame(wx.Frame):
                             "Nie udało się ponownie uruchomić aplikacji. Ustawienie języka zostało zapisane i będzie użyte przy następnym ręcznym uruchomieniu.\n\n{error}",
                             error=error,
                         ),
-                        tr("Nie można ponownie uruchomić GCM"),
+                        tr("Nie można ponownie uruchomić PT Calendar Manager"),
                         error=True,
                     )
                 else:
@@ -1190,7 +1213,7 @@ class MainFrame(wx.Frame):
                 }
                 kind = event_type_labels.get(selected.event_type, selected.event_type)
                 reason = tr(
-                    "To jest specjalny typ wydarzenia: {kind}. GCM edytuje obecnie zwykłe wydarzenia kalendarza.",
+                    "To jest specjalny typ wydarzenia: {kind}. PT Calendar Manager edytuje obecnie zwykłe wydarzenia kalendarza.",
                     kind=kind,
                 )
             self._show_message(
@@ -1516,7 +1539,7 @@ class MainFrame(wx.Frame):
         confirm = wx.MessageDialog(
             self,
             tr(
-                "Czy na pewno wykonać tę operację?\n\n{details}\n\n{notices}\n\nTej operacji nie można cofnąć w aplikacji GCM.",
+                "Czy na pewno wykonać tę operację?\n\n{details}\n\n{notices}\n\nTej operacji nie można cofnąć w aplikacji PT Calendar Manager.",
                 details=selected.details_text(),
                 notices="\n".join(notices),
             ),
@@ -1766,9 +1789,9 @@ class MainFrame(wx.Frame):
             dialog.Destroy()
 
 
-class GcmApp(wx.App):
+class PTCalendarManagerApp(wx.App):
     def OnInit(self) -> bool:
-        self.SetAppName("GCM by Piotrek")
+        self.SetAppName(PRODUCT_NAME)
         frame = MainFrame()
         frame.Show()
         self.SetTopWindow(frame)
@@ -1776,5 +1799,5 @@ class GcmApp(wx.App):
 
 
 def main() -> None:
-    app = GcmApp(redirect=False)
+    app = PTCalendarManagerApp(redirect=False)
     app.MainLoop()

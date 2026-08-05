@@ -1,1 +1,1 @@
-"""wxPython desktop interface for GCM by Piotrek."""
+"""wxPython desktop interface for PT Calendar Manager."""

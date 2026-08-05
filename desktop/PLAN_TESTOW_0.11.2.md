@@ -1,4 +1,4 @@
-# Plan testów GCM by Piotrek 0.11.2
+# Plan testów PT Calendar Manager 0.11.2
 
 ## 1. Start z wygasłym lub przeniesionym tokenem
 

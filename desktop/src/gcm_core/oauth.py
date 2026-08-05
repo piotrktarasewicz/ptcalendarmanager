@@ -74,10 +74,10 @@ def login():
             port=0,
             open_browser=True,
             authorization_prompt_message=tr(
-                "Otwieranie przeglądarki do logowania Google. Po zakończeniu wróć do aplikacji GCM by Piotrek."
+                "Otwieranie przeglądarki do logowania Google. Po zakończeniu wróć do aplikacji PT Calendar Manager."
             ),
             success_message=tr(
-                "Logowanie zakończone. Możesz zamknąć tę kartę i wrócić do GCM by Piotrek."
+                "Logowanie zakończone. Możesz zamknąć tę kartę i wrócić do PT Calendar Manager."
             ),
         )
         token_path().write_text(credentials.to_json(), encoding="utf-8")

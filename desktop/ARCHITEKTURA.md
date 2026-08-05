@@ -1,4 +1,4 @@
-# Architektura GCM by Piotrek
+# Architektura PT Calendar Manager
 
 Projekt jest podzielony na dwie niezależne warstwy.
 
@@ -36,7 +36,7 @@ zapisu nie są uzależnione od wxPython.
 
 ## Dane użytkownika
 
-Aplikacja przechowuje własne pliki w `%APPDATA%\GCM by Piotrek` i nie zmienia
+Aplikacja przechowuje własne pliki w `%APPDATA%\PT Calendar Manager` i nie zmienia
 plików dodatku NVDA. Przy pierwszym uruchomieniu może jedynie skopiować zgodne
 pliki z dodatku, pozostawiając oryginały bez zmian.
 
@@ -211,3 +211,26 @@ obsługiwane, lecz dokumentowane w pomocy `F1`, a nie powtarzane na fokusie.
 Pola tekstowe, listy i inne kontrolki mogą nadal otrzymywać krótki opis, gdy
 jest on potrzebny do zrozumienia formatu lub działania kontrolki.
 
+
+## Etap 0.13.0 — oficjalna nazwa produktu i migracja danych
+
+Oficjalna nazwa aplikacji to `PT Calendar Manager`. Nazwa robocza `GCM by Piotrek`
+pozostaje wyłącznie identyfikatorem starszego katalogu danych, z którego wykonywana
+jest jednorazowa, zachowawcza migracja.
+
+Nowy katalog danych użytkownika:
+
+`%APPDATA%\PT Calendar Manager`
+
+Warstwa `gcm_core.paths.migrate_legacy_app_data()` kopiuje zgodne pliki ze starego
+katalogu przed pierwszym odczytem ustawień. Nowe pliki mają pierwszeństwo, a źródła
+nie są usuwane. Dzięki temu zmiana nazwy nie wymusza ponownego logowania i pozwala
+wrócić do wcześniejszej wersji rozwojowej.
+
+Stałe nazwy produktu, wersji, opisu i informacji o niezależności znajdują się w
+`gcm_core.branding`. Pakiety Pythona zachowują techniczne nazwy `gcm_core` i
+`gcm_desktop`, aby zmiana marki nie powodowała niepotrzebnej przebudowy importów i
+ryzyka regresji.
+
+Aplikacja wyraźnie informuje, że jest niezależnym klientem Kalendarza Google, nie
+jest produktem Google LLC i nie jest przez Google sponsorowana ani zatwierdzona.

@@ -117,7 +117,7 @@ class RecurrenceSettings:
 
     def display_text(self) -> str:
         if not self.supported:
-            return tr("zaawansowany cykl utworzony poza GCM")
+            return tr("zaawansowany cykl utworzony poza PT Calendar Manager")
         if not self.is_recurring:
             return tr("Nie powtarza się").lower() if get_language() == "pl" else tr("Nie powtarza się")
         if self.end_date_inclusive is None:
@@ -204,7 +204,7 @@ def recurrence_from_google(
     if not parts or "FREQ" not in parts or "COUNT" in parts:
         return RecurrenceSettings(mode="unsupported", supported=False, raw_lines=lines)
 
-    # WKST does not change the meaning of the simple one-day rules supported by GCM.
+    # WKST does not change the meaning of the simple one-day rules supported by PT Calendar Manager.
     relevant = {key: value for key, value in parts.items() if key != "WKST"}
     allowed_common = {"FREQ", "INTERVAL", "UNTIL"}
     freq = relevant.get("FREQ", "")
