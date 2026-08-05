@@ -796,14 +796,41 @@ class SettingsDialog(wx.Dialog):
             tr("Kalendarze"),
         )
         if calendars:
-            info = wx.StaticText(
+            instruction_text = tr(
+                "Zaznacz kalendarze, których wydarzenia mają być pokazywane."
+            )
+            # Ordinary static text is announced by NVDA in this dialog, but
+            # JAWS and Narrator may move directly to the first checkbox. A
+            # borderless read-only text control stays visually lightweight and
+            # provides a real keyboard focus target that all three screen
+            # readers announce before the calendar checkboxes.
+            self.calendar_instruction = wx.TextCtrl(
                 self,
-                label=tr(
-                    "Zaznacz kalendarze, których wydarzenia mają być pokazywane."
+                value=instruction_text,
+                style=(
+                    wx.TE_MULTILINE
+                    | wx.TE_READONLY
+                    | wx.TE_NO_VSCROLL
+                    | wx.BORDER_NONE
                 ),
             )
-            info.Wrap(560)
-            calendar_box.Add(info, 0, wx.ALL | wx.EXPAND, 8)
+            self.calendar_instruction.SetName(
+                tr("Instrukcja wyboru kalendarzy")
+            )
+            self.calendar_instruction.SetBackgroundColour(
+                self.GetBackgroundColour()
+            )
+            self.calendar_instruction.SetForegroundColour(
+                self.GetForegroundColour()
+            )
+            self.calendar_instruction.SetMinSize((580, 46))
+            self.calendar_instruction.SetInsertionPoint(0)
+            calendar_box.Add(
+                self.calendar_instruction,
+                0,
+                wx.ALL | wx.EXPAND,
+                8,
+            )
 
             panel = wx.ScrolledWindow(
                 self,

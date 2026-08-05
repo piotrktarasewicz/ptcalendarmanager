@@ -1,15 +1,5 @@
-PT Calendar Manager 0.15.0 — wyniki testów automatycznych
+PT Calendar Manager 0.15.1 — wyniki testów automatycznych
 
-Spreadsheet runtime warmup failed during python startup
-Traceback (most recent call last):
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
-artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
 test_accessibility_layer_suppresses_descriptions_for_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_accessibility_layer_suppresses_descriptions_for_buttons) ... ok
 test_main_window_contains_no_command_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_main_window_contains_no_command_buttons) ... ok
 test_settings_is_a_short_native_menu_command (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_settings_is_a_short_native_menu_command) ... ok
@@ -108,19 +98,18 @@ test_plaintext_token_is_encrypted_and_removed_after_success (test_secure_storage
 test_protected_file_has_magic_and_does_not_store_plaintext (test_secure_storage.ProtectedFileFormatTests.test_protected_file_has_magic_and_does_not_store_plaintext) ... ok
 test_protected_file_round_trip_uses_unprotect (test_secure_storage.ProtectedFileFormatTests.test_protected_file_round_trip_uses_unprotect) ... ok
 test_primary_token_file_uses_dat_extension (test_secure_storage.TokenPathTests.test_primary_token_file_uses_dat_extension) ... ok
+test_calendar_instruction_is_focusable_read_only_text (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_calendar_instruction_is_focusable_read_only_text) ... ok
+test_instruction_has_programmatic_name_and_translation (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_instruction_has_programmatic_name_and_translation) ... ok
+test_old_non_focusable_static_text_is_not_used_for_instruction (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_old_non_focusable_static_text_is_not_used_for_instruction) ... ok
 
 ----------------------------------------------------------------------
-Ran 98 tests in 0.188s
+Ran 101 tests in 0.178s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
 Kontrola struktury AST i powielonych metod: OK
-Brak przycisków funkcyjnych w głównym oknie: OK
-Pięć natywnych menu Windows: OK
-Skróty widoczne przy poleceniach menu: OK
-Menu kontekstowe obu list: OK
-Dwuelementowy cykl Tabulatora: OK
-Oddzielny stan operacji i konta na pasku stanu: OK
-Systemowy kolor akcentu bez własnych kolorów tła: OK
-O programie przeniesione do menu Pomoc: OK
+Fokusowalna instrukcja wyboru kalendarzy: OK
+Tryb tylko do odczytu i brak ciężkiego obramowania: OK
+Polskie i angielskie nazwy dostępności: OK
+Brak zmian w głównym oknie i logice Google: OK
