@@ -1,0 +1,50 @@
+name: Test PT Calendar Manager
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Compile current sources
+        run: python -m compileall -q desktop/src desktop/tools desktop/tests
+
+      - name: Run release tests
+        env:
+          PYTHONPATH: desktop/src
+        run: python -m unittest discover -s desktop/tests -p "test*.py" -v
+
+      - name: Reject private runtime files
+        shell: bash
+        run: |
+          mapfile -t forbidden < <(
+            find . -type f \(
+              -name client_secret.json -o
+              -name token.json -o
+              -name token.dat -o
+              -name .env
+            \)
+          )
+          if (( ${#forbidden[@]} > 0 )); then
+            printf 'Forbidden private files:\n%s\n' "${forbidden[*]}"
+            exit 1
+          fi
