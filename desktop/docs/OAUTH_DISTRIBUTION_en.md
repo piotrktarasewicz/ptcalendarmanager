@@ -2,14 +2,18 @@
 
 PT Calendar Manager uses a **Desktop app** OAuth client.
 
-The release script does not include `client_secret.json` by default. To create
-an internal build containing a specific deployment configuration, place the
-file at `release-secrets\\client_secret.json` and run:
+The official 0.16.3 installer and portable package include the OAuth
+configuration so sign-in works on a clean computer without manual file
+selection. To build the release, place the deployment file at
+`release-secrets\\client_secret.json` and run:
 
 `tools\\build_release.ps1 -IncludeOAuthClient`
 
-The `release-secrets` directory is excluded from the repository and the source
-archive.
+The script validates the file before building and again after copying it into
+the application directory. The `release-secrets` directory is excluded from
+the repository and the source archive. Building without `-IncludeOAuthClient`
+remains available for people who create a custom package with their own OAuth
+client.
 
 A desktop application runs on the user's device and cannot effectively keep
 its OAuth client identifier or client secret confidential. These values are

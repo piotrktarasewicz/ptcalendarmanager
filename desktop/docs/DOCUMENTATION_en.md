@@ -1,6 +1,6 @@
 # PT Calendar Manager — User Documentation
 
-Version 0.16.2
+Version 0.16.3
 
 ## Reading calendar selection states
 
@@ -20,9 +20,10 @@ The main window remains usable without signing in. Language settings, Help and A
 To connect a Google Account:
 
 1. Open the Account menu and choose “Sign in to Google”, or press `Ctrl+L`.
-2. If the OAuth configuration is not found, select `client_secret.json`.
-3. Sign in and grant the requested permissions in the browser.
-4. Return to PT Calendar Manager.
+2. Sign in and grant the requested permissions in the browser.
+3. Return to PT Calendar Manager.
+
+The official 0.16.3 installer and portable package include the OAuth client configuration, so a clean computer does not require manual selection of `client_secret.json`. The file picker can appear only in a self-built package that does not contain a deployment configuration.
 
 The sign-in token is stored locally as `token.dat` and encrypted with Windows DPAPI for the current Windows user.
 

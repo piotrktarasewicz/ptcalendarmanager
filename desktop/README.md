@@ -1,4 +1,4 @@
-# PT Calendar Manager 0.16.2
+# PT Calendar Manager 0.16.3
 
 **Dostępna aplikacja do obsługi Kalendarza Google**  
 **Accessible desktop application for Google Calendar**
@@ -8,9 +8,11 @@ szybkiego i dostępnego zarządzania wydarzeniami Kalendarza Google. Interfejs
 jest obsługiwany klawiaturą i praktycznie przetestowany z NVDA, JAWS-em oraz
 Narratorem.
 
-Wersja 0.16.2 zamraża zakres funkcji przed publiczną weryfikacją Google OAuth i
-wprowadza kompletną warstwę wydaniową: licencję, informacje o zależnościach,
-metadane pliku EXE, wersję przenośną oraz projekt instalatora Windows.
+Wersja 0.16.3 dołącza konfigurację klienta OAuth do oficjalnego instalatora i
+pakietu przenośnego. Dzięki temu logowanie na czystym komputerze nie wymaga
+ręcznego kopiowania pliku `client_secret.json`. Token konkretnego użytkownika
+nadal jest tworzony dopiero po wyrażeniu zgody i szyfrowany lokalnie przez
+Windows DPAPI.
 
 ## Status Google OAuth
 
@@ -48,19 +50,20 @@ Tarasewicza i również objętego GPL-3.0-or-later.
 
 ## Pakiety wydaniowe
 
-Na komputerze Windows uruchom:
+Oficjalne wydanie z konfiguracją OAuth buduje polecenie:
 
-`zbuduj_wydanie.bat`
+`powershell -ExecutionPolicy Bypass -File tools\build_release.ps1 -IncludeOAuthClient`
 
 Skrypt przygotowuje w katalogu `release`:
 
-- instalator `PT-Calendar-Manager-0.16.2-Setup.exe`;
-- wersję przenośną `pt-calendar-manager-0.16.2-portable.zip`;
-- odpowiadający kod źródłowy `pt-calendar-manager-0.16.2-source.zip`;
+- instalator `PT-Calendar-Manager-0.16.3-Setup.exe`;
+- wersję przenośną `pt-calendar-manager-0.16.3-portable.zip`;
+- odpowiadający kod źródłowy `pt-calendar-manager-0.16.3-source.zip`;
 - plik `SHA256SUMS.txt`.
 
-Wymagane są 64-bitowy Python 3.10-3.13 oraz Inno Setup 6 albo 7. Szczegóły są
-w `RELEASE_ENGINEERING.md`.
+Wymagane są 64-bitowy Python 3.10-3.13 oraz Inno Setup 6 albo 7. Konfigurację
+budowania opisują pliki `docs/OAUTH_DISTRIBUTION_pl.md` i
+`docs/OAUTH_DISTRIBUTION_en.md`.
 
 ## Ważna informacja / Important notice
 

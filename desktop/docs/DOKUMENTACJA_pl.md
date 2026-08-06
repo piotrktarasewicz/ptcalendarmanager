@@ -1,6 +1,6 @@
 # PT Calendar Manager — dokumentacja użytkownika
 
-Wersja 0.16.2
+Wersja 0.16.3
 
 ## Odczyt stanu kalendarzy
 
@@ -20,9 +20,10 @@ Po uruchomieniu główne okno działa także bez logowania. Ustawienia języka, 
 Aby połączyć konto Google:
 
 1. Otwórz menu Konto i wybierz „Zaloguj do Google” albo naciśnij `Ctrl+L`.
-2. Jeśli program nie znajdzie konfiguracji OAuth, wskaż plik `client_secret.json`.
-3. Zaloguj się w otwartej przeglądarce i zaakceptuj wymagane uprawnienia.
-4. Wróć do PT Calendar Manager.
+2. Zaloguj się w otwartej przeglądarce i zaakceptuj wymagane uprawnienia.
+3. Wróć do PT Calendar Manager.
+
+Oficjalny instalator i wersja przenośna 0.16.3 zawierają konfigurację klienta OAuth, dlatego na czystym komputerze nie trzeba wskazywać pliku `client_secret.json`. Okno wyboru pliku może pojawić się tylko w samodzielnie zbudowanej wersji, która nie zawiera konfiguracji wdrożeniowej.
 
 Token logowania jest zapisywany lokalnie jako `token.dat` i szyfrowany mechanizmem Windows DPAPI dla bieżącego użytkownika Windows.
 

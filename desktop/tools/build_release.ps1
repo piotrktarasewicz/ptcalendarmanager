@@ -9,7 +9,7 @@ Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
-$Version = "0.16.2"
+$Version = "0.16.3"
 $ReleaseDir = Join-Path $Root "release"
 $BuildDir = Join-Path $Root "build"
 $DistDir = Join-Path $Root "dist\PT Calendar Manager"
@@ -70,9 +70,10 @@ if ($IncludeOAuthClient) {
     if (-not (Test-Path $OAuthFile)) {
         throw "Brak release-secrets\client_secret.json. Plik nie jest tworzony ani pobierany automatycznie."
     }
-    $env:PTCM_INCLUDE_OAUTH_CLIENT = "1"
-} else {
-    Remove-Item Env:PTCM_INCLUDE_OAUTH_CLIENT -ErrorAction SilentlyContinue
+    & $VenvPython tools\validate_oauth_client.py $OAuthFile
+    if ($LASTEXITCODE -ne 0) {
+        throw "Plik release-secrets\client_secret.json nie jest prawidłową konfiguracją klienta OAuth typu Desktop app."
+    }
 }
 
 & $VenvPython -m PyInstaller --noconfirm --clean PTCalendarManager.spec
@@ -98,7 +99,7 @@ foreach ($PublicFile in @(
     "THIRD_PARTY_NOTICES.md",
     "SOURCE_CODE.md",
     "AUDYT_LICENCJI_I_WYDANIA_0.16.1.md",
-    "RELEASE_NOTES_0.16.2.md",
+    "RELEASE_NOTES_0.16.3.md",
     "README.md"
 )) {
     Copy-Item (Join-Path $Root $PublicFile) -Destination (Join-Path $DistDir $PublicFile) -Force
@@ -115,7 +116,17 @@ if (Test-Path $GeneratedLicenseDir) {
     Copy-Item (Join-Path $GeneratedLicenseDir "*") -Destination $PublicPackageLicenses -Recurse -Force
 }
 if ($IncludeOAuthClient) {
-    Copy-Item (Join-Path $Root "release-secrets\client_secret.json") -Destination (Join-Path $DistDir "client_secret.json") -Force
+    $BundledOAuthFile = Join-Path $DistDir "client_secret.json"
+    Copy-Item (Join-Path $Root "release-secrets\client_secret.json") -Destination $BundledOAuthFile -Force
+    & $VenvPython tools\validate_oauth_client.py $BundledOAuthFile
+    if ($LASTEXITCODE -ne 0) {
+        throw "Konfiguracja OAuth w katalogu programu jest nieprawidłowa."
+    }
+    $SourceOAuthHash = (Get-FileHash -Algorithm SHA256 $OAuthFile).Hash
+    $BundledOAuthHash = (Get-FileHash -Algorithm SHA256 $BundledOAuthFile).Hash
+    if ($SourceOAuthHash -ne $BundledOAuthHash) {
+        throw "Konfiguracja OAuth została zmieniona podczas budowania."
+    }
 }
 
 foreach ($RequiredPublicPath in @(
@@ -152,6 +163,9 @@ Get-ChildItem $SourceStage -Recurse -Force -Directory | Where-Object { $_.Name -
 Get-ChildItem $SourceStage -Recurse -Force -File | Where-Object {
     $_.Name -in @("client_secret.json", "token.json", "token.dat", "settings.json", "last_error.txt") -or $_.Extension -eq ".pyc"
 } | Remove-Item -Force
+if (Get-ChildItem $SourceStage -Recurse -Force -File | Where-Object { $_.Name -eq "client_secret.json" }) {
+    throw "Pakiet źródłowy zawiera client_secret.json. Budowanie przerwano."
+}
 $SourceZip = Join-Path $ReleaseDir "pt-calendar-manager-$Version-source.zip"
 Compress-Archive -Path $SourceStage -DestinationPath $SourceZip -CompressionLevel Optimal
 

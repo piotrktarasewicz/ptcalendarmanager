@@ -2,13 +2,17 @@
 
 PT Calendar Manager używa klienta OAuth typu **Desktop app**.
 
-Domyślnie skrypt budowania nie dołącza `client_secret.json`. Aby utworzyć build
-wewnętrzny zawierający konkretną konfigurację wdrożeniową, umieść plik w
+Oficjalny instalator i pakiet przenośny 0.16.3 zawierają konfigurację OAuth, aby
+logowanie działało na czystym komputerze bez ręcznego wskazywania pliku. Podczas
+budowania wydania umieść właściwy plik w
 `release-secrets\\client_secret.json` i uruchom:
 
 `tools\\build_release.ps1 -IncludeOAuthClient`
 
-Katalog `release-secrets` nie trafia do repozytorium ani pakietu źródłowego.
+Skrypt sprawdza strukturę pliku przed budowaniem i po skopiowaniu do katalogu
+programu. Katalog `release-secrets` nie trafia do repozytorium ani pakietu
+źródłowego. Budowanie bez parametru `-IncludeOAuthClient` pozostaje możliwe dla
+osób przygotowujących własny pakiet z własnym klientem OAuth.
 
 Aplikacja desktopowa działa na urządzeniu użytkownika, dlatego nie może
 skutecznie zachować identyfikatora ani sekretu klienta OAuth w poufności. Nie są

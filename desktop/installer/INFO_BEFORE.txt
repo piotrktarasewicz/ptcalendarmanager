@@ -1,4 +1,4 @@
-PT CALENDAR MANAGER 0.16.2
+PT CALENDAR MANAGER 0.16.3
 
 PT Calendar Manager jest niezależną, dostępną aplikacją do obsługi Kalendarza
 Google. Nie jest produktem Google LLC, nie jest przez Google sponsorowany ani
@@ -14,8 +14,12 @@ wydaniem.
 Token Google jest przechowywany lokalnie i szyfrowany mechanizmem Windows
 DPAPI. PT Projects nie otrzymuje kopii kalendarzy, wydarzeń ani tokenu.
 
+Wydanie zawiera konfigurację klienta OAuth aplikacji, dzięki czemu na czystym
+komputerze nie trzeba ręcznie dostarczać pliku client_secret.json. Konfiguracja
+ta nie zawiera tokenu ani danych konta użytkownika.
+
 Aplikacja nie przeszła jeszcze publicznej weryfikacji Google OAuth. Wydanie
-0.16.2 jest przeznaczone do testów i przygotowania procesu weryfikacji.
+0.16.3 jest przeznaczone do testów i przygotowania procesu weryfikacji.
 
 --------------------------------------------------------------------------
 
@@ -32,5 +36,9 @@ notices are supplied with the release.
 The Google token is stored locally and encrypted with Windows DPAPI. PT Projects
 does not receive copies of calendars, events or tokens.
 
+This release includes the application's OAuth client configuration, so a clean
+computer does not require a manually supplied client_secret.json file. The
+configuration contains no user token or account data.
+
 The application has not completed public Google OAuth verification. Release
-0.16.2 is intended for testing and verification preparation.
+0.16.3 is intended for testing and verification preparation.

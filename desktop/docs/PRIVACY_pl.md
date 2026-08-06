@@ -33,6 +33,8 @@ W katalogu %APPDATA%\PT Calendar Manager mogą znajdować się:
 - client_secret.json — konfiguracja klienta OAuth aplikacji;
 - last_error.txt — lokalny raport techniczny ostatniego błędu.
 
+Oficjalny instalator i pakiet przenośny zawierają również `client_secret.json` w katalogu programu. Jest to konfiguracja identyfikująca aplikację wobec Google, a nie token dający dostęp do konta użytkownika. Kopia w katalogu %APPDATA% może wystąpić po ręcznym wskazaniu własnej konfiguracji i ma wtedy pierwszeństwo przed konfiguracją dołączoną do programu.
+
 Raport błędu może zawierać techniczne identyfikatory, nazwy kalendarzy lub fragmenty danych związanych z operacją, podczas której wystąpił błąd. Plik nie jest automatycznie wysyłany autorowi ani do innego serwera.
 
 Przy aktualizacji ze starszej wersji w katalogu danych może pozostać wcześniejszy plik token.json. Po udanym zaszyfrowaniu aplikacja usuwa jego kopię z bieżącego katalogu. Starsze katalogi poprzednich wersji nie są usuwane automatycznie, aby nie utrudniać powrotu do wcześniejszej wersji.

@@ -15,8 +15,8 @@ class InstallerHelpLaunchTests(unittest.TestCase):
         )
 
     def test_installer_version_is_current(self) -> None:
-        self.assertIn('#define MyAppVersion "0.16.2"', self.installer)
-        self.assertIn("VersionInfoVersion=0.16.2.0", self.installer)
+        self.assertIn('#define MyAppVersion "0.16.3"', self.installer)
+        self.assertIn("VersionInfoVersion=0.16.3.0", self.installer)
 
     def test_finish_checkbox_opens_in_app_help(self) -> None:
         self.assertIn(

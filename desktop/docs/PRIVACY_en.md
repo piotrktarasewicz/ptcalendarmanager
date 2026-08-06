@@ -33,6 +33,8 @@ The %APPDATA%\PT Calendar Manager folder may contain:
 - client_secret.json — the application's OAuth client configuration;
 - last_error.txt — a local technical report for the most recent error.
 
+The official installer and portable package also contain `client_secret.json` in the application directory. It identifies the application to Google and is not a user token that grants access to an account. A copy may appear in %APPDATA% after a custom configuration is selected manually; that copy takes precedence over the configuration bundled with the application.
+
 An error report may contain technical identifiers, calendar names or fragments of data related to the operation that failed. It is not automatically sent to the developer or to another server.
 
 When upgrading from an earlier version, a previous token.json file may temporarily remain in the current data folder. After successful encryption, the application removes the current-folder plaintext copy. Data folders from older application versions are not removed automatically so that rollback remains possible.

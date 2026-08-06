@@ -1,7 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 from pathlib import Path
-import os
 
 from PyInstaller.utils.hooks import collect_all
 
@@ -15,7 +14,7 @@ datas = [
     (str(root / "THIRD_PARTY_NOTICES.md"), "."),
     (str(root / "SOURCE_CODE.md"), "."),
     (str(root / "AUDYT_LICENCJI_I_WYDANIA_0.16.1.md"), "."),
-    (str(root / "RELEASE_NOTES_0.16.2.md"), "."),
+    (str(root / "RELEASE_NOTES_0.16.3.md"), "."),
     (str(root / "README.md"), "."),
 ]
 binaries = []
@@ -33,12 +32,6 @@ if generated_report.is_file():
     datas.append((str(generated_report), "."))
 if generated_licenses.is_dir():
     datas.append((str(generated_licenses), "licenses/packages"))
-
-if os.environ.get("PTCM_INCLUDE_OAUTH_CLIENT") == "1":
-    oauth_file = root / "release-secrets/client_secret.json"
-    if not oauth_file.is_file():
-        raise SystemExit("PTCM_INCLUDE_OAUTH_CLIENT=1, but release-secrets/client_secret.json is missing")
-    datas.append((str(oauth_file), "."))
 
 a = Analysis(
     [str(root / "launcher.py")],

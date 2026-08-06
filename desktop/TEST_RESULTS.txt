@@ -1,13 +1,16 @@
-PT Calendar Manager 0.16.2
+PT Calendar Manager 0.16.3
 
-Automated Windows release tests: 6 passed.
+Automated release tests: 12 passed.
 They verify the Polish and English semantic help structure, heading hierarchy,
 installer version, finish-page label, --show-help launch command and Start menu
-Documentation shortcut.
+Documentation shortcut. They also verify validation of a Desktop app OAuth
+client, rejection of invalid client types, explicit release inclusion, hash
+comparison and exclusion of client_secret.json from the source package.
 
 The unchanged application functions retain the previously recorded 0.16.1
-regression result of 123 passed tests. The 0.16.2 Windows build additionally
-verified the release paths, archive integrity, x64 executable architecture and
-presence of the wxPython HTML/WebView runtime components.
+regression result of 123 passed tests. The 0.16.3 Windows build must additionally
+verify the release paths, archive integrity, x64 executable architecture,
+presence of the wxPython HTML/WebView runtime components and presence of a valid
+OAuth client configuration in the installer and portable package.
 
 Manual screen-reader verification with NVDA and Narrator remains required.
