@@ -1,6 +1,11 @@
 # PT Calendar Manager — dokumentacja użytkownika
 
-Wersja 0.15.3
+Wersja 0.15.4
+
+## Odczyt stanu kalendarzy
+
+W Ustawieniach strzałki poruszają się po kalendarzach, a Spacja zaznacza lub odznacza bieżący kalendarz. Czytnik ekranu powinien odczytać stan „zaznaczony” albo „niezaznaczony” zarówno podczas poruszania się po liście, jak i bezpośrednio po zmianie.
+
 
 ## 1. Przeznaczenie
 

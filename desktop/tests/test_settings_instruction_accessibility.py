@@ -24,7 +24,7 @@ class SettingsInstructionAccessibilityTests(unittest.TestCase):
 
     def test_accessible_name_is_attached_to_the_focused_control(self) -> None:
         self.assertIn(
-            "calendar_list_accessible = apply_accessible_name(\n"
+            "calendar_list_accessible = apply_check_list_box_accessibility(\n"
             "                self.calendar_list_ctrl,\n"
             "                accessible_name,\n"
             "                accessible_description,",
@@ -38,7 +38,7 @@ class SettingsInstructionAccessibilityTests(unittest.TestCase):
     def test_check_list_has_compact_keyboard_model(self) -> None:
         self.assertIn("style=wx.LB_SINGLE", self.settings_source)
         self.assertIn("self.calendar_list_ctrl.IsChecked(index)", self.settings_source)
-        self.assertIn("self.calendar_list_ctrl.Check(", self.settings_source)
+        self.assertIn("self.calendar_list_ctrl.SetCheckedItems(checked_indexes)", self.settings_source)
         self.assertIn("Naciśnij spację", self.settings_source)
 
     def test_dialog_does_not_use_the_old_tall_panel(self) -> None:

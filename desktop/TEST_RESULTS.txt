@@ -1,5 +1,3 @@
-PT Calendar Manager 0.15.3 — wyniki testów automatycznych
-
 test_accessibility_layer_suppresses_descriptions_for_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_accessibility_layer_suppresses_descriptions_for_buttons) ... ok
 test_main_window_contains_no_command_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_main_window_contains_no_command_buttons) ... ok
 test_settings_is_a_short_native_menu_command (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_settings_is_a_short_native_menu_command) ... ok
@@ -8,6 +6,9 @@ test_files_are_copied_without_deleting_legacy_data (test_branding_migration.Lega
 test_repeated_migration_is_idempotent (test_branding_migration.LegacyApplicationDataMigrationTests.test_repeated_migration_is_idempotent) ... ok
 test_official_product_name_and_version (test_branding_migration.ProductBrandingTests.test_official_product_name_and_version) ... ok
 test_windows_data_directory_uses_official_name (test_branding_migration.ProductBrandingTests.test_windows_data_directory_uses_official_name) ... ok
+test_checked_state_is_independent_from_list_selection (test_checklist_accessible_state.ChecklistAccessibleStateTests.test_checked_state_is_independent_from_list_selection) ... ok
+test_dialog_initializes_only_saved_checked_items (test_checklist_accessible_state.ChecklistAccessibleStateTests.test_dialog_initializes_only_saved_checked_items) ... ok
+test_state_change_notification_uses_one_based_child_id (test_checklist_accessible_state.ChecklistAccessibleStateTests.test_state_change_notification_uses_one_based_child_id) ... ok
 test_is_logged_in_does_not_refresh_token_or_use_network (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_does_not_refresh_token_or_use_network) ... ok
 test_is_logged_in_is_false_without_saved_credentials (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_is_false_without_saved_credentials) ... ok
 test_valid_saved_credentials_are_recognized_locally (test_first_run_resilience.OAuthUiStateTests.test_valid_saved_credentials_are_recognized_locally) ... ok
@@ -104,16 +105,14 @@ test_check_list_has_compact_keyboard_model (test_settings_instruction_accessibil
 test_dialog_does_not_use_the_old_tall_panel (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_dialog_does_not_use_the_old_tall_panel) ... ok
 
 ----------------------------------------------------------------------
-Ran 102 tests in 0.078s
+Ran 105 tests in 0.082s
 
 OK
 
 Kontrola składni wszystkich plików Python: OK
-Kontrola struktury AST i powielonych metod: OK
-Pojedynczy natywny wx.CheckListBox: OK
-Brak pośredniego wx.ScrolledWindow w Ustawieniach: OK
-Nazwa i instrukcja przypisane do fokusowanej listy: OK
-Nawigacja strzałkami i zaznaczanie Spacją: OK
-Zapis zaznaczonych identyfikatorów kalendarzy: OK
-Zmniejszony rozmiar okna Ustawień: OK
-Główne okno i logika Google bez zmian: OK
+Kontrola powielonych metod: OK
+Jawny stan MSAA zaznaczenia elementów listy: OK
+Rozdzielenie stanu kursora i checkboxa: OK
+Powiadomienie MSAA po zmianie Spacją: OK
+Deterministyczna inicjalizacja przez SetCheckedItems: OK
+Brak zmian wizualnych i nowych przystanków Tabulatora: OK

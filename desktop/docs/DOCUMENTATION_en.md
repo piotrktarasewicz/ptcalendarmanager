@@ -1,6 +1,11 @@
 # PT Calendar Manager — User Documentation
 
-Version 0.15.3
+Version 0.15.4
+
+## Reading calendar selection states
+
+In Settings, use the arrow keys to move through calendars and Space to check or uncheck the current calendar. The screen reader should announce “checked” or “not checked” both while navigating the list and immediately after a change.
+
 
 ## 1. Purpose
 

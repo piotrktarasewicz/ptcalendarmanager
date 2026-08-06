@@ -31,7 +31,11 @@ from gcm_core.models import (
     recurrence_mode_index,
 )
 
-from .accessibility import apply_accessible_name
+from .accessibility import (
+    apply_accessible_name,
+    apply_check_list_box_accessibility,
+    notify_check_list_box_state_change,
+)
 
 
 def _alt(polish_key: str, english_key: str) -> str:
@@ -825,12 +829,13 @@ class SettingsDialog(wx.Dialog):
                 style=wx.LB_SINGLE,
             )
             self.calendar_list_ctrl.SetMinSize((580, 220))
-            selected_index = 0
-            for index, calendar in enumerate(calendars):
-                is_selected = calendar.calendar_id in selected_ids
-                self.calendar_list_ctrl.Check(index, is_selected)
-                if is_selected and selected_index == 0:
-                    selected_index = index
+            checked_indexes = [
+                index
+                for index, calendar in enumerate(calendars)
+                if calendar.calendar_id in selected_ids
+            ]
+            self.calendar_list_ctrl.SetCheckedItems(checked_indexes)
+            selected_index = checked_indexes[0] if checked_indexes else 0
             self.calendar_list_ctrl.SetSelection(selected_index)
             accessible_name = (
                 f"{tr('Kalendarze do wyświetlania')}. {instruction_text}"
@@ -838,7 +843,7 @@ class SettingsDialog(wx.Dialog):
             accessible_description = tr(
                 "Poruszaj się strzałkami. Naciśnij spację, aby zaznaczyć lub odznaczyć kalendarz."
             )
-            calendar_list_accessible = apply_accessible_name(
+            calendar_list_accessible = apply_check_list_box_accessibility(
                 self.calendar_list_ctrl,
                 accessible_name,
                 accessible_description,
@@ -913,7 +918,20 @@ class SettingsDialog(wx.Dialog):
         self.SetSize((700, 470))
         self.CentreOnParent()
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
+        if self.calendar_list_ctrl is not None:
+            self.calendar_list_ctrl.Bind(
+                wx.EVT_CHECKLISTBOX,
+                self._on_calendar_check,
+            )
         wx.CallAfter(self.language_ctrl.SetFocus)
+
+    def _on_calendar_check(self, event: wx.CommandEvent) -> None:
+        if self.calendar_list_ctrl is not None:
+            notify_check_list_box_state_change(
+                self.calendar_list_ctrl,
+                event.GetInt(),
+            )
+        event.Skip()
 
     def _on_save(self, event: wx.CommandEvent) -> None:
         if self._calendars and not self.selected_ids():

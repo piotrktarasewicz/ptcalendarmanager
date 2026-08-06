@@ -280,3 +280,13 @@ Sekcja kalendarzy w Ustawieniach używa rzeczywistego `wx.StaticBox` jako rodzic
 Przewijany `wx.ScrolledWindow` z wieloma osobnymi polami wyboru został zastąpiony jednym `wx.CheckListBox`. Dzięki temu Tabulator trafia bezpośrednio na właściwą kontrolkę zamiast na pomocniczy panel odczytywany przez część czytników jako „panel, okienko”.
 
 Pełna nazwa sekcji i instrukcja są przypisane programowo bezpośrednio do `wx.CheckListBox`, czyli elementu otrzymującego fokus. Nawigacja wewnątrz listy odbywa się strzałkami, a zaznaczanie i odznaczanie klawiszem Spacja. Widoczna grupa i tekst instrukcji pozostają w oknie, ale dostępność nie zależy już od odczytu opisu rodzica.
+
+## Etap 0.15.4 — stan zaznaczenia elementów listy kontrolnej
+
+Windows udostępnia `wx.CheckListBox` czytnikom przede wszystkim jako zwykłą listę. Sam natywny obiekt listy nie zna stanu checkboxów rysowanych przez wxWidgets, dlatego stan ten może nie docierać do MSAA.
+
+Warstwa `CheckListBoxAccessible` uzupełnia stan każdego dziecka listy o `ACC_STATE_SYSTEM_CHECKED` na podstawie `IsChecked(index)`. Identyfikator dziecka MSAA jest o jeden większy od indeksu elementu listy.
+
+Po zdarzeniu `EVT_CHECKLISTBOX` aplikacja wysyła `ACC_EVENT_OBJECT_STATECHANGE` dla właściwego dziecka. Pozwala to czytnikowi natychmiast ogłosić zmianę po naciśnięciu Spacji.
+
+Stan kursora listy (`SELECTED` i `FOCUSED`) oraz stan checkboxa (`CHECKED`) są wyliczane niezależnie. Początkowe zaznaczenia są ustawiane przez `SetCheckedItems`, a kursor trafia na pierwszy faktycznie zaznaczony kalendarz.
