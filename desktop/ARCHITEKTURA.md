@@ -273,3 +273,10 @@ Warstwa wizualna nie ma własnej skórki. Nagłówek miesiąca i nagłówki dwó
 ## Etap 0.15.2 — semantyczna grupa wyboru kalendarzy
 
 Sekcja kalendarzy w Ustawieniach używa rzeczywistego `wx.StaticBox` jako rodzica instrukcji, przewijanego panelu i pól wyboru. Dzięki temu natywna hierarchia dostępności Windows przekazuje czytnikom kontekst grupy. Widoczna instrukcja jest zwykłym `wx.StaticText`, natomiast nazwa i opis grupy są dodatkowo wystawiane przez `wx.Accessible`. Nie jest tworzony osobny element fokusowalny.
+
+
+## Etap 0.15.3 — pojedyncza natywna lista kontrolna kalendarzy
+
+Przewijany `wx.ScrolledWindow` z wieloma osobnymi polami wyboru został zastąpiony jednym `wx.CheckListBox`. Dzięki temu Tabulator trafia bezpośrednio na właściwą kontrolkę zamiast na pomocniczy panel odczytywany przez część czytników jako „panel, okienko”.
+
+Pełna nazwa sekcji i instrukcja są przypisane programowo bezpośrednio do `wx.CheckListBox`, czyli elementu otrzymującego fokus. Nawigacja wewnątrz listy odbywa się strzałkami, a zaznaczanie i odznaczanie klawiszem Spacja. Widoczna grupa i tekst instrukcji pozostają w oknie, ale dostępność nie zależy już od odczytu opisu rodzica.

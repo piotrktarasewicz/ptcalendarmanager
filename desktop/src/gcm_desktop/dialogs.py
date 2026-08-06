@@ -757,7 +757,7 @@ class SettingsDialog(wx.Dialog):
         )
         self._calendars = calendars
         self._original_selected_ids = set(selected_ids)
-        self._checkboxes: list[wx.CheckBox] = []
+        self.calendar_list_ctrl: wx.CheckListBox | None = None
         self._accessible_objects: list[wx.Accessible] = []
         self._language_values = language_choice_values()
 
@@ -803,18 +803,6 @@ class SettingsDialog(wx.Dialog):
             instruction_text = tr(
                 "Zaznacz kalendarze, których wydarzenia mają być wyświetlane."
             )
-            # The controls are real children of the native Windows group box.
-            # JAWS and Narrator can therefore announce the group and its
-            # instruction when focus enters the first calendar, while the
-            # visible instruction remains an ordinary, compact line of text.
-            group_accessible = apply_accessible_name(
-                calendar_group,
-                calendar_group_label,
-                instruction_text,
-            )
-            if group_accessible is not None:
-                self._accessible_objects.append(group_accessible)
-
             info = wx.StaticText(
                 calendar_group,
                 label=instruction_text,
@@ -822,24 +810,47 @@ class SettingsDialog(wx.Dialog):
             info.Wrap(560)
             calendar_box.Add(info, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
-            panel = wx.ScrolledWindow(
-                calendar_group,
-                style=wx.VSCROLL | wx.TAB_TRAVERSAL,
-            )
-            panel.SetScrollRate(0, 20)
-            panel_sizer = wx.BoxSizer(wx.VERTICAL)
-            for calendar in calendars:
-                label = calendar.name + (
-                    f", {tr('kalendarz główny')}" if calendar.primary else ""
+            calendar_labels = [
+                calendar.name
+                + (
+                    f", {tr('kalendarz główny')}"
+                    if calendar.primary
+                    else ""
                 )
-                checkbox = wx.CheckBox(panel, label=label)
-                checkbox.SetName(label)
-                checkbox.SetValue(calendar.calendar_id in selected_ids)
-                self._checkboxes.append(checkbox)
-                panel_sizer.Add(checkbox, 0, wx.ALL | wx.EXPAND, 6)
-            panel.SetSizer(panel_sizer)
-            panel.SetMinSize((580, 280))
-            calendar_box.Add(panel, 1, wx.ALL | wx.EXPAND, 8)
+                for calendar in calendars
+            ]
+            self.calendar_list_ctrl = wx.CheckListBox(
+                calendar_group,
+                choices=calendar_labels,
+                style=wx.LB_SINGLE,
+            )
+            self.calendar_list_ctrl.SetMinSize((580, 220))
+            selected_index = 0
+            for index, calendar in enumerate(calendars):
+                is_selected = calendar.calendar_id in selected_ids
+                self.calendar_list_ctrl.Check(index, is_selected)
+                if is_selected and selected_index == 0:
+                    selected_index = index
+            self.calendar_list_ctrl.SetSelection(selected_index)
+            accessible_name = (
+                f"{tr('Kalendarze do wyświetlania')}. {instruction_text}"
+            )
+            accessible_description = tr(
+                "Poruszaj się strzałkami. Naciśnij spację, aby zaznaczyć lub odznaczyć kalendarz."
+            )
+            calendar_list_accessible = apply_accessible_name(
+                self.calendar_list_ctrl,
+                accessible_name,
+                accessible_description,
+            )
+            if calendar_list_accessible is not None:
+                self._accessible_objects.append(calendar_list_accessible)
+            calendar_box.Add(
+                self.calendar_list_ctrl,
+                1,
+                wx.ALL | wx.EXPAND,
+                8,
+            )
         else:
             empty_calendar_message = (
                 tr(
@@ -898,17 +909,11 @@ class SettingsDialog(wx.Dialog):
         sizer.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 12)
 
         self.SetSizerAndFit(sizer)
-        self.SetMinSize((650, 430))
-        self.SetSize((700, 520))
+        self.SetMinSize((650, 400))
+        self.SetSize((700, 470))
         self.CentreOnParent()
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
-        wx.CallAfter(
-            (
-                self.language_ctrl
-                if not self._checkboxes
-                else self.language_ctrl
-            ).SetFocus
-        )
+        wx.CallAfter(self.language_ctrl.SetFocus)
 
     def _on_save(self, event: wx.CommandEvent) -> None:
         if self._calendars and not self.selected_ids():
@@ -918,18 +923,20 @@ class SettingsDialog(wx.Dialog):
                 wx.OK | wx.ICON_ERROR,
                 self,
             )
-            if self._checkboxes:
-                self._checkboxes[0].SetFocus()
+            if self.calendar_list_ctrl is not None:
+                self.calendar_list_ctrl.SetFocus()
             return
         self.EndModal(wx.ID_OK)
 
     def selected_ids(self) -> list[str]:
         if not self._calendars:
             return list(self._original_selected_ids)
+        if self.calendar_list_ctrl is None:
+            return list(self._original_selected_ids)
         return [
             calendar.calendar_id
-            for calendar, checkbox in zip(self._calendars, self._checkboxes)
-            if checkbox.GetValue()
+            for index, calendar in enumerate(self._calendars)
+            if self.calendar_list_ctrl.IsChecked(index)
         ]
 
     def language_preference(self) -> str:

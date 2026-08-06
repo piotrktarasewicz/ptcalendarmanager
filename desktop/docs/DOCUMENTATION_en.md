@@ -1,6 +1,6 @@
 # PT Calendar Manager — User Documentation
 
-Version 0.15.2
+Version 0.15.3
 
 ## 1. Purpose
 
@@ -70,6 +70,8 @@ Settings provides:
 
 - Automatic, Polish or English application language;
 - calendar selection.
+
+Calendar selection is a single checklist. Tab moves directly from the language choice to the checklist. The arrow keys move between calendars and Space selects or clears the current calendar.
 
 When the effective language changes, the application offers to restart immediately. Calendar-only changes do not require a restart.
 

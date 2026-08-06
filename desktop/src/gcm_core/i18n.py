@@ -67,6 +67,8 @@ ENGLISH_TRANSLATIONS: dict[str, str] = {
     "Nie można ponownie uruchomić PT Calendar Manager": "Could not restart PT Calendar Manager",
     "Ustawienia zostały zapisane.": "Settings have been saved.",
     "Wybór kalendarzy": "Calendar selection",
+    "Kalendarze do wyświetlania": "Calendars to display",
+    "Poruszaj się strzałkami. Naciśnij spację, aby zaznaczyć lub odznaczyć kalendarz.": "Use the arrow keys to move. Press Space to select or clear a calendar.",
     "Kalendarze": "Calendars",
     "Zaznacz kalendarze, których wydarzenia mają być pokazywane.": "Select the calendars whose events should be shown.",
     "Zaznacz kalendarze, których wydarzenia mają być wyświetlane.": "Select the calendars whose events should be displayed.",

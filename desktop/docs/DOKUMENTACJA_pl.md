@@ -1,6 +1,6 @@
 # PT Calendar Manager — dokumentacja użytkownika
 
-Wersja 0.15.2
+Wersja 0.15.3
 
 ## 1. Przeznaczenie
 
@@ -70,6 +70,8 @@ Można w nich:
 
 - wybrać język: Automatycznie, Polski albo English;
 - wybrać kalendarze używane przez aplikację.
+
+Wybór kalendarzy jest pojedynczą listą z polami wyboru. Tabulator przechodzi z języka bezpośrednio do tej listy. Strzałki zmieniają bieżący kalendarz, a Spacja zaznacza go lub odznacza.
 
 Po zmianie faktycznego języka program proponuje natychmiastowe ponowne uruchomienie. Zmiana samych kalendarzy nie wymaga restartu.
 
