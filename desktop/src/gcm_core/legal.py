@@ -1,4 +1,10 @@
+# Copyright (C) 2026 Piotr Tarasewicz
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from __future__ import annotations
+
+import sys
+from pathlib import Path
 
 from .branding import (
     INDEPENDENCE_NOTICE_EN,
@@ -12,8 +18,41 @@ from .i18n import get_language
 from .oauth import SCOPES
 
 PROJECT_WEBSITE = "https://ptprojects.app/"
-LAST_UPDATED_PL = "5 sierpnia 2026"
-LAST_UPDATED_EN = "5 August 2026"
+LAST_UPDATED_PL = "6 sierpnia 2026"
+LAST_UPDATED_EN = "6 August 2026"
+
+
+def _runtime_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[2]
+
+
+def _read_bundled_text(filename: str, fallback: str) -> str:
+    path = _runtime_root() / filename
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return fallback
+
+
+def license_text() -> str:
+    return _read_bundled_text(
+        "LICENSE",
+        "GNU General Public License version 3 or later. "
+        "The complete LICENSE file was not found next to the application.",
+    )
+
+
+def third_party_text() -> str:
+    summary = _read_bundled_text(
+        "THIRD_PARTY_NOTICES.md",
+        "Third-party component information was not found next to the application.",
+    )
+    generated = _read_bundled_text("THIRD_PARTY_PACKAGES.md", "").strip()
+    if generated:
+        return summary.rstrip() + "\n\n" + generated + "\n"
+    return summary
 
 
 def about_text() -> str:
@@ -22,22 +61,32 @@ def about_text() -> str:
             f"{PRODUCT_NAME}\n"
             f"Wersja {PRODUCT_VERSION}\n\n"
             f"{PRODUCT_DESCRIPTION_PL}.\n\n"
-            "Autor: Piotr Tarasewicz\n"
+            "Autor i właściciel praw autorskich: Piotr Tarasewicz\n"
             "Projekt: PT Projects\n"
+            "Copyright (C) 2026 Piotr Tarasewicz\n"
+            "Licencja: GNU GPL wersja 3 lub nowsza\n"
             f"Strona: {PROJECT_WEBSITE}\n\n"
             "Aplikacja została zaprojektowana do obsługi klawiaturą i jest "
-            "testowana z NVDA, JAWS-em oraz Narratorem.\n\n"
+            "testowana z NVDA, JAWS-em oraz Narratorem. Program jest "
+            "rozpowszechniany bez gwarancji. Pełna licencja, informacje o "
+            "komponentach zewnętrznych i sposób uzyskania kodu źródłowego "
+            "są dostępne z tego okna i w katalogu programu.\n\n"
             + INDEPENDENCE_NOTICE_PL
         )
     return (
         f"{PRODUCT_NAME}\n"
         f"Version {PRODUCT_VERSION}\n\n"
         f"{PRODUCT_DESCRIPTION_EN}.\n\n"
-        "Author: Piotr Tarasewicz\n"
+        "Author and copyright holder: Piotr Tarasewicz\n"
         "Project: PT Projects\n"
+        "Copyright (C) 2026 Piotr Tarasewicz\n"
+        "License: GNU GPL version 3 or later\n"
         f"Website: {PROJECT_WEBSITE}\n\n"
         "The application is designed for keyboard use and is tested with "
-        "NVDA, JAWS and Narrator.\n\n"
+        "NVDA, JAWS and Narrator. The program is distributed without "
+        "warranty. The complete license, third-party notices and source-code "
+        "information are available from this dialog and the application "
+        "directory.\n\n"
         + INDEPENDENCE_NOTICE_EN
     )
 
@@ -181,9 +230,13 @@ Działanie logowania i funkcji kalendarza zależy od usług Google, połączenia
 
 Szczegółowe informacje o dostępie do danych, ich wykorzystaniu, przechowywaniu i usuwaniu znajdują się w Polityce prywatności dostępnej z okna O programie.
 
-5. Oprogramowanie zewnętrzne
+5. Licencja programu i kod źródłowy
 
-Aplikacja korzysta z Pythona, wxPython oraz oficjalnych bibliotek klienta i uwierzytelniania Google. Informacje o licencjach komponentów zewnętrznych zostaną dołączone do instalatora i publicznego repozytorium przed wydaniem 1.0.
+PT Calendar Manager jest wolnym oprogramowaniem udostępnionym na licencji GNU General Public License w wersji 3 lub nowszej. Program jest rozpowszechniany bez gwarancji. Użytkownik może otrzymać, analizować, modyfikować i rozpowszechniać kod źródłowy zgodnie z warunkami tej licencji. Każdemu wydaniu binarnemu musi odpowiadać łatwo dostępny kod źródłowy tej samej wersji wraz ze skryptami budowania.
+
+6. Oprogramowanie zewnętrzne
+
+Aplikacja korzysta z Pythona, wxPython, wxWidgets, bibliotek Google i innych zależności o zgodnych licencjach otwartego oprogramowania. Pełna lista bezpośrednich komponentów znajduje się w dokumencie THIRD_PARTY_NOTICES.md. Podczas budowania instalatora tworzony jest również dokładny raport zależności pośrednich dla konkretnego wydania.
 """
     return f"""LEGAL INFORMATION AND PROJECT STATUS
 
@@ -207,7 +260,11 @@ Google sign-in and calendar features depend on Google services, an Internet conn
 
 Detailed information about data access, use, storage and deletion is provided in the Privacy Policy available from the About dialog.
 
-5. Third-party software
+5. Program license and source code
 
-The application uses Python, wxPython and official Google client and authentication libraries. License information for third-party components will be bundled with the installer and public repository before version 1.0 is released.
+PT Calendar Manager is free software released under the GNU General Public License version 3 or later. The program is distributed without warranty. Users may obtain, study, modify and redistribute the source code under the terms of that license. Every binary release must have easily available corresponding source for the same version, including the build scripts.
+
+6. Third-party software
+
+The application uses Python, wxPython, wxWidgets, Google libraries and other dependencies under compatible open-source licenses. Direct components are listed in THIRD_PARTY_NOTICES.md. The Windows release process also generates an exact transitive-dependency report for the particular binary build.
 """

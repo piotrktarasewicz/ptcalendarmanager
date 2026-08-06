@@ -1,0 +1,21 @@
+PT Calendar Manager — keyboard shortcuts
+
+Ctrl+N — add event
+Ctrl+E — edit event
+Delete — delete event
+Ctrl+F — search
+Ctrl+G — go to date
+Ctrl+D — today
+F5 — refresh
+Ctrl+L — sign in or sign out of Google
+Ctrl+, — settings
+Ctrl+K — settings compatibility shortcut
+F1 — help and shortcuts
+Alt+Left Arrow — previous month
+Alt+Right Arrow — next month
+Ctrl+Shift+G — open event in Google
+Ctrl+J — open or copy meeting link
+Enter on the day list — move to events for the selected day
+Enter on an event — show details
+Shift+F10 — context menu for the current list
+Left Alt — menu bar

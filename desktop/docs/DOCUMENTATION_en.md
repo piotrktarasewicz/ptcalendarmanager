@@ -1,6 +1,6 @@
 # PT Calendar Manager — User Documentation
 
-Version 0.15.5
+Version 0.16.0
 
 ## Reading calendar selection states
 

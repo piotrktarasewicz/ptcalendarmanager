@@ -1,0 +1,21 @@
+PT Calendar Manager — skróty klawiaturowe
+
+Ctrl+N — dodaj wydarzenie
+Ctrl+E — edytuj wydarzenie
+Delete — usuń wydarzenie
+Ctrl+F — wyszukaj
+Ctrl+G — przejdź do daty
+Ctrl+D — dzisiaj
+F5 — odśwież
+Ctrl+L — zaloguj lub wyloguj konto Google
+Ctrl+, — ustawienia
+Ctrl+K — ustawienia, skrót zgodnościowy
+F1 — pomoc i skróty
+Alt+Strzałka w lewo — poprzedni miesiąc
+Alt+Strzałka w prawo — następny miesiąc
+Ctrl+Shift+G — otwórz wydarzenie w Google
+Ctrl+J — otwórz lub skopiuj link spotkania
+Enter na liście dni — przejdź do wydarzeń wybranego dnia
+Enter na wydarzeniu — pokaż szczegóły
+Shift+F10 — menu kontekstowe bieżącej listy
+Lewy Alt — pasek menu

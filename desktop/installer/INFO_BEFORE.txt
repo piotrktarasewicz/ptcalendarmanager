@@ -1,0 +1,36 @@
+PT CALENDAR MANAGER 0.16.0
+
+PT Calendar Manager jest niezależną, dostępną aplikacją do obsługi Kalendarza
+Google. Nie jest produktem Google LLC, nie jest przez Google sponsorowany ani
+oficjalnie zatwierdzony.
+
+Copyright (C) 2026 Piotr Tarasewicz.
+
+Program jest wolnym oprogramowaniem na licencji GNU GPL w wersji 3 lub nowszej
+i jest rozpowszechniany bez gwarancji. Pełna licencja, kod źródłowy tej samej
+wersji oraz informacje o komponentach zewnętrznych są dostarczane razem z
+wydaniem.
+
+Token Google jest przechowywany lokalnie i szyfrowany mechanizmem Windows
+DPAPI. PT Projects nie otrzymuje kopii kalendarzy, wydarzeń ani tokenu.
+
+Aplikacja nie przeszła jeszcze publicznej weryfikacji Google OAuth. Wydanie
+0.16.0 jest przeznaczone do testów i przygotowania procesu weryfikacji.
+
+--------------------------------------------------------------------------
+
+PT Calendar Manager is an independent, accessible application for Google
+Calendar. It is not a Google LLC product and is not sponsored or endorsed by
+Google.
+
+Copyright (C) 2026 Piotr Tarasewicz.
+
+The program is free software under GNU GPL version 3 or later and is distributed
+without warranty. The complete license, matching source code and third-party
+notices are supplied with the release.
+
+The Google token is stored locally and encrypted with Windows DPAPI. PT Projects
+does not receive copies of calendars, events or tokens.
+
+The application has not completed public Google OAuth verification. Release
+0.16.0 is intended for testing and verification preparation.

@@ -1,27 +1,28 @@
-# Informacje prawne
+# Informacje prawne i status projektu
 
-INFORMACJE PRAWNE I STATUS PROJEKTU
+Ostatnia aktualizacja: 6 sierpnia 2026
 
-Ostatnia aktualizacja: 5 sierpnia 2026
+PT Calendar Manager jest niezależną aplikacją do obsługi Kalendarza Google.
+Program nie jest produktem Google LLC, nie jest przez Google sponsorowany ani
+oficjalnie zatwierdzony. Google Calendar jest znakiem towarowym Google LLC.
 
-1. Niezależność produktu
+Copyright (C) 2026 Piotr Tarasewicz.
 
-PT Calendar Manager jest niezależną aplikacją do obsługi Kalendarza Google. Program nie jest produktem Google LLC, nie jest przez Google sponsorowany ani oficjalnie zatwierdzony. Google Calendar jest znakiem towarowym Google LLC.
+Program jest wolnym oprogramowaniem udostępnionym na licencji GNU General
+Public License w wersji 3 lub nowszej. Jest rozpowszechniany bez gwarancji.
+Pełny tekst licencji znajduje się w pliku `LICENSE`.
 
-Nazwa Google i nazwa Google Calendar są używane wyłącznie opisowo, aby wskazać usługę, z którą współpracuje aplikacja. Aplikacja nie używa logo Google ani nie sugeruje partnerstwa z Google.
+Projekt powstał przez adaptację i znaczące rozwinięcie kodu oraz koncepcji
+dodatku Google Calendar Manager dla NVDA, również autorstwa Piotra
+Tarasewicza i objętego GPL-3.0-or-later.
 
-2. Status wersji
+Każdemu instalatorowi lub wydaniu przenośnemu musi odpowiadać łatwo dostępny
+kod źródłowy tej samej wersji wraz ze skryptami budowania. Szczegóły znajdują
+się w `SOURCE_CODE.md`.
 
-Wersja 0.15.0 jest wersją testową przygotowywaną do pierwszego wydania publicznego. Przed wykonaniem ważnej operacji użytkownik powinien sprawdzić jej wynik w Kalendarzu Google. Operacje usuwania i edycji wymagają potwierdzenia w aplikacji, lecz użytkownik nadal odpowiada za wybór właściwego wydarzenia i zakresu operacji.
+Działanie logowania i kalendarza zależy od usług Google, połączenia z Internetem
+i dostępności Google Calendar API. Przed publicznym wydaniem aplikacja musi
+przejść właściwy proces weryfikacji Google OAuth.
 
-3. Zależność od usług zewnętrznych
-
-Działanie logowania i funkcji kalendarza zależy od usług Google, połączenia z Internetem oraz dostępności Google Calendar API. Zmiana zasad, interfejsów lub dostępności usług Google może wpłynąć na działanie aplikacji.
-
-4. Prywatność
-
-Szczegółowe informacje o dostępie do danych, ich wykorzystaniu, przechowywaniu i usuwaniu znajdują się w Polityce prywatności dostępnej z okna O programie.
-
-5. Oprogramowanie zewnętrzne
-
-Aplikacja korzysta z Pythona, wxPython oraz oficjalnych bibliotek klienta i uwierzytelniania Google. Informacje o licencjach komponentów zewnętrznych zostaną dołączone do instalatora i publicznego repozytorium przed wydaniem 1.0.
+Licencje bibliotek i narzędzi opisuje `THIRD_PARTY_NOTICES.md`; podczas
+budowania wersji Windows powstaje także dokładny raport zależności pośrednich.

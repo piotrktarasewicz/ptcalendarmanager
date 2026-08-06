@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Piotr Tarasewicz
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from __future__ import annotations
 
 import datetime as dt
@@ -12,7 +15,13 @@ from gcm_core.i18n import (
     normalize_language_preference,
     tr,
 )
-from gcm_core.legal import about_text, legal_text, privacy_text
+from gcm_core.legal import (
+    about_text,
+    legal_text,
+    license_text,
+    privacy_text,
+    third_party_text,
+)
 from gcm_core.branding import PRODUCT_NAME
 
 from gcm_core.models import (
@@ -665,6 +674,14 @@ class AboutDialog(wx.Dialog):
             self,
             label=localized("&Informacje prawne", "&Legal information"),
         )
+        self.license_button = wx.Button(
+            self,
+            label=localized("&Licencja", "&License"),
+        )
+        self.third_party_button = wx.Button(
+            self,
+            label=localized("&Komponenty zewnętrzne", "&Third-party components"),
+        )
         self.close_button = wx.Button(
             self,
             wx.ID_OK,
@@ -682,6 +699,16 @@ class AboutDialog(wx.Dialog):
                 _alt("I", "L"),
             ),
             (
+                self.license_button,
+                localized("Licencja", "License"),
+                _alt("L", "L"),
+            ),
+            (
+                self.third_party_button,
+                localized("Komponenty zewnętrzne", "Third-party components"),
+                _alt("K", "T"),
+            ),
+            (
                 self.close_button,
                 localized("Zamknij", "Close"),
                 _alt("Z", "C"),
@@ -697,15 +724,19 @@ class AboutDialog(wx.Dialog):
         self.close_button.SetDefault()
         actions.Add(self.privacy_button, 0, wx.RIGHT, 8)
         actions.Add(self.legal_button, 0, wx.RIGHT, 8)
+        actions.Add(self.license_button, 0, wx.RIGHT, 8)
+        actions.Add(self.third_party_button, 0, wx.RIGHT, 8)
         actions.Add(self.close_button, 0)
         sizer.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 12)
 
         self.SetSizerAndFit(sizer)
-        self.SetMinSize((730, 430))
-        self.SetSize((800, 500))
+        self.SetMinSize((820, 430))
+        self.SetSize((900, 500))
         self.CentreOnParent()
         self.privacy_button.Bind(wx.EVT_BUTTON, self._on_privacy)
         self.legal_button.Bind(wx.EVT_BUTTON, self._on_legal)
+        self.license_button.Bind(wx.EVT_BUTTON, self._on_license)
+        self.third_party_button.Bind(wx.EVT_BUTTON, self._on_third_party)
         wx.CallAfter(text.SetFocus)
 
     def _show_document(self, *, title: str, content: str, name: str) -> None:
@@ -738,6 +769,29 @@ class AboutDialog(wx.Dialog):
             ),
             content=legal_text(),
             name=localized("Treść informacji prawnych", "Legal information content"),
+        )
+
+    def _on_license(self, event: wx.CommandEvent) -> None:
+        self._show_document(
+            title=localized(
+                f"Licencja — {PRODUCT_NAME}",
+                f"License — {PRODUCT_NAME}",
+            ),
+            content=license_text(),
+            name=localized("Treść licencji GNU GPL", "GNU GPL license content"),
+        )
+
+    def _on_third_party(self, event: wx.CommandEvent) -> None:
+        self._show_document(
+            title=localized(
+                f"Komponenty zewnętrzne — {PRODUCT_NAME}",
+                f"Third-party components — {PRODUCT_NAME}",
+            ),
+            content=third_party_text(),
+            name=localized(
+                "Informacje o komponentach zewnętrznych",
+                "Third-party component information",
+            ),
         )
 
 
