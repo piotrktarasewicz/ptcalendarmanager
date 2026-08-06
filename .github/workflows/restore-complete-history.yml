@@ -1,6 +1,7 @@
 name: Restore complete PT Calendar Manager history
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
