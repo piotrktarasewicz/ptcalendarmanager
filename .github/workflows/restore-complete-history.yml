@@ -1,0 +1,32 @@
+name: Restore complete PT Calendar Manager history
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out transfer data
+        uses: actions/checkout@v4
+        with:
+          ref: transfer/complete-history
+          fetch-depth: 1
+
+      - name: Reassemble, verify, and restore all refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat .transfer/ptcalendarmanager.bundle.part* > /tmp/ptcalendarmanager-complete.bundle
+          echo "10c43cd9c6830add8651e2ff0c0a9741a676c89cabaeada029a0d70d70b9cb91  /tmp/ptcalendarmanager-complete.bundle" | sha256sum -c -
+          git clone --mirror /tmp/ptcalendarmanager-complete.bundle /tmp/ptcalendarmanager.git
+          git -C /tmp/ptcalendarmanager.git remote remove origin
+          git -C /tmp/ptcalendarmanager.git remote add target "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C /tmp/ptcalendarmanager.git push --mirror target
