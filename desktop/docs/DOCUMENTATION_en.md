@@ -1,6 +1,6 @@
 # PT Calendar Manager — User Documentation
 
-Version 0.15.1
+Version 0.15.2
 
 ## 1. Purpose
 

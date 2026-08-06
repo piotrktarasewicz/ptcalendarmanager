@@ -790,50 +790,40 @@ class SettingsDialog(wx.Dialog):
         form.Add(self.language_ctrl, 1, wx.EXPAND)
         sizer.Add(form, 0, wx.ALL | wx.EXPAND, 12)
 
-        calendar_box = wx.StaticBoxSizer(
-            wx.VERTICAL,
+        calendar_group_label = tr("Wybór kalendarzy")
+        calendar_group = wx.StaticBox(
             self,
-            tr("Kalendarze"),
+            label=calendar_group_label,
+        )
+        calendar_box = wx.StaticBoxSizer(
+            calendar_group,
+            wx.VERTICAL,
         )
         if calendars:
             instruction_text = tr(
-                "Zaznacz kalendarze, których wydarzenia mają być pokazywane."
+                "Zaznacz kalendarze, których wydarzenia mają być wyświetlane."
             )
-            # Ordinary static text is announced by NVDA in this dialog, but
-            # JAWS and Narrator may move directly to the first checkbox. A
-            # borderless read-only text control stays visually lightweight and
-            # provides a real keyboard focus target that all three screen
-            # readers announce before the calendar checkboxes.
-            self.calendar_instruction = wx.TextCtrl(
-                self,
-                value=instruction_text,
-                style=(
-                    wx.TE_MULTILINE
-                    | wx.TE_READONLY
-                    | wx.TE_NO_VSCROLL
-                    | wx.BORDER_NONE
-                ),
+            # The controls are real children of the native Windows group box.
+            # JAWS and Narrator can therefore announce the group and its
+            # instruction when focus enters the first calendar, while the
+            # visible instruction remains an ordinary, compact line of text.
+            group_accessible = apply_accessible_name(
+                calendar_group,
+                calendar_group_label,
+                instruction_text,
             )
-            self.calendar_instruction.SetName(
-                tr("Instrukcja wyboru kalendarzy")
+            if group_accessible is not None:
+                self._accessible_objects.append(group_accessible)
+
+            info = wx.StaticText(
+                calendar_group,
+                label=instruction_text,
             )
-            self.calendar_instruction.SetBackgroundColour(
-                self.GetBackgroundColour()
-            )
-            self.calendar_instruction.SetForegroundColour(
-                self.GetForegroundColour()
-            )
-            self.calendar_instruction.SetMinSize((580, 46))
-            self.calendar_instruction.SetInsertionPoint(0)
-            calendar_box.Add(
-                self.calendar_instruction,
-                0,
-                wx.ALL | wx.EXPAND,
-                8,
-            )
+            info.Wrap(560)
+            calendar_box.Add(info, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
             panel = wx.ScrolledWindow(
-                self,
+                calendar_group,
                 style=wx.VSCROLL | wx.TAB_TRAVERSAL,
             )
             panel.SetScrollRate(0, 20)
@@ -861,7 +851,7 @@ class SettingsDialog(wx.Dialog):
                 )
             )
             info = wx.StaticText(
-                self,
+                calendar_group,
                 label=empty_calendar_message,
             )
             info.Wrap(560)

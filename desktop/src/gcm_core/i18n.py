@@ -69,6 +69,7 @@ ENGLISH_TRANSLATIONS: dict[str, str] = {
     "Wybór kalendarzy": "Calendar selection",
     "Kalendarze": "Calendars",
     "Zaznacz kalendarze, których wydarzenia mają być pokazywane.": "Select the calendars whose events should be shown.",
+    "Zaznacz kalendarze, których wydarzenia mają być wyświetlane.": "Select the calendars whose events should be displayed.",
     "Instrukcja wyboru kalendarzy": "Calendar selection instructions",
     "Zaloguj się do Google, aby wybrać kalendarze. Ustawienie języka jest dostępne bez logowania.": "Sign in to Google to select calendars. The language setting is available without signing in.",
     "Zaznacz co najmniej jeden kalendarz.": "Select at least one calendar.",

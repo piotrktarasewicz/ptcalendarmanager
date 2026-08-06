@@ -268,3 +268,8 @@ Stany aktywności poleceń są zarządzane centralnie przez `_update_command_sta
 Tabulator jest jawnie obsługiwany na obu listach, aby zapewnić przewidywalny, dwuelementowy cykl fokusu. `Shift+F10` i klawisz aplikacji są obsługiwane przez natywne zdarzenie `wx.EVT_CONTEXT_MENU`.
 
 Warstwa wizualna nie ma własnej skórki. Nagłówek miesiąca i nagłówki dwóch paneli otrzymują kolor `wx.SYS_COLOUR_HOTLIGHT`, pobierany z ustawień Windows. Tła, zaznaczenia, stan nieaktywny i pozostałe kolory pozostają w pełni systemowe.
+
+
+## Etap 0.15.2 — semantyczna grupa wyboru kalendarzy
+
+Sekcja kalendarzy w Ustawieniach używa rzeczywistego `wx.StaticBox` jako rodzica instrukcji, przewijanego panelu i pól wyboru. Dzięki temu natywna hierarchia dostępności Windows przekazuje czytnikom kontekst grupy. Widoczna instrukcja jest zwykłym `wx.StaticText`, natomiast nazwa i opis grupy są dodatkowo wystawiane przez `wx.Accessible`. Nie jest tworzony osobny element fokusowalny.

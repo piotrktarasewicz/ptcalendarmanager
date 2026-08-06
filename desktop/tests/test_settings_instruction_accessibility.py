@@ -14,22 +14,30 @@ class SettingsInstructionAccessibilityTests(unittest.TestCase):
         self.dialog_source = DIALOGS.read_text(encoding="utf-8")
         self.i18n_source = I18N.read_text(encoding="utf-8")
 
-    def test_calendar_instruction_is_focusable_read_only_text(self) -> None:
-        self.assertIn("self.calendar_instruction = wx.TextCtrl", self.dialog_source)
-        self.assertIn("wx.TE_READONLY", self.dialog_source)
-        self.assertIn("wx.BORDER_NONE", self.dialog_source)
-        self.assertIn("wx.TE_NO_VSCROLL", self.dialog_source)
+    def test_calendar_controls_use_a_real_native_group_box(self) -> None:
+        self.assertIn("calendar_group = wx.StaticBox", self.dialog_source)
+        self.assertIn("calendar_group,\n                style=wx.VSCROLL", self.dialog_source)
+        self.assertIn("calendar_group,\n                label=instruction_text", self.dialog_source)
 
-    def test_instruction_has_programmatic_name_and_translation(self) -> None:
-        self.assertIn('tr("Instrukcja wyboru kalendarzy")', self.dialog_source)
+    def test_group_exposes_the_instruction_programmatically(self) -> None:
         self.assertIn(
-            '"Instrukcja wyboru kalendarzy": "Calendar selection instructions"',
+            "group_accessible = apply_accessible_name(\n"
+            "                calendar_group,\n"
+            "                calendar_group_label,\n"
+            "                instruction_text,",
+            self.dialog_source,
+        )
+        self.assertIn(
+            '"Zaznacz kalendarze, których wydarzenia mają być wyświetlane.": '
+            '"Select the calendars whose events should be displayed."',
             self.i18n_source,
         )
 
-    def test_old_non_focusable_static_text_is_not_used_for_instruction(self) -> None:
-        old_fragment = "info = wx.StaticText(\\n                self,\\n                label=tr(\\n                    \\\"Zaznacz kalendarze"
-        self.assertNotIn(old_fragment, self.dialog_source)
+    def test_instruction_is_compact_static_text_not_a_focus_target(self) -> None:
+        settings_source = self.dialog_source.split("class SettingsDialog", 1)[1].split("class SearchDialog", 1)[0]
+        self.assertNotIn("self.calendar_instruction = wx.TextCtrl", settings_source)
+        self.assertNotIn("wx.TE_READONLY", settings_source)
+        self.assertNotIn("SetMinSize((580, 46))", settings_source)
 
 
 if __name__ == "__main__":
