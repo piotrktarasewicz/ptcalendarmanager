@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Final
 
 PRODUCT_NAME: Final = "PT Calendar Manager"
-PRODUCT_VERSION: Final = "0.16.0"
+PRODUCT_VERSION: Final = "0.16.1"
 PRODUCT_DESCRIPTION_PL: Final = "Dostępna aplikacja do obsługi Kalendarza Google"
 PRODUCT_DESCRIPTION_EN: Final = "Accessible desktop application for Google Calendar"
 DATA_DIR_NAME: Final = PRODUCT_NAME

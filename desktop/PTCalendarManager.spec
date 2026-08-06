@@ -14,7 +14,7 @@ datas = [
     (str(root / "LICENSE-NOTICE.md"), "."),
     (str(root / "THIRD_PARTY_NOTICES.md"), "."),
     (str(root / "SOURCE_CODE.md"), "."),
-    (str(root / "AUDYT_LICENCJI_I_WYDANIA_0.16.0.md"), "."),
+    (str(root / "AUDYT_LICENCJI_I_WYDANIA_0.16.1.md"), "."),
     (str(root / "README.md"), "."),
 ]
 binaries = []

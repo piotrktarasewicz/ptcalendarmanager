@@ -16,12 +16,12 @@ VSVersionInfo(
         [
           StringStruct(u'CompanyName', u'PT Projects'),
           StringStruct(u'FileDescription', u'Accessible desktop application for Google Calendar'),
-          StringStruct(u'FileVersion', u'0.16.0'),
+          StringStruct(u'FileVersion', u'0.16.1'),
           StringStruct(u'InternalName', u'PT Calendar Manager'),
           StringStruct(u'LegalCopyright', u'Copyright (C) 2026 Piotr Tarasewicz'),
           StringStruct(u'OriginalFilename', u'PT Calendar Manager.exe'),
           StringStruct(u'ProductName', u'PT Calendar Manager'),
-          StringStruct(u'ProductVersion', u'0.16.0')
+          StringStruct(u'ProductVersion', u'0.16.1')
         ]
       ),
       StringTable(
@@ -29,12 +29,12 @@ VSVersionInfo(
         [
           StringStruct(u'CompanyName', u'PT Projects'),
           StringStruct(u'FileDescription', u'Dostępna aplikacja do obsługi Kalendarza Google'),
-          StringStruct(u'FileVersion', u'0.16.0'),
+          StringStruct(u'FileVersion', u'0.16.1'),
           StringStruct(u'InternalName', u'PT Calendar Manager'),
           StringStruct(u'LegalCopyright', u'Copyright (C) 2026 Piotr Tarasewicz'),
           StringStruct(u'OriginalFilename', u'PT Calendar Manager.exe'),
           StringStruct(u'ProductName', u'PT Calendar Manager'),
-          StringStruct(u'ProductVersion', u'0.16.0')
+          StringStruct(u'ProductVersion', u'0.16.1')
         ]
       )
     ]),

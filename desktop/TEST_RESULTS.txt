@@ -1,0 +1,4 @@
+PT Calendar Manager 0.16.1
+
+Application regression tests: 123 passed before the Windows build.
+Windows build additionally verifies all public documentation paths and the portable archive layout.

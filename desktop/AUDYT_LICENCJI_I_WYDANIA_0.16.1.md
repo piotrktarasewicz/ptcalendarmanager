@@ -1,9 +1,9 @@
-# Audyt licencji i przygotowania wydania 0.16.0
+# Audyt licencji i przygotowania wydania 0.16.1
 
 Data audytu: 6 sierpnia 2026 r.
 
 Ten dokument opisuje decyzje techniczne i licencyjne przyjęte dla PT Calendar
-Managera 0.16.0. Nie zastępuje indywidualnej porady prawnej.
+Managera 0.16.1. Nie zastępuje indywidualnej porady prawnej.
 
 ## 1. Licencja programu
 
@@ -105,6 +105,6 @@ natywnego EXE i instalatora Windows. Sprawdzono kod, strukturę, dokumenty,
 manifest XML, skrypty i testy automatyczne. Ostateczne potwierdzenie wymaga
 budowania oraz testów na 64-bitowym Windowsie.
 
-Wersja 0.16.0 nie jest kandydatem 1.0 RC. Weryfikacja Google OAuth, film
+Wersja 0.16.1 nie jest kandydatem 1.0 RC. Weryfikacja Google OAuth, film
 weryfikacyjny i publiczny test logowania są odrębnym etapem przed oznaczeniem
 wersji RC.

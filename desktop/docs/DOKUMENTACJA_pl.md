@@ -1,6 +1,6 @@
 # PT Calendar Manager — dokumentacja użytkownika
 
-Wersja 0.16.0
+Wersja 0.16.1
 
 ## Odczyt stanu kalendarzy
 

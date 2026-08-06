@@ -1,5 +1,5 @@
 ﻿#define MyAppName "PT Calendar Manager"
-#define MyAppVersion "0.16.0"
+#define MyAppVersion "0.16.1"
 #define MyAppPublisher "PT Projects"
 #define MyAppURL "https://ptprojects.app/"
 #define MyAppExeName "PT Calendar Manager.exe"
@@ -36,7 +36,7 @@ CloseApplications=yes
 RestartApplications=no
 SetupLogging=yes
 AppMutex=PTCalendarManager_A6B53B82-7D18-4D50-9A96-A451C44DB65F
-VersionInfoVersion=0.16.0.0
+VersionInfoVersion=0.16.1.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=Accessible desktop application for Google Calendar
 VersionInfoCopyright=Copyright (C) 2026 Piotr Tarasewicz

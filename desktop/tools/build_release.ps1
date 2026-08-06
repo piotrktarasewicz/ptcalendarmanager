@@ -9,7 +9,7 @@ Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
-$Version = "0.16.0"
+$Version = "0.16.1"
 $ReleaseDir = Join-Path $Root "release"
 $BuildDir = Join-Path $Root "build"
 $DistDir = Join-Path $Root "dist\PT Calendar Manager"
@@ -79,6 +79,55 @@ if ($IncludeOAuthClient) {
 if ($LASTEXITCODE -ne 0) { throw "Budowanie aplikacji PyInstaller nie powiodło się." }
 if (-not (Test-Path (Join-Path $DistDir "PT Calendar Manager.exe"))) {
     throw "PyInstaller nie utworzył oczekiwanego pliku EXE."
+}
+
+# PyInstaller 6 places collected data under _internal in one-folder builds.
+# Copy user-facing documents to stable public paths next to the EXE as well.
+$PublicDocsDir = Join-Path $DistDir "docs"
+$PublicLicensesDir = Join-Path $DistDir "licenses"
+Remove-Item -Recurse -Force $PublicDocsDir -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force $PublicLicensesDir -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path $PublicDocsDir | Out-Null
+New-Item -ItemType Directory -Force -Path $PublicLicensesDir | Out-Null
+Copy-Item (Join-Path $Root "docs\*") -Destination $PublicDocsDir -Recurse -Force
+Copy-Item (Join-Path $Root "licenses\*") -Destination $PublicLicensesDir -Recurse -Force
+
+foreach ($PublicFile in @(
+    "LICENSE",
+    "LICENSE-NOTICE.md",
+    "THIRD_PARTY_NOTICES.md",
+    "SOURCE_CODE.md",
+    "AUDYT_LICENCJI_I_WYDANIA_0.16.1.md",
+    "README.md"
+)) {
+    Copy-Item (Join-Path $Root $PublicFile) -Destination (Join-Path $DistDir $PublicFile) -Force
+}
+
+$GeneratedReport = Join-Path $BuildDir "generated\THIRD_PARTY_PACKAGES.md"
+if (Test-Path $GeneratedReport) {
+    Copy-Item $GeneratedReport -Destination (Join-Path $DistDir "THIRD_PARTY_PACKAGES.md") -Force
+}
+$GeneratedLicenseDir = Join-Path $BuildDir "generated\licenses"
+if (Test-Path $GeneratedLicenseDir) {
+    $PublicPackageLicenses = Join-Path $PublicLicensesDir "packages"
+    New-Item -ItemType Directory -Force -Path $PublicPackageLicenses | Out-Null
+    Copy-Item (Join-Path $GeneratedLicenseDir "*") -Destination $PublicPackageLicenses -Recurse -Force
+}
+if ($IncludeOAuthClient) {
+    Copy-Item (Join-Path $Root "release-secrets\client_secret.json") -Destination (Join-Path $DistDir "client_secret.json") -Force
+}
+
+foreach ($RequiredPublicPath in @(
+    "docs\SKROTY_pl.txt",
+    "docs\SHORTCUTS_en.txt",
+    "docs\DOKUMENTACJA_pl.md",
+    "docs\DOCUMENTATION_en.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+)) {
+    if (-not (Test-Path (Join-Path $DistDir $RequiredPublicPath))) {
+        throw "Missing public release file: $RequiredPublicPath"
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
