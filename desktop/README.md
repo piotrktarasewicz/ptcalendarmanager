@@ -1,4 +1,4 @@
-# PT Calendar Manager 0.16.1
+# PT Calendar Manager 0.16.2
 
 **Dostępna aplikacja do obsługi Kalendarza Google**  
 **Accessible desktop application for Google Calendar**
@@ -8,7 +8,7 @@ szybkiego i dostępnego zarządzania wydarzeniami Kalendarza Google. Interfejs
 jest obsługiwany klawiaturą i praktycznie przetestowany z NVDA, JAWS-em oraz
 Narratorem.
 
-Wersja 0.16.1 zamraża zakres funkcji przed publiczną weryfikacją Google OAuth i
+Wersja 0.16.2 zamraża zakres funkcji przed publiczną weryfikacją Google OAuth i
 wprowadza kompletną warstwę wydaniową: licencję, informacje o zależnościach,
 metadane pliku EXE, wersję przenośną oraz projekt instalatora Windows.
 
@@ -54,9 +54,9 @@ Na komputerze Windows uruchom:
 
 Skrypt przygotowuje w katalogu `release`:
 
-- instalator `PT-Calendar-Manager-0.16.1-Setup.exe`;
-- wersję przenośną `pt-calendar-manager-0.16.1-portable.zip`;
-- odpowiadający kod źródłowy `pt-calendar-manager-0.16.1-source.zip`;
+- instalator `PT-Calendar-Manager-0.16.2-Setup.exe`;
+- wersję przenośną `pt-calendar-manager-0.16.2-portable.zip`;
+- odpowiadający kod źródłowy `pt-calendar-manager-0.16.2-source.zip`;
 - plik `SHA256SUMS.txt`.
 
 Wymagane są 64-bitowy Python 3.10-3.13 oraz Inno Setup 6 albo 7. Szczegóły są

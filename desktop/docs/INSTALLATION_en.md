@@ -8,7 +8,7 @@
 4. Change the destination folder only when needed.
 5. Optionally create a desktop shortcut.
 6. Choose Install.
-7. The final page can open the shortcut guide and launch the application.
+7. The final page can open program help and keyboard shortcuts. The application starts directly in the Help view.
 
 The installer does not require administrator privileges. The application is
 installed for the current Windows user.

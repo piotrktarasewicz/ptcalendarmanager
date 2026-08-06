@@ -8,7 +8,7 @@
 4. Zmień katalog tylko wtedy, gdy jest to potrzebne.
 5. Opcjonalnie wybierz skrót na pulpicie.
 6. Wybierz „Instaluj”.
-7. Na ostatniej stronie można otworzyć listę skrótów i uruchomić program.
+7. Na ostatniej stronie można otworzyć pomoc i skróty programu. Aplikacja uruchomi się bezpośrednio w widoku pomocy.
 
 Instalator nie wymaga praw administratora. Program jest instalowany dla
 bieżącego konta Windows.

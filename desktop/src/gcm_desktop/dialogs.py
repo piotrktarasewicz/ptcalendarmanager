@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as dt
 
 import wx
+import wx.html2
 
 from gcm_core.i18n import (
     get_language,
@@ -1400,7 +1401,7 @@ class MeetingLinkDialog(wx.Dialog):
 
 
 class HelpDialog(wx.Dialog):
-    def __init__(self, parent: wx.Window, help_text: str) -> None:
+    def __init__(self, parent: wx.Window, help_html: str) -> None:
         super().__init__(
             parent,
             title=tr("Pomoc i skróty klawiaturowe"),
@@ -1409,20 +1410,19 @@ class HelpDialog(wx.Dialog):
         self._accessible_objects: list[wx.Accessible] = []
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        text = wx.TextCtrl(
-            self,
-            value=help_text,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
+        self.help_view = wx.html2.WebView.New(self)
+        self.help_view.SetMinSize((720, 440))
+        self.help_view.SetName(tr("Treść pomocy i lista skrótów"))
+        self.help_view.SetHelpText(
+            tr(
+                "Dokument pomocy. Użyj poleceń czytnika ekranu do przechodzenia po nagłówkach."
+            )
         )
-        text.SetMinSize((720, 440))
-        accessible = apply_accessible_name(
-            text,
-            tr("Treść pomocy i lista skrótów"),
-            tr("Czytaj strzałkami. Tekst można zaznaczać i kopiować."),
-        )
-        if accessible is not None:
-            self._accessible_objects.append(accessible)
-        sizer.Add(text, 1, wx.ALL | wx.EXPAND, 12)
+        self.help_view.EnableContextMenu(True)
+        self.help_view.EnableHistory(False)
+        self.help_view.Bind(wx.html2.EVT_WEBVIEW_LOADED, self._on_help_loaded)
+        self.help_view.SetPage(help_html, "")
+        sizer.Add(self.help_view, 1, wx.ALL | wx.EXPAND, 12)
 
         close_button = wx.Button(
             self,
@@ -1449,4 +1449,8 @@ class HelpDialog(wx.Dialog):
         self.SetMinSize((760, 520))
         self.SetSize((820, 600))
         self.CentreOnParent()
-        wx.CallAfter(text.SetFocus)
+        wx.CallAfter(self.help_view.SetFocus)
+
+    def _on_help_loaded(self, event: wx.html2.WebViewEvent) -> None:
+        self.help_view.SetFocus()
+        event.Skip()

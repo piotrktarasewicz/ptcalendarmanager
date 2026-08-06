@@ -1,4 +1,13 @@
-PT Calendar Manager 0.16.1
+PT Calendar Manager 0.16.2
 
-Application regression tests: 123 passed before the Windows build.
-Windows build additionally verifies all public documentation paths and the portable archive layout.
+Automated Windows release tests: 6 passed.
+They verify the Polish and English semantic help structure, heading hierarchy,
+installer version, finish-page label, --show-help launch command and Start menu
+Documentation shortcut.
+
+The unchanged application functions retain the previously recorded 0.16.1
+regression result of 123 passed tests. The 0.16.2 Windows build additionally
+verified the release paths, archive integrity, x64 executable architecture and
+presence of the wxPython HTML/WebView runtime components.
+
+Manual screen-reader verification with NVDA and Narrator remains required.

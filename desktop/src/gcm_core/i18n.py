@@ -440,6 +440,7 @@ ENGLISH_TRANSLATIONS: dict[str, str] = {
     "Pomoc i skróty klawiaturowe": "Help and keyboard shortcuts",
     "Treść pomocy i lista skrótów": "Help content and shortcut list",
     "Czytaj strzałkami. Tekst można zaznaczać i kopiować.": "Read with the arrow keys. The text can be selected and copied.",
+    "Dokument pomocy. Użyj poleceń czytnika ekranu do przechodzenia po nagłówkach.": "Help document. Use your screen reader's heading navigation commands.",
     "Zamyka pomoc i wraca do głównego okna.": "Closes help and returns to the main window.",
     "Zapisz": "Save",
     "Zapisuje ustawienia aplikacji.": "Saves the application settings.",

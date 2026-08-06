@@ -9,7 +9,7 @@ Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
-$Version = "0.16.1"
+$Version = "0.16.2"
 $ReleaseDir = Join-Path $Root "release"
 $BuildDir = Join-Path $Root "build"
 $DistDir = Join-Path $Root "dist\PT Calendar Manager"
@@ -98,6 +98,7 @@ foreach ($PublicFile in @(
     "THIRD_PARTY_NOTICES.md",
     "SOURCE_CODE.md",
     "AUDYT_LICENCJI_I_WYDANIA_0.16.1.md",
+    "RELEASE_NOTES_0.16.2.md",
     "README.md"
 )) {
     Copy-Item (Join-Path $Root $PublicFile) -Destination (Join-Path $DistDir $PublicFile) -Force

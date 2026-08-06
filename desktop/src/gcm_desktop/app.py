@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import sys
 import threading
 import webbrowser
 from pathlib import Path
@@ -44,11 +45,10 @@ from gcm_core.paths import (
 from gcm_core.settings import AppSettings, load_settings, save_settings
 from gcm_core.restart import launch_current_application
 from gcm_core.branding import (
-    INDEPENDENCE_NOTICE_EN,
-    INDEPENDENCE_NOTICE_PL,
     PRODUCT_NAME,
     PRODUCT_VERSION,
 )
+from gcm_core.help_content import get_help_html
 from .accessibility import apply_accessible_name
 from .dialogs import (
     AboutDialog,
@@ -325,114 +325,16 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda event: self._change_month(1), id=ids["next"])
 
 
-    @staticmethod
-    def _help_text() -> str:
-        if get_language() == "pl":
-            return (
-                "PT Calendar Manager — pomoc i skróty klawiaturowe\n\n"
-                "PRZEZNACZENIE APLIKACJI\n"
-                "PT Calendar Manager służy do szybkiego, dostępnego zarządzania Kalendarzem Google. "
-                "Bardziej zaawansowane funkcje pozostają w oficjalnym interfejsie Google.\n\n"
-                "UKŁAD GŁÓWNEGO OKNA\n"
-                "Na górze znajduje się klasyczny pasek menu: Kalendarz, Wydarzenie, "
-                "Konto, Ustawienia i Pomoc. Lewy Alt przenosi fokus do menu. "
-                "Po lewej znajduje się lista dni bieżącego miesiąca, a po prawej "
-                "lista wydarzeń zaznaczonego dnia. Tab przełącza tylko między tymi "
-                "dwiema listami. Enter na liście dni przenosi fokus na wydarzenia, "
-                "a Enter na wydarzeniu otwiera szczegóły. Shift+F10 otwiera menu "
-                "kontekstowe bieżącej listy.\n\n"
-                "SKRÓTY APLIKACJI\n"
-                "Ctrl+L — zaloguj do Google albo wyloguj.\n"
-                "Ctrl+, — otwórz ustawienia.\n"
-                "Ctrl+K — otwórz ustawienia, zachowany skrót wyboru kalendarzy.\n"
-                "F1 — otwórz pomoc.\n"
-                "Alt+Strzałka w lewo — poprzedni miesiąc.\n"
-                "Ctrl+D — dzisiaj.\n"
-                "Alt+Strzałka w prawo — następny miesiąc.\n"
-                "Ctrl+G — przejdź do daty.\n"
-                "Ctrl+F — wyszukaj wydarzenia.\n"
-                "Ctrl+N — dodaj wydarzenie.\n"
-                "F5 — odśwież dane.\n"
-                "Ctrl+E — edytuj wydarzenie.\n"
-                "Delete — usuń wydarzenie.\n"
-                "Ctrl+Shift+G — otwórz wydarzenie w Kalendarzu Google.\n"
-                "Ctrl+J — otwórz lub skopiuj link spotkania.\n\n"
-                "JĘZYK APLIKACJI\n"
-                "Dostępne są ustawienia Automatycznie, Polski i English. "
-                "Tryb automatyczny używa języka Windows: polskiego dla polskiego "
-                "systemu, a angielskiego dla pozostałych. Ręczna zmiana języka "
-                "zaczyna działać po ponownym uruchomieniu PT Calendar Manager.\n\n"
-                "O PROGRAMIE I PRYWATNOŚĆ\n"
-                "W menu Pomoc znajduje się polecenie O programie. Udostępnia ono "
-                "informacje o wersji, autorze, niezależności produktu, politykę "
-                "prywatności oraz informacje prawne. Token Google jest przechowywany "
-                "lokalnie i szyfrowany mechanizmem Windows DPAPI.\n\n"
-                "WYDARZENIA CYKLICZNE\n"
-                "PT Calendar Manager tworzy i edytuje podstawowe cykle: codzienne, tygodniowe, "
-                "miesięczne, kwartalne, półroczne i roczne. Zaawansowane reguły "
-                "utworzone poza PT Calendar Manager można edytować tylko jako pojedyncze wystąpienia.\n\n"
-                "OTWIERANIE W GOOGLE I LINK SPOTKANIA\n"
-                "Otwórz w Google przechodzi do wybranego wydarzenia w przeglądarce. "
-                "Link spotkania można otworzyć albo skopiować, jeżeli został dodany "
-                "do wydarzenia poza PT Calendar Manager.\n\n"
-                "INFORMACJA O NIEZALEŻNOŚCI\n"
-                + INDEPENDENCE_NOTICE_PL
-            )
-        return (
-            "PT Calendar Manager — help and keyboard shortcuts\n\n"
-            "PURPOSE\n"
-            "PT Calendar Manager provides quick, accessible management of Google Calendar. "
-            "More advanced features remain available in Google's official interface.\n\n"
-            "MAIN WINDOW\n"
-            "A standard menu bar at the top contains Calendar, Event, Account, "
-            "Settings and Help. Press the left Alt key to move to the menu bar. "
-            "The days of the current month are listed on the left and events for "
-            "the selected day are on the right. Tab moves only between these two "
-            "lists. Enter on the day list moves focus to events, and Enter on an "
-            "event opens its details. Shift+F10 opens the context menu for the "
-            "focused list.\n\n"
-            "APPLICATION SHORTCUTS\n"
-            "Ctrl+L — sign in to or sign out of Google.\n"
-            "Ctrl+, — open Settings.\n"
-            "Ctrl+K — open Settings; retained as the former calendar shortcut.\n"
-            "F1 — open Help.\n"
-            "Alt+Left Arrow — previous month.\n"
-            "Ctrl+D — today.\n"
-            "Alt+Right Arrow — next month.\n"
-            "Ctrl+G — go to date.\n"
-            "Ctrl+F — search events.\n"
-            "Ctrl+N — add an event.\n"
-            "F5 — refresh data.\n"
-            "Ctrl+E — edit an event.\n"
-            "Delete — delete an event.\n"
-            "Ctrl+Shift+G — open the event in Google Calendar.\n"
-            "Ctrl+J — open or copy a meeting link.\n\n"
-            "APPLICATION LANGUAGE\n"
-            "The available choices are Automatic, Polish and English. Automatic "
-            "uses the Windows language: Polish on a Polish system and English for "
-            "other systems. A manual language change takes effect after PT Calendar Manager is restarted.\n\n"
-            "ABOUT AND PRIVACY\n"
-            "The Help menu contains About with version and author information, "
-            "the independence notice, the Privacy Policy and legal information. "
-            "The Google token is stored locally and encrypted with Windows DPAPI.\n\n"
-            "RECURRING EVENTS\n"
-            "PT Calendar Manager creates and edits basic daily, weekly, monthly, quarterly, "
-            "semiannual and yearly recurrences. Advanced rules created outside "
-            "PT Calendar Manager can only be edited as individual occurrences.\n\n"
-            "OPENING IN GOOGLE AND MEETING LINKS\n"
-            "Open in Google opens the selected event in a browser. A meeting link "
-            "can be opened or copied when it was added to the event outside PT Calendar Manager.\n\n"
-            "INDEPENDENCE NOTICE\n"
-            + INDEPENDENCE_NOTICE_EN
-        )
-
-    def _on_help(self, event: wx.Event) -> None:
-        dialog = HelpDialog(self, self._help_text())
+    def show_help(self) -> None:
+        dialog = HelpDialog(self, get_help_html())
         try:
             dialog.ShowModal()
         finally:
             dialog.Destroy()
         self.days_list.SetFocus()
+
+    def _on_help(self, event: wx.Event) -> None:
+        self.show_help()
 
     def _on_about(self, event: wx.Event) -> None:
         dialog = AboutDialog(self)
@@ -1942,14 +1844,21 @@ class MainFrame(wx.Frame):
 
 
 class PTCalendarManagerApp(wx.App):
+    def __init__(self, *, show_help_on_startup: bool = False) -> None:
+        self._show_help_on_startup = show_help_on_startup
+        super().__init__(redirect=False)
+
     def OnInit(self) -> bool:
         self.SetAppName(PRODUCT_NAME)
         frame = MainFrame()
         frame.Show()
         self.SetTopWindow(frame)
+        if self._show_help_on_startup:
+            wx.CallAfter(frame.show_help)
         return True
 
 
-def main() -> None:
-    app = PTCalendarManagerApp(redirect=False)
+def main(arguments: list[str] | None = None) -> None:
+    args = list(sys.argv[1:] if arguments is None else arguments)
+    app = PTCalendarManagerApp(show_help_on_startup="--show-help" in args)
     app.MainLoop()
