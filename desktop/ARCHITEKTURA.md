@@ -290,3 +290,8 @@ Warstwa `CheckListBoxAccessible` uzupełnia stan każdego dziecka listy o `ACC_S
 Po zdarzeniu `EVT_CHECKLISTBOX` aplikacja wysyła `ACC_EVENT_OBJECT_STATECHANGE` dla właściwego dziecka. Pozwala to czytnikowi natychmiast ogłosić zmianę po naciśnięciu Spacji.
 
 Stan kursora listy (`SELECTED` i `FOCUSED`) oraz stan checkboxa (`CHECKED`) są wyliczane niezależnie. Początkowe zaznaczenia są ustawiane przez `SetCheckedItems`, a kursor trafia na pierwszy faktycznie zaznaczony kalendarz.
+
+
+## Etap 0.15.5 — natywna lista wyboru kalendarzy
+
+Eksperymentalny `wx.CheckListBox` z własnym obiektem MSAA został zastąpiony przez `wx.ListCtrl` z natywnymi polami wyboru Windows (`EnableCheckBoxes`). Systemowy dostawca dostępności ListView pozostaje nienaruszony. Stan fokusu/wyboru wiersza jest niezależny od stanu checkboxa, a aplikacja zapisuje wybór przez `IsItemChecked`.

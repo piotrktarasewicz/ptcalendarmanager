@@ -1,6 +1,6 @@
 [project]
 name = "pt-calendar-manager"
-version = "0.15.4"
+version = "0.15.5"
 description = "Accessible desktop application for Google Calendar"
 requires-python = ">=3.10,<3.14"
 dependencies = [

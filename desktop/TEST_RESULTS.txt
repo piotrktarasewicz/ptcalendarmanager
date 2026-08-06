@@ -1,3 +1,15 @@
+PT Calendar Manager 0.15.5 — automated test results
+
+Spreadsheet runtime warmup failed during python startup
+Traceback (most recent call last):
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
+  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
+artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
 test_accessibility_layer_suppresses_descriptions_for_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_accessibility_layer_suppresses_descriptions_for_buttons) ... ok
 test_main_window_contains_no_command_buttons (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_main_window_contains_no_command_buttons) ... ok
 test_settings_is_a_short_native_menu_command (test_accessibility_stabilization.QuietButtonAccessibilityTests.test_settings_is_a_short_native_menu_command) ... ok
@@ -6,9 +18,6 @@ test_files_are_copied_without_deleting_legacy_data (test_branding_migration.Lega
 test_repeated_migration_is_idempotent (test_branding_migration.LegacyApplicationDataMigrationTests.test_repeated_migration_is_idempotent) ... ok
 test_official_product_name_and_version (test_branding_migration.ProductBrandingTests.test_official_product_name_and_version) ... ok
 test_windows_data_directory_uses_official_name (test_branding_migration.ProductBrandingTests.test_windows_data_directory_uses_official_name) ... ok
-test_checked_state_is_independent_from_list_selection (test_checklist_accessible_state.ChecklistAccessibleStateTests.test_checked_state_is_independent_from_list_selection) ... ok
-test_dialog_initializes_only_saved_checked_items (test_checklist_accessible_state.ChecklistAccessibleStateTests.test_dialog_initializes_only_saved_checked_items) ... ok
-test_state_change_notification_uses_one_based_child_id (test_checklist_accessible_state.ChecklistAccessibleStateTests.test_state_change_notification_uses_one_based_child_id) ... ok
 test_is_logged_in_does_not_refresh_token_or_use_network (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_does_not_refresh_token_or_use_network) ... ok
 test_is_logged_in_is_false_without_saved_credentials (test_first_run_resilience.OAuthUiStateTests.test_is_logged_in_is_false_without_saved_credentials) ... ok
 test_valid_saved_credentials_are_recognized_locally (test_first_run_resilience.OAuthUiStateTests.test_valid_saved_credentials_are_recognized_locally) ... ok
@@ -85,6 +94,11 @@ test_search_matches_calendar_name (test_models.SearchRangeTests.test_search_matc
 test_search_range_end_is_inclusive (test_models.SearchRangeTests.test_search_range_end_is_inclusive) ... ok
 test_search_rejects_empty_query (test_models.SearchRangeTests.test_search_rejects_empty_query) ... ok
 test_search_rejects_reversed_range (test_models.SearchRangeTests.test_search_rejects_reversed_range) ... ok
+test_focus_and_check_state_are_initialized_independently (test_native_calendar_list_accessibility.NativeCalendarListAccessibilityTests.test_focus_and_check_state_are_initialized_independently) ... ok
+test_list_column_tracks_available_width (test_native_calendar_list_accessibility.NativeCalendarListAccessibilityTests.test_list_column_tracks_available_width) ... ok
+test_native_accessibility_provider_is_not_replaced (test_native_calendar_list_accessibility.NativeCalendarListAccessibilityTests.test_native_accessibility_provider_is_not_replaced) ... ok
+test_saved_calendars_are_read_from_native_checkbox_state (test_native_calendar_list_accessibility.NativeCalendarListAccessibilityTests.test_saved_calendars_are_read_from_native_checkbox_state) ... ok
+test_uses_native_windows_list_view_with_checkboxes (test_native_calendar_list_accessibility.NativeCalendarListAccessibilityTests.test_uses_native_windows_list_view_with_checkboxes) ... ok
 test_about_dialog_and_documents_remain_available (test_release_documentation.AboutUiTests.test_about_dialog_and_documents_remain_available) ... ok
 test_about_is_opened_from_help_menu_not_settings (test_release_documentation.AboutUiTests.test_about_is_opened_from_help_menu_not_settings) ... ok
 test_about_and_legal_text_identify_product_and_independence (test_release_documentation.LegalDocumentTests.test_about_and_legal_text_identify_product_and_independence) ... ok
@@ -99,20 +113,21 @@ test_plaintext_token_is_encrypted_and_removed_after_success (test_secure_storage
 test_protected_file_has_magic_and_does_not_store_plaintext (test_secure_storage.ProtectedFileFormatTests.test_protected_file_has_magic_and_does_not_store_plaintext) ... ok
 test_protected_file_round_trip_uses_unprotect (test_secure_storage.ProtectedFileFormatTests.test_protected_file_round_trip_uses_unprotect) ... ok
 test_primary_token_file_uses_dat_extension (test_secure_storage.TokenPathTests.test_primary_token_file_uses_dat_extension) ... ok
-test_accessible_name_is_attached_to_the_focused_control (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_accessible_name_is_attached_to_the_focused_control) ... ok
+test_accessible_name_is_attached_to_the_native_list (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_accessible_name_is_attached_to_the_native_list) ... ok
 test_calendar_selection_is_one_native_check_list (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_calendar_selection_is_one_native_check_list) ... ok
 test_check_list_has_compact_keyboard_model (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_check_list_has_compact_keyboard_model) ... ok
 test_dialog_does_not_use_the_old_tall_panel (test_settings_instruction_accessibility.SettingsInstructionAccessibilityTests.test_dialog_does_not_use_the_old_tall_panel) ... ok
 
 ----------------------------------------------------------------------
-Ran 105 tests in 0.082s
+Ran 107 tests in 0.102s
 
 OK
 
-Kontrola składni wszystkich plików Python: OK
-Kontrola powielonych metod: OK
-Jawny stan MSAA zaznaczenia elementów listy: OK
-Rozdzielenie stanu kursora i checkboxa: OK
-Powiadomienie MSAA po zmianie Spacją: OK
-Deterministyczna inicjalizacja przez SetCheckedItems: OK
-Brak zmian wizualnych i nowych przystanków Tabulatora: OK
+Python syntax validation: OK
+Duplicate method validation: OK
+Native Windows ListView calendar control: OK
+Native ListView checkboxes enabled: OK
+Native accessibility provider preserved: OK
+Row focus separated from checkbox state: OK
+Saved calendar state uses IsItemChecked: OK
+Polish and English translation coverage: OK

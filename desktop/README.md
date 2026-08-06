@@ -1,4 +1,4 @@
-# PT Calendar Manager 0.15.4
+# PT Calendar Manager 0.15.5
 
 **Dostępna aplikacja do obsługi Kalendarza Google**  
 **Accessible desktop application for Google Calendar**
@@ -11,7 +11,7 @@ PT Calendar Manager is a standalone Windows application for quick and accessible
 
 Lista kalendarzy przekazuje czytnikom ekranu jawny stan zaznaczenia każdego elementu i informuje o zmianie po naciśnięciu Spacji.
 
-## Interfejs 0.15.4
+## Interfejs 0.15.5
 
 Główne okno zawiera natywny pasek menu Windows oraz dwie listy: dni miesiąca i wydarzenia wybranego dnia. Tabulator przełącza tylko między listami. Wszystkie polecenia są dostępne z menu, przez dotychczasowe skróty oraz z menu kontekstowych otwieranych klawiszem `Shift+F10`.
 
@@ -43,3 +43,8 @@ PT Calendar Manager is an independent application for accessing Google Calendar.
 3. Dane użytkownika są przechowywane w `%APPDATA%\PT Calendar Manager`.
 
 Token Google jest szyfrowany mechanizmem Windows DPAPI i przechowywany w pliku `token.dat`.
+
+
+### Dostępny wybór kalendarzy w 0.15.5
+
+Ustawienia używają natywnej listy Windows z polami wyboru. Fokus, wybór bieżącego wiersza i stan zaznaczenia kalendarza są od siebie niezależne, co poprawia współpracę z NVDA, JAWS-em i Narratorem.

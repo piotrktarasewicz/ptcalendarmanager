@@ -18,16 +18,17 @@ class SettingsInstructionAccessibilityTests(unittest.TestCase):
         )[1].split("class SearchDialog", 1)[0]
 
     def test_calendar_selection_is_one_native_check_list(self) -> None:
-        self.assertIn("self.calendar_list_ctrl = wx.CheckListBox", self.settings_source)
+        self.assertIn("self.calendar_list_ctrl = wx.ListCtrl", self.settings_source)
         self.assertNotIn("wx.ScrolledWindow", self.settings_source)
         self.assertNotIn("self._checkboxes", self.settings_source)
 
-    def test_accessible_name_is_attached_to_the_focused_control(self) -> None:
+    def test_accessible_name_is_attached_to_the_native_list(self) -> None:
         self.assertIn(
-            "calendar_list_accessible = apply_check_list_box_accessibility(\n"
-            "                self.calendar_list_ctrl,\n"
-            "                accessible_name,\n"
-            "                accessible_description,",
+            "self.calendar_list_ctrl.SetName(accessible_name)",
+            self.settings_source,
+        )
+        self.assertIn(
+            "self.calendar_list_ctrl.SetHelpText(accessible_description)",
             self.settings_source,
         )
         self.assertIn(
@@ -36,9 +37,16 @@ class SettingsInstructionAccessibilityTests(unittest.TestCase):
         )
 
     def test_check_list_has_compact_keyboard_model(self) -> None:
-        self.assertIn("style=wx.LB_SINGLE", self.settings_source)
-        self.assertIn("self.calendar_list_ctrl.IsChecked(index)", self.settings_source)
-        self.assertIn("self.calendar_list_ctrl.SetCheckedItems(checked_indexes)", self.settings_source)
+        self.assertIn("wx.LC_SINGLE_SEL", self.settings_source)
+        self.assertIn("EnableCheckBoxes(True)", self.settings_source)
+        self.assertIn(
+            "self.calendar_list_ctrl.IsItemChecked(index)",
+            self.settings_source,
+        )
+        self.assertIn(
+            "self.calendar_list_ctrl.CheckItem(index, True)",
+            self.settings_source,
+        )
         self.assertIn("Naciśnij spację", self.settings_source)
 
     def test_dialog_does_not_use_the_old_tall_panel(self) -> None:

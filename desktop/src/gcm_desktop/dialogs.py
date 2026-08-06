@@ -31,11 +31,7 @@ from gcm_core.models import (
     recurrence_mode_index,
 )
 
-from .accessibility import (
-    apply_accessible_name,
-    apply_check_list_box_accessibility,
-    notify_check_list_box_state_change,
-)
+from .accessibility import apply_accessible_name
 
 
 def _alt(polish_key: str, english_key: str) -> str:
@@ -761,7 +757,7 @@ class SettingsDialog(wx.Dialog):
         )
         self._calendars = calendars
         self._original_selected_ids = set(selected_ids)
-        self.calendar_list_ctrl: wx.CheckListBox | None = None
+        self.calendar_list_ctrl: wx.ListCtrl | None = None
         self._accessible_objects: list[wx.Accessible] = []
         self._language_values = language_choice_values()
 
@@ -823,33 +819,60 @@ class SettingsDialog(wx.Dialog):
                 )
                 for calendar in calendars
             ]
-            self.calendar_list_ctrl = wx.CheckListBox(
+            self.calendar_list_ctrl = wx.ListCtrl(
                 calendar_group,
-                choices=calendar_labels,
-                style=wx.LB_SINGLE,
+                style=(
+                    wx.LC_REPORT
+                    | wx.LC_SINGLE_SEL
+                    | wx.LC_NO_HEADER
+                    | wx.BORDER_SUNKEN
+                ),
             )
+            if not self.calendar_list_ctrl.EnableCheckBoxes(True):
+                raise RuntimeError(
+                    tr("Systemowa lista kalendarzy nie obsługuje pól wyboru.")
+                )
+            self.calendar_list_ctrl.InsertColumn(0, tr("Kalendarz"))
+            for index, label in enumerate(calendar_labels):
+                self.calendar_list_ctrl.InsertItem(index, label)
             self.calendar_list_ctrl.SetMinSize((580, 220))
+
             checked_indexes = [
                 index
                 for index, calendar in enumerate(calendars)
                 if calendar.calendar_id in selected_ids
             ]
-            self.calendar_list_ctrl.SetCheckedItems(checked_indexes)
-            selected_index = checked_indexes[0] if checked_indexes else 0
-            self.calendar_list_ctrl.SetSelection(selected_index)
+            for index in checked_indexes:
+                self.calendar_list_ctrl.CheckItem(index, True)
+
+            # The focused row and the checked state are deliberately separate.
+            # Always begin at the first calendar instead of moving focus to the
+            # first checked item. Native Windows ListView accessibility exposes
+            # selection/focus and checkbox state as independent properties.
+            self.calendar_list_ctrl.Select(0)
+            self.calendar_list_ctrl.Focus(0)
+            self.calendar_list_ctrl.EnsureVisible(0)
+
             accessible_name = (
                 f"{tr('Kalendarze do wyświetlania')}. {instruction_text}"
             )
             accessible_description = tr(
                 "Poruszaj się strzałkami. Naciśnij spację, aby zaznaczyć lub odznaczyć kalendarz."
             )
-            calendar_list_accessible = apply_check_list_box_accessibility(
-                self.calendar_list_ctrl,
-                accessible_name,
-                accessible_description,
+            # Keep the native Windows accessibility provider intact. JAWS,
+            # Narrator and NVDA can then use the ListView row navigation and
+            # its native checkbox state. SetAccessible() is intentionally not
+            # used for this control.
+            self.calendar_list_ctrl.SetName(accessible_name)
+            self.calendar_list_ctrl.SetHelpText(accessible_description)
+            try:
+                self.calendar_list_ctrl.SetToolTip(accessible_description)
+            except Exception:
+                pass
+            self.calendar_list_ctrl.Bind(
+                wx.EVT_SIZE,
+                self._on_calendar_list_size,
             )
-            if calendar_list_accessible is not None:
-                self._accessible_objects.append(calendar_list_accessible)
             calendar_box.Add(
                 self.calendar_list_ctrl,
                 1,
@@ -918,19 +941,12 @@ class SettingsDialog(wx.Dialog):
         self.SetSize((700, 470))
         self.CentreOnParent()
         self.save_button.Bind(wx.EVT_BUTTON, self._on_save)
-        if self.calendar_list_ctrl is not None:
-            self.calendar_list_ctrl.Bind(
-                wx.EVT_CHECKLISTBOX,
-                self._on_calendar_check,
-            )
         wx.CallAfter(self.language_ctrl.SetFocus)
 
-    def _on_calendar_check(self, event: wx.CommandEvent) -> None:
+    def _on_calendar_list_size(self, event: wx.SizeEvent) -> None:
         if self.calendar_list_ctrl is not None:
-            notify_check_list_box_state_change(
-                self.calendar_list_ctrl,
-                event.GetInt(),
-            )
+            width = max(120, self.calendar_list_ctrl.GetClientSize().width - 4)
+            self.calendar_list_ctrl.SetColumnWidth(0, width)
         event.Skip()
 
     def _on_save(self, event: wx.CommandEvent) -> None:
@@ -954,7 +970,7 @@ class SettingsDialog(wx.Dialog):
         return [
             calendar.calendar_id
             for index, calendar in enumerate(self._calendars)
-            if self.calendar_list_ctrl.IsChecked(index)
+            if self.calendar_list_ctrl.IsItemChecked(index)
         ]
 
     def language_preference(self) -> str:
