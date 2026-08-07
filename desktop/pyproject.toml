@@ -35,8 +35,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://ptprojects.app/"
-Documentation = "https://ptprojects.app/"
-Source = "https://github.com/piotrktarasewicz/"
+Documentation = "https://github.com/piotrktarasewicz/ptcalendarmanager/tree/main/desktop/docs"
+Source = "https://github.com/piotrktarasewicz/ptcalendarmanager"
+Releases = "https://github.com/piotrktarasewicz/ptcalendarmanager/releases"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

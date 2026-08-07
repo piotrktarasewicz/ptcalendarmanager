@@ -8,6 +8,8 @@ szybkiego i dostępnego zarządzania wydarzeniami Kalendarza Google. Interfejs
 jest obsługiwany klawiaturą i praktycznie przetestowany z NVDA, JAWS-em oraz
 Narratorem.
 
+[Pobierz instalator lub wersję przenośną PT Calendar Manager 0.16.3](https://github.com/piotrktarasewicz/ptcalendarmanager/releases/tag/desktop-v0.16.3)
+
 Wersja 0.16.3 dołącza konfigurację klienta OAuth do oficjalnego instalatora i
 pakietu przenośnego. Dzięki temu logowanie na czystym komputerze nie wymaga
 ręcznego kopiowania pliku `client_secret.json`. Token konkretnego użytkownika

@@ -1,38 +1,60 @@
 # PT Calendar Manager
 
-To repozytorium łączy pełną historię trzech kolejnych nazw i dwóch form programu:
+Repozytorium zawiera dwa aktualne, dostępne narzędzia do obsługi Kalendarza Google:
 
-- Google Calendar Reader — pierwotna nazwa dodatku NVDA;
-- Google Calendar Manager — późniejsza nazwa dodatku NVDA;
-- PT Calendar Manager — samodzielna aplikacja dla systemu Windows.
+- **PT Calendar Manager 0.16.3** — samodzielną aplikację dla Windows;
+- **Google Calendar Manager 1.0.4** — dodatek dla czytnika ekranu NVDA.
 
-Aktualna wersja samodzielnej aplikacji to 0.16.3.
+Oba programy są przeznaczone do obsługi klawiaturą i współpracy z czytnikami ekranu.
+
+## Pobieranie
+
+### PT Calendar Manager 0.16.3
+
+- [Strona wydania 0.16.3](https://github.com/piotrktarasewicz/ptcalendarmanager/releases/tag/desktop-v0.16.3)
+- [Instalator dla Windows](https://github.com/piotrktarasewicz/ptcalendarmanager/releases/download/desktop-v0.16.3/PT-Calendar-Manager-0.16.3-Setup.exe)
+- [Wersja przenośna](https://github.com/piotrktarasewicz/ptcalendarmanager/releases/download/desktop-v0.16.3/pt-calendar-manager-0.16.3-portable.zip)
+
+### Dodatek Google Calendar Manager 1.0.4 dla NVDA
+
+- [Strona wydania 1.0.4](https://github.com/piotrktarasewicz/ptcalendarmanager/releases/tag/v1.0.4)
+- [Paczka dodatku NVDA](https://github.com/piotrktarasewicz/ptcalendarmanager/releases/download/v1.0.4/googleCalendarManager-1.0.4.nvda-addon)
 
 ## Układ repozytorium
 
-- `desktop/` — aktualne źródła PT Calendar Manager 0.16.3;
-- `legacy/nvda-addon/` — ostatnie źródła dodatku NVDA Google Calendar Manager 1.0.4;
-- `docs/` — opis migracji, historii i archiwum;
-- gałąź `archive/all-project-files` — archiwalne paczki, instalatory, prototypy, logi robocze i plany testów;
-- gałęzie `history/google-calendar-manager-site` i `history/google-calendar-reader-redirect` — odfiltrowana historia dawnych stron projektu;
-- gałęzie `legacy/nvda-fix-event-editing-1.0.4` i `legacy/nvda-inline-custom-search-range` — zachowane gałęzie robocze dodatku NVDA.
+- `desktop/` — źródła PT Calendar Manager 0.16.3;
+- `nvda-addon/` — źródła dodatku Google Calendar Manager 1.0.4;
+- `docs/` — kontekst projektu, zasady rozwoju, wydawania oraz bezpieczeństwa OAuth;
+- `AGENTS.md` — trwałe instrukcje dla narzędzi wspomagających rozwój;
+- `.github/workflows/tests.yml` — automatyczna kontrola źródeł, testów i prywatnych plików.
 
-## Historia wersji
+Historia kodu pozostaje w gałęzi `main`, ponieważ zajmuje niewiele miejsca i jest przydatna przy diagnozowaniu regresji. Duże instalatory i paczki nie są przechowywane w historii Git — aktualne pliki dystrybucyjne znajdują się w GitHub Releases.
 
-Tagi `v1.0.2`, `v1.0.3` i `v1.0.4` dotyczą dodatku NVDA.
+## Rozwój
 
-Tagi od `desktop-v0.1.0` do `desktop-v0.16.3` oznaczają odtworzone z zachowanych paczek źródłowych wersje aplikacji samodzielnej. Każda wersja ma osobny commit, dzięki czemu można porównywać rozwój projektu od prototypu wxPython.
+Przed rozpoczęciem zmian przeczytaj:
 
-## Uruchamianie i budowanie
+- [Kontekst projektu](docs/KONTEKST_PROJEKTU.md);
+- [Rozwój i wydania](docs/ROZWOJ_I_WYDANIA.md);
+- [OAuth i bezpieczeństwo](docs/OAUTH_I_BEZPIECZENSTWO.md);
+- [Zasady bezpieczeństwa repozytorium](SECURITY.md).
 
-Instrukcje aktualnej wersji znajdują się w `desktop/README.md`. Kompletne wydania Windows są przechowywane na gałęzi archiwalnej.
+Instrukcje właściwe dla obu produktów znajdują się także w plikach:
 
-## Dane OAuth i prywatność
+- [desktop/README.md](desktop/README.md);
+- [nvda-addon/README_pl.md](nvda-addon/README_pl.md);
+- [nvda-addon/BUILD.md](nvda-addon/BUILD.md).
 
-Prawdziwe tokeny użytkownika, pliki `.env`, `token.json`, `token.dat` i luźne pliki `client_secret.json` nie są przechowywane w historii źródeł. Repozytorium zawiera wyłącznie przykładową konfigurację dodatku NVDA oraz oficjalne paczki binarne przeznaczone do dystrybucji.
+## Status Google OAuth
 
-Prywatne identyfikatory wydarzeń, nazwy kalendarzy i treść wydarzeń zostały usunięte z kopii historycznych logów diagnostycznych.
+Aplikacja nie przeszła jeszcze publicznej weryfikacji Google. Do czasu jej zakończenia logowanie może być dostępne wyłącznie dla kont dodanych jako użytkownicy testowi projektu OAuth. Wersja 1.0 RC aplikacji samodzielnej jest planowana dopiero po zakończeniu tego etapu.
+
+## Prywatność
+
+Repozytorium nie zawiera tokenów użytkowników, plików `.env`, `token.json`, `token.dat` ani rzeczywistego luźnego pliku `client_secret.json`.
+
+Oficjalny instalator i pakiet przenośny PT Calendar Manager 0.16.3 zawierają konfigurację publicznego klienta OAuth typu Desktop app, niezbędną do pierwszego logowania. Token konkretnego użytkownika powstaje dopiero po jego zgodzie i jest szyfrowany lokalnie przez Windows DPAPI.
 
 ## Licencja
 
-Kod źródłowy jest udostępniany na warunkach GPL-3.0-or-later. Szczegóły i informacje o składnikach zewnętrznych znajdują się również w katalogach `desktop/` oraz `legacy/nvda-addon/`.
+Kod źródłowy jest udostępniany na warunkach GNU General Public License w wersji 3 lub nowszej (`GPL-3.0-or-later`).
